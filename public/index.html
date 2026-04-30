@@ -128,7 +128,6 @@ input::placeholder{color:#aaa;font-weight:normal}
 .ign span{font-size:12px;font-weight:bold;color:#666}
 .ccard-online{color:var(--ms-green);font-size:11px;font-weight:900;border:1.5px solid;padding:2px 6px;border-radius:4px}
 .ccard-offline{color:var(--ms-red);font-size:11px;font-weight:900;border:1.5px solid;padding:2px 6px;border-radius:4px}
-.ccard.ccard-dim{opacity:0.45;filter:grayscale(60%)}
 
 /* 소비템 바 (1행 × 5칸, 작고 납작) */
 .consumable-bar{display:flex;gap:3px;background:rgba(0,0,0,0.06);padding:4px;border:1px solid var(--ms-border-dark);margin-bottom:5px}
@@ -239,7 +238,7 @@ input::placeholder{color:#aaa;font-weight:normal}
     <!-- 오너 전용 -->
     <button class="tab-btn owner-tab" id="tab-btn-meso"    onclick="switchTab('meso',this)">MESO TRACKER 🔒</button>
     <button class="tab-btn owner-tab" id="tab-btn-reg"     onclick="switchTab('register',this)">REGISTER CLIENT 🔒</button>
-    <button class="tab-btn" id="tab-btn-log"     onclick="switchTab('changelog',this)">CHANGE LOG</button>
+    <button class="tab-btn owner-tab" id="tab-btn-log"     onclick="switchTab('changelog',this)">CHANGE LOG 🔒</button>
 
   </div>
 
@@ -366,7 +365,21 @@ input::placeholder{color:#aaa;font-weight:normal}
 
   <!-- ══ TAB: CHANGE LOG (오너 전용) ══ -->
   <div class="tab-content" id="tab-changelog">
-    <div id="changelog-content" style="display:block">
+    <div id="changelog-lock" class="tab-lock">
+      <div class="tab-lock-box">
+        <div class="lock-icon">🔐</div>
+        <div class="lock-title">Owner Only</div>
+        <div class="lock-sub">비밀번호를 입력해주세요</div>
+        <div class="form-row" style="margin-top:0">
+          <input type="password" id="pw-changelog" placeholder="비밀번호"
+            style="text-align:center;letter-spacing:4px"
+            onkeydown="if(event.key==='Enter')tryAuth('changelog')"/>
+          <button class="btn" onclick="tryAuth('changelog')">입장</button>
+        </div>
+        <div id="err-changelog" class="notify err" style="text-align:center"></div>
+      </div>
+    </div>
+    <div id="changelog-content" style="display:none">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
         <div class="section-title" style="margin-bottom:0">Bot Change Log</div>
         <div style="display:flex;gap:8px;align-items:center">
@@ -430,7 +443,7 @@ function applyAuth() {
   document.getElementById("auth-badge").style.display  = "inline-block";
 
   // 잠금 해제: meso, reg
-  ["meso","reg"].forEach(k => {
+  ["meso","reg","changelog"].forEach(k => {
     const lock = document.getElementById(k+"-lock");
     const cont = document.getElementById(k+"-content");
     if (lock) lock.style.display = "none";
@@ -440,6 +453,7 @@ function applyAuth() {
   // 탭 버튼 자물쇠 제거
   document.getElementById("tab-btn-meso").textContent = "MESO TRACKER";
   document.getElementById("tab-btn-reg").textContent  = "REGISTER CLIENT";
+  document.getElementById("tab-btn-log").textContent  = "CHANGE LOG";
   document.querySelectorAll(".owner-tab").forEach(b=>b.classList.remove("owner-tab"));
 
   // SELLER 탭에 오너 관리 패널 추가
@@ -748,11 +762,10 @@ function renderMesoCards(data) {
       findItem(items, "black_flame"),
     ].map(it => makeSlot(it)).join("");
 
-    const offlineAgo = !d.online ? `<span style="font-size:10px;color:var(--ms-red);font-family:'JetBrains Mono',monospace;margin-left:6px">(${formatAgo(d.ago_sec)})</span>` : '';
-    return `<div class="ccard${d.online?'':' ccard-dim'}">
+    return `<div class="ccard">
       <div class="ccard-head">
         <div>
-          <div class="ign">${d.ign||'Unknown'} <span>Lv.${d.level||'?'}</span>${offlineAgo}</div>
+          <div class="ign">${d.ign||'Unknown'} <span>Lv.${d.level||'?'}</span></div>
           <div style="font-size:11px;color:#555;font-weight:bold">OWNER: ${d.owner||'Hyeong'}</div>
         </div>
         <div class="${d.online?'ccard-online':'ccard-offline'}">${d.online?'ONLINE':'OFFLINE'}</div>
@@ -767,7 +780,7 @@ function renderMesoCards(data) {
       </div>
 
       <div class="efficiency-bar" style="margin:8px 0 6px"><div class="bar-fill" style="width:${barW}%"></div></div>
-      <div class="status-row"><span>MESO/HR</span><span class="v" style="color:${d.online?'#e67e22':'var(--ms-red)'}">${d.online?fmt(d.meso_hr):'— OFFLINE'}</span></div>
+      <div class="status-row"><span>MESO/HR</span><span class="v" style="color:#e67e22">${fmt(d.meso_hr)}</span></div>
       <div class="status-row"><span>TOTAL MESO</span><span class="v">${fmt(d.meso)}</span></div>
       <div class="ccard-bottom-controls"><div class="ccard-money">
         <div class="money-pill"><img src="/images/meso.png" class="money-icon"><span class="money-val">${fmt(d.meso)}</span></div>
@@ -777,7 +790,7 @@ function renderMesoCards(data) {
 }
 
 // ── SELLER CALC ──
-// ✅ Discord Webhook URL (설정 완료)
+// 👇 Set your Discord Webhook URL here:
 const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1498930266570494036/DUEJUxMwR61BdxjQs5nTw5MBokX6vEHW8eM0VuQ9xriA6MisV36PMdtXFjZwLzufiyhq";
 const RATE_PER_HOUR = 50_000_000;
 
@@ -885,7 +898,9 @@ async function sendDiscord() {
   const imgFile=document.getElementById("wh-img").files[0];
   const n=document.getElementById("wh-notify");
   const url=DISCORD_WEBHOOK_URL;
-  if(!url||!url.startsWith("https://discord.com/api/webhooks/")){n.className="notify err";n.textContent="! 유효한 Discord Webhook URL이 아닙니다";return;}
+  if(!url||url==="https://discord.com/api/webhooks/1498930266570494036/DUEJUxMwR61BdxjQs5nTw5MBokX6vEHW8eM0VuQ9xriA6MisV36PMdtXFjZwLzufiyhq"){
+    n.className="notify err"; n.textContent="! Webhook URL not configured — edit DISCORD_WEBHOOK_URL in the source"; return;
+  }
   const total=sessions.reduce((sum,s)=>sum+(s._meso||0),0);
   const lines=sessions.filter(s=>s._meso>0).map((s,i)=>{
     const hrs=((new Date(s.end)-new Date(s.start))/3600000).toFixed(2);
@@ -991,7 +1006,6 @@ async function init() {
   checkAuth();
   await loadMapNames();
   fetchFC();
-  fetchChangelog(); // changelog is public — load immediately
   renderSessions(); // init empty state
   setInterval(()=>{fetchFC();if(isAuthed)fetchMeso();},10000);
 }
