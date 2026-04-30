@@ -76,10 +76,16 @@ async function getDb() {
     );
   `);
 
-  db.run("INSERT OR IGNORE INTO tokens  (owner, token) VALUES (?,?)",
-    ["Hyeong","fd9601cc2d89007ea64825510908023994b55e445d8d930ed582f7a8532afe30"]);
-  db.run("INSERT OR IGNORE INTO clients (owner, token) VALUES (?,?)",
-    ["Hyeong","b5e3720c6f67aed053c977b9a70f1587c746f09410b24dac02cca866e6d2deda"]);
+  // ── 기본 클라이언트 시드 (서버 재시작해도 항상 유지) ──
+  // INSERT OR IGNORE 이므로 중복 삽입 없음
+  const DEFAULT_CLIENTS = [
+    { owner: "Hyeong", token_t: "fd9601cc2d89007ea64825510908023994b55e445d8d930ed582f7a8532afe30",
+                       token_c: "b5e3720c6f67aed053c977b9a70f1587c746f09410b24dac02cca866e6d2deda" },
+  ];
+  for (const c of DEFAULT_CLIENTS) {
+    db.run("INSERT OR IGNORE INTO tokens  (owner, token) VALUES (?,?)", [c.owner, c.token_t]);
+    db.run("INSERT OR IGNORE INTO clients (owner, token) VALUES (?,?)", [c.owner, c.token_c]);
+  }
 
   persist();
   return db;
