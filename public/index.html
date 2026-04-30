@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Hyeong's Maple Dash</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@800&display=swap" rel="stylesheet"/>
+<style>
+@font-face {
+  font-family: 'MaplestoryOTFBold';
+  src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@ProjectNoonnu_2.1/MaplestoryOTFBold.woff') format('woff');
+}
+:root {
+  --ms-bg:#e0f7fa; --ms-panel:#ffffff; --ms-panel-dark:#b2ebf2;
+  --ms-slot:#e0f2f1; --ms-border-light:#ffffff; --ms-border-dark:#81d4fa;
+  --ms-accent:#ffb300; --ms-text:#006064; --ms-header-text:#ffffff;
+  --ms-green:#2ecc71; --ms-red:#e74c3c; --ms-gold:#f59e0b;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--ms-bg);font-family:'MaplestoryOTFBold',sans-serif;color:var(--ms-text)}
+
+/* HEADER */
+header{background:linear-gradient(180deg,#00acc1 0%,#0097a7 100%);border-bottom:2px solid var(--ms-accent);padding:10px 24px;display:flex;align-items:center;gap:15px}
+.header-logo{width:40px;height:40px;border-radius:50%;border:2px solid var(--ms-accent);background:#0d0d0d url('/images/cat-logo.png') no-repeat center/contain}
+.header-title{font-size:20px;font-weight:800;color:#fff;text-shadow:1px 1px 0 rgba(0,0,0,.2)}
+.header-nav{margin-left:auto;display:flex;gap:10px;align-items:center}
+.nav-link{font-size:12px;font-weight:800;color:rgba(255,255,255,.8);text-decoration:none;border:1.5px solid rgba(255,255,255,.4);padding:4px 12px;border-radius:4px;transition:all .2s}
+.nav-link:hover,.nav-link.active{color:#fff;border-color:var(--ms-accent);background:rgba(255,179,0,.15)}
+#last-upd{font-size:12px;color:rgba(255,255,255,.7)}
+
+/* BANNER - owner only */
+.summary-banner{display:flex;justify-content:center;align-items:center;gap:15px;padding:15px 20px;min-height:200px;background:#111 url('/images/event_banner_bg.png') no-repeat center/cover;background-position:center 30%;box-shadow:inset 0 0 60px rgba(0,0,0,.7);border-bottom:3px solid var(--ms-accent);flex-wrap:wrap}
+.info-pill{background:#1a1a1a;border:2px solid var(--ms-accent);border-radius:4px;padding:6px 15px;display:flex;align-items:center;gap:10px;min-width:140px;box-shadow:2px 2px 8px rgba(0,0,0,.5)}
+.info-pill.status{border-color:var(--ms-green)}
+.info-content{display:flex;flex-direction:column;align-items:center;flex-grow:1}
+.info-label{font-size:10px;color:#fb8c00;letter-spacing:.5px;margin-bottom:2px;font-weight:bold}
+.info-val{font-size:18px;color:#fff;font-family:'JetBrains Mono',monospace;text-shadow:1px 1px 2px #000;font-weight:800}
+.status-v{color:var(--ms-green)!important}
+
+/* MAIN */
+main{padding:20px;max-width:1400px;margin:0 auto}
+.section-title{font-size:13px;font-weight:800;letter-spacing:1px;color:var(--ms-text);display:flex;align-items:center;gap:10px;margin-bottom:14px;text-transform:uppercase}
+.section-title::before{content:'';display:block;width:3px;height:14px;background:var(--ms-accent)}
+
+/* TABS */
+.tab-bar{display:flex;gap:2px;margin-bottom:20px;border-bottom:2px solid var(--ms-border-dark);flex-wrap:wrap}
+.tab-btn{padding:8px 18px;font-size:12px;font-weight:800;font-family:'MaplestoryOTFBold',sans-serif;color:#888;background:transparent;border:none;border-bottom:3px solid transparent;cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:all .2s;margin-bottom:-2px}
+.tab-btn:hover{color:var(--ms-text)}
+.tab-btn.active{color:var(--ms-text);border-bottom-color:var(--ms-accent)}
+/* owner-only tab tint */
+.tab-btn.owner-tab{color:#b0bec5}
+.tab-btn.owner-tab.active{color:var(--ms-text)}
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* TABLE */
+.table-wrap{background:var(--ms-panel);border-top:2px solid var(--ms-border-light);border-left:2px solid var(--ms-border-light);border-right:2px solid var(--ms-border-dark);border-bottom:2px solid var(--ms-border-dark);box-shadow:3px 3px 12px rgba(0,0,0,.1);overflow:hidden;margin-bottom:20px}
+table{width:100%;border-collapse:collapse}
+thead tr{background:var(--ms-panel-dark);border-bottom:2px solid var(--ms-border-dark)}
+th{padding:10px 14px;font-size:10px;letter-spacing:2px;color:var(--ms-text);text-align:left;text-transform:uppercase;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover{color:#004d40}
+th .sort-icon{margin-left:4px;opacity:.5}
+th.sort-asc .sort-icon::after{content:'▲'}
+th.sort-desc .sort-icon::after{content:'▼'}
+th:not(.sort-asc):not(.sort-desc) .sort-icon::after{content:'⇅'}
+tbody tr{border-bottom:1px solid var(--ms-panel-dark);transition:background .15s;animation:row-in .25s ease both}
+tbody tr:hover{background:rgba(0,172,193,.06)}
+@keyframes row-in{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+td{padding:11px 14px;font-size:14px;font-weight:800}
+.td-ign{color:#004d40;font-family:'JetBrains Mono',monospace;font-size:13px}
+.td-owner{color:#0097a7;font-family:'JetBrains Mono',monospace;font-size:12px}
+.td-level{color:#e67e22;font-family:'JetBrains Mono',monospace}
+.td-loc{font-family:'JetBrains Mono',monospace;font-size:12px;color:#888}
+.td-loc span{color:var(--ms-text)}
+.td-ago{font-family:'JetBrains Mono',monospace;font-size:11px;color:#999}
+.badge-online{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:900;color:var(--ms-green);border:1.5px solid var(--ms-green);padding:2px 8px;border-radius:4px}
+.badge-online::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--ms-green);box-shadow:0 0 6px var(--ms-green);animation:blink 1.5s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.badge-offline{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:900;color:var(--ms-red);border:1.5px solid var(--ms-red);padding:2px 8px;border-radius:4px}
+.badge-offline::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--ms-red)}
+.empty-state{padding:50px 20px;text-align:center;color:#aaa;font-size:13px;font-family:'JetBrains Mono',monospace;letter-spacing:1px}
+
+/* CHANGED CELL */
+.cell-changed{background:rgba(231,76,60,0.08)!important}
+.changed-badge{display:inline-flex;align-items:center;font-size:9px;font-weight:900;color:#fff;background:var(--ms-red);padding:1px 5px;border-radius:3px;margin-left:5px;vertical-align:middle;letter-spacing:.5px;animation:pulse-badge .7s ease 4}
+@keyframes pulse-badge{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(1.15)}}
+
+/* CHANGE LOG TABLE */
+.log-field-ch{color:#0097a7;font-weight:900;font-family:'JetBrains Mono',monospace;font-size:11px;border:1.5px solid #0097a7;padding:1px 6px;border-radius:3px}
+.log-field-map{color:#e67e22;font-weight:900;font-family:'JetBrains Mono',monospace;font-size:11px;border:1.5px solid #e67e22;padding:1px 6px;border-radius:3px}
+.log-old{color:#bbb;font-family:'JetBrains Mono',monospace;font-size:12px;text-decoration:line-through}
+.log-new{color:var(--ms-text);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800}
+.log-time{font-family:'JetBrains Mono',monospace;font-size:11px;color:#888;white-space:nowrap}
+
+/* MAP INLINE EDIT */
+.map-cell{display:flex;align-items:center;gap:6px;cursor:default}
+.map-cell .map-label{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ms-text)}
+.map-cell .map-id{font-family:'JetBrains Mono',monospace;font-size:11px;color:#aaa}
+.map-edit-btn{display:none;background:none;border:1px solid #81d4fa;color:#0097a7;font-size:10px;font-family:'JetBrains Mono',monospace;font-weight:800;padding:1px 6px;cursor:pointer;border-radius:2px;white-space:nowrap}
+.map-edit-btn:hover{background:var(--ms-panel-dark)}
+tr:hover .map-edit-btn{display:inline-block}
+.map-inline-form{display:flex;gap:5px;align-items:center}
+.map-inline-input{background:var(--ms-slot);border:1.5px solid var(--ms-accent);color:var(--ms-text);padding:3px 8px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800;outline:none;min-width:160px}
+.map-inline-save{background:linear-gradient(180deg,#00acc1,#0097a7);border:1.5px solid var(--ms-accent);color:#fff;font-family:'MaplestoryOTFBold',sans-serif;font-size:10px;font-weight:800;padding:3px 10px;cursor:pointer}
+.map-inline-cancel{background:none;border:1.5px solid #aaa;color:#888;font-family:'MaplestoryOTFBold',sans-serif;font-size:10px;font-weight:800;padding:3px 8px;cursor:pointer}
+
+/* FORMS */
+.panel-box{background:var(--ms-panel);border-top:2px solid var(--ms-border-light);border-left:2px solid var(--ms-border-light);border-right:2px solid var(--ms-border-dark);border-bottom:2px solid var(--ms-border-dark);box-shadow:3px 3px 12px rgba(0,0,0,.1);padding:18px;margin-bottom:20px}
+.form-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:12px}
+.form-group{display:flex;flex-direction:column;gap:5px;flex:1;min-width:160px}
+label{font-size:10px;letter-spacing:1.5px;color:#888;text-transform:uppercase;font-family:'JetBrains Mono',monospace}
+input,select{background:var(--ms-slot);border-top:1px solid #fff;border-left:1px solid #fff;border-right:1px solid var(--ms-border-dark);border-bottom:1px solid var(--ms-border-dark);color:var(--ms-text);padding:8px 11px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:800;outline:none;width:100%;transition:border-color .2s}
+input:focus,select:focus{border-color:var(--ms-accent)}
+input::placeholder{color:#aaa;font-weight:normal}
+.btn{padding:9px 20px;background:linear-gradient(180deg,#00acc1,#0097a7);border:2px solid var(--ms-accent);color:#fff;font-family:'MaplestoryOTFBold',sans-serif;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all .2s;white-space:nowrap}
+.btn:hover{filter:brightness(1.1)}
+.btn.btn-red{background:linear-gradient(180deg,#e74c3c,#c0392b);border-color:#e74c3c}
+.btn.btn-gold{background:linear-gradient(180deg,#f59e0b,#d97706);border-color:#f59e0b}
+.notify{margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ms-green);min-height:18px;letter-spacing:1px}
+.notify.err{color:var(--ms-red)}
+
+/* MESO CARDS */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px;margin-bottom:20px}
+.ccard{background:var(--ms-panel);border-top:2px solid var(--ms-border-light);border-left:2px solid var(--ms-border-light);border-right:2px solid var(--ms-border-dark);border-bottom:2px solid var(--ms-border-dark);padding:15px;box-shadow:3px 3px 12px rgba(0,0,0,.1)}
+.ccard-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;padding-bottom:6px;border-bottom:1.5px solid var(--ms-border-dark)}
+.ign{font-size:18px;font-weight:800;color:#004d40}
+.ign span{font-size:12px;font-weight:bold;color:#666}
+.ccard-online{color:var(--ms-green);font-size:11px;font-weight:900;border:1.5px solid;padding:2px 6px;border-radius:4px}
+.ccard-offline{color:var(--ms-red);font-size:11px;font-weight:900;border:1.5px solid;padding:2px 6px;border-radius:4px}
+.ccard.ccard-dim{opacity:0.45;filter:grayscale(60%)}
+
+/* 소비템 바 (1행 × 5칸, 작고 납작) */
+.consumable-bar{display:flex;gap:3px;background:rgba(0,0,0,0.06);padding:4px;border:1px solid var(--ms-border-dark);margin-bottom:5px}
+.c-slot{width:36px;height:36px;flex-shrink:0;background:var(--ms-slot);border-top:1px solid #fff;border-left:1px solid #fff;border-right:1px solid var(--ms-border-dark);border-bottom:1px solid var(--ms-border-dark);display:flex;align-items:center;justify-content:center;position:relative}
+.c-slot img{width:82%;height:82%;object-fit:contain;image-rendering:pixelated}
+.c-slot .slot-count{font-size:9px;bottom:1px;right:1px}
+
+/* 메인 인벤토리 - 줄별 가변 칸 */
+.inv-section{background:var(--ms-panel-dark);padding:4px;border:1px solid var(--ms-border-dark);margin-bottom:4px}
+.inv-row{display:flex;gap:3px}
+.inv-row:not(:last-child){margin-bottom:3px}
+.slot{width:48px;height:48px;flex-shrink:0;background:var(--ms-slot);border-top:1px solid #fff;border-left:1px solid #fff;border-right:1px solid var(--ms-border-dark);border-bottom:1px solid var(--ms-border-dark);display:flex;align-items:center;justify-content:center;position:relative}
+.slot img{width:85%;height:85%;object-fit:contain;image-rendering:pixelated}
+.slot-count{position:absolute;bottom:2px;right:2px;font-size:11px;font-weight:900;font-family:'JetBrains Mono',monospace;color:#fff;text-shadow:-1.5px -1.5px 0 #000,1.5px -1.5px 0 #000,-1.5px 1.5px 0 #000,1.5px 1.5px 0 #000;z-index:5;line-height:1}
+.efficiency-bar{background:#eee;height:12px;border-radius:6px;overflow:hidden;margin:10px 0;border:1px solid var(--ms-border-dark)}
+.bar-fill{height:100%;background:linear-gradient(to right,#00c853,#b2ff59);transition:width .6s ease}
+.status-row{display:flex;justify-content:space-between;font-size:13px;margin-top:5px;font-weight:bold}
+.v{color:#000;font-family:'JetBrains Mono',monospace;font-weight:800;font-size:14px}
+.ccard-bottom-controls{margin-top:12px;padding-top:8px;border-top:1px solid var(--ms-border-dark)}
+.ccard-money{display:flex;justify-content:center}
+.money-pill{display:flex;align-items:center;gap:6px;background:#f9f9f9;border:1.5px solid var(--ms-border-dark);padding:4px 12px;border-radius:6px}
+.money-icon{width:16px;height:16px;image-rendering:pixelated}
+.money-val{font-family:'JetBrains Mono',monospace;color:#004d40;font-weight:800;font-size:14px}
+
+/* SELLER CARDS */
+.seller-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:20px}
+.seller-card{background:var(--ms-panel);border-top:2px solid var(--ms-border-light);border-left:2px solid var(--ms-border-light);border-right:2px solid var(--ms-border-dark);border-bottom:2px solid var(--ms-border-dark);box-shadow:3px 3px 12px rgba(0,0,0,.1);padding:16px}
+.seller-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1.5px solid var(--ms-border-dark)}
+.seller-name{font-size:16px;font-weight:800;color:#004d40}
+.seller-total{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:800;color:var(--ms-gold)}
+.seller-meta{font-size:11px;color:#888;font-family:'JetBrains Mono',monospace;margin-bottom:3px}
+.seller-actions{display:flex;gap:6px;margin-top:10px}
+
+/* IMG PREVIEW */
+.img-preview{max-height:80px;max-width:120px;margin-top:8px;border:2px solid var(--ms-border-dark);display:none;image-rendering:pixelated;object-fit:contain}
+
+/* SESSION ROWS */
+.session-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;background:var(--ms-slot);border-top:1px solid #fff;border-left:1px solid #fff;border-right:1px solid var(--ms-border-dark);border-bottom:1px solid var(--ms-border-dark);margin-bottom:8px;position:relative}
+.session-row:last-child{margin-bottom:0}
+.session-num{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:800;color:#888;min-width:22px;text-align:center}
+.session-dt{display:flex;flex-direction:column;gap:3px;flex:1;min-width:160px}
+.session-dt label{font-size:9px;letter-spacing:1.5px;color:#aaa;font-family:'JetBrains Mono',monospace;text-transform:uppercase}
+.session-dt input[type="datetime-local"]{background:#fff;border-top:1px solid #fff;border-left:1px solid #fff;border-right:1px solid var(--ms-border-dark);border-bottom:1px solid var(--ms-border-dark);color:var(--ms-text);padding:6px 9px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800;outline:none;width:100%;transition:border-color .2s}
+.session-dt input:focus{border-color:var(--ms-accent)}
+.session-arrow{font-size:16px;color:#aaa;align-self:flex-end;padding-bottom:6px}
+.session-qty{display:flex;flex-direction:column;gap:3px;width:90px}
+.session-qty label{font-size:9px;letter-spacing:1.5px;color:#aaa;font-family:'JetBrains Mono',monospace;text-transform:uppercase}
+.session-qty input{background:#fff;border-top:1px solid #fff;border-left:1px solid #fff;border-right:1px solid var(--ms-border-dark);border-bottom:1px solid var(--ms-border-dark);color:#e67e22;padding:6px 9px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:800;outline:none;width:100%;text-align:center}
+.session-qty input:focus{border-color:var(--ms-accent)}
+.session-result{display:flex;flex-direction:column;align-items:flex-end;min-width:130px}
+.session-hrs{font-family:'JetBrains Mono',monospace;font-size:11px;color:#888}
+.session-meso{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:800;color:var(--ms-gold)}
+.session-del{background:none;border:none;color:#ccc;font-size:18px;cursor:pointer;padding:0 4px;line-height:1;transition:color .15s;align-self:flex-start}
+.session-del:hover{color:var(--ms-red)}
+.session-empty{text-align:center;padding:30px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#bbb;letter-spacing:1px}
+
+/* LOCK */
+.tab-lock{display:flex;align-items:center;justify-content:center;padding:60px 20px}
+.tab-lock-box{background:var(--ms-panel);border-top:2px solid var(--ms-border-light);border-left:2px solid var(--ms-border-light);border-right:2px solid var(--ms-border-dark);border-bottom:2px solid var(--ms-border-dark);box-shadow:3px 3px 12px rgba(0,0,0,.1);padding:32px 36px;text-align:center;min-width:300px}
+.lock-icon{font-size:36px;margin-bottom:8px}
+.lock-title{font-size:16px;font-weight:800;color:var(--ms-text);margin-bottom:4px}
+.lock-sub{font-size:11px;color:#888;font-family:'JetBrains Mono',monospace;letter-spacing:1px;margin-bottom:20px}
+
+/* OWNER badge */
+#auth-badge{display:none;font-size:11px;color:#b2ff59;font-family:'JetBrains Mono',monospace;border:1px solid #b2ff59;padding:3px 8px;border-radius:3px}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-logo"></div>
+  <div class="header-title">Hyeong Maple Dash</div>
+  <div class="header-nav">
+    <a href="/" class="nav-link active">MAIN</a>
+    <a href="/private.html" class="nav-link">PRIVATE</a>
+    <span id="auth-badge">OWNER</span>
+    <div id="last-upd">READY</div>
+  </div>
+</header>
+
+<!-- BANNER: owner only -->
+<div class="summary-banner" id="main-banner" style="display:none">
+  <div class="info-pill">
+    <img src="/images/frag.png" alt="" style="width:28px;height:28px;image-rendering:pixelated">
+    <div class="info-content"><div class="info-label">TOTAL FRAGMENTS</div><div class="info-val" id="s-fragments">0</div></div>
+  </div>
+  <div class="info-pill">
+    <img src="/images/meso.png" alt="" style="width:28px;height:28px;image-rendering:pixelated">
+    <div class="info-content"><div class="info-label">TOTAL MESO</div><div class="info-val" id="s-meso">0</div></div>
+  </div>
+  <div class="info-pill">
+    <img src="/images/potion.png" alt="" style="width:28px;height:28px;image-rendering:pixelated">
+    <div class="info-content"><div class="info-label">MESO / HR</div><div class="info-val" id="s-total-hr">0</div></div>
+  </div>
+  <div class="info-pill status">
+    <div class="info-content"><div class="info-label">MESO BOTS</div><div class="info-val status-v" id="s-meso-online">0 | 0</div></div>
+  </div>
+  <div class="info-pill status">
+    <div class="info-content"><div class="info-label">FC BOTS</div><div class="info-val status-v" id="s-fc-online">0 | 0</div></div>
+  </div>
+</div>
+
+<main>
+  <!-- TABS -->
+  <div class="tab-bar">
+    <!-- 셀러 공개 -->
+    <button class="tab-btn active" onclick="switchTab('bots',this)">BOT STATUS</button>
+    <button class="tab-btn" onclick="switchTab('seller',this)">SELLER CALC</button>
+    <!-- 오너 전용 -->
+    <button class="tab-btn owner-tab" id="tab-btn-meso"    onclick="switchTab('meso',this)">MESO TRACKER 🔒</button>
+    <button class="tab-btn owner-tab" id="tab-btn-reg"     onclick="switchTab('register',this)">REGISTER CLIENT 🔒</button>
+    <button class="tab-btn" id="tab-btn-log"     onclick="switchTab('changelog',this)">CHANGE LOG</button>
+
+  </div>
+
+  <!-- ══ TAB: BOT STATUS (공개) ══ -->
+  <div class="tab-content active" id="tab-bots">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <div class="section-title" style="margin-bottom:0">Bot Status</div>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <span style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace">SORT LV:</span>
+        <button class="btn" style="padding:5px 12px;font-size:11px" onclick="sortBots('asc')">▲ ASC</button>
+        <button class="btn" style="padding:5px 12px;font-size:11px" onclick="sortBots('desc')">▼ DESC</button>
+        <button class="btn" style="padding:5px 12px;font-size:11px;background:linear-gradient(180deg,#888,#666);border-color:#999" onclick="sortBots('default')">DEFAULT</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>IGN</th><th>Owner</th>
+            <th class="sortable" id="th-level" onclick="sortBots(levelSort==='asc'?'desc':'asc')">Level <span class="sort-icon"></span></th>
+            <th>World</th><th>Channel</th><th>Map</th><th>Status</th><th>Last Seen</th>
+          </tr>
+        </thead>
+        <tbody id="bot-table-body">
+          <tr><td colspan="8"><div class="empty-state">Waiting for heartbeat signals...</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ TAB: SELLER CALC (public — seller facing) ══ -->
+  <div class="tab-content" id="tab-seller">
+
+    <!-- CALCULATOR -->
+    <div class="panel-box">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div class="section-title" style="margin-bottom:0">Payment Calculator</div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#888">RATE: <span style="color:var(--ms-gold);font-weight:800">50,000,000 meso/hr</span></div>
+          <button class="btn" style="padding:6px 16px;font-size:12px" onclick="addSession()">＋ Add Session</button>
+        </div>
+      </div>
+
+      <!-- Session rows container -->
+      <div id="session-list"></div>
+
+      <!-- Total -->
+      <div style="border-top:2px solid var(--ms-border-dark);margin-top:16px;padding-top:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div style="font-size:13px;font-weight:800;color:var(--ms-text);letter-spacing:1px">TOTAL PAYMENT</div>
+        <div id="calc-total" style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:800;color:var(--ms-gold)">0 meso</div>
+      </div>
+    </div>
+
+    <!-- SEND TO OWNER -->
+    <div class="panel-box">
+      <div class="section-title">Send to Owner</div>
+      <p style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace;margin-bottom:14px;letter-spacing:.5px">Upload a screenshot after calculating — a Discord notification will be sent to the owner automatically.</p>
+      <div class="form-row" style="margin-top:0">
+        <div class="form-group">
+          <label>Screenshot (optional)</label>
+          <input type="file" id="wh-img" accept="image/*" onchange="previewImg(this)"/>
+          <img id="img-preview" class="img-preview"/>
+        </div>
+        <button class="btn btn-gold" onclick="sendDiscord()" style="align-self:flex-end;padding:10px 24px">📨 Send to Owner</button>
+      </div>
+      <div class="notify" id="wh-notify"></div>
+    </div>
+
+    <!-- OWNER PANEL injected here after auth -->
+  </div>
+
+  <!-- ══ TAB: MESO TRACKER (오너 전용) ══ -->
+  <div class="tab-content" id="tab-meso">
+    <div id="meso-lock" class="tab-lock">
+      <div class="tab-lock-box">
+        <div class="lock-icon">🔐</div>
+        <div class="lock-title">Owner Only</div>
+        <div class="lock-sub">비밀번호를 입력해주세요</div>
+        <div class="form-row" style="margin-top:0">
+          <input type="password" id="pw-meso" placeholder="비밀번호" style="text-align:center;letter-spacing:4px" onkeydown="if(event.key==='Enter')tryAuth('meso')"/>
+          <button class="btn" onclick="tryAuth('meso')">입장</button>
+        </div>
+        <div id="err-meso" class="notify err" style="text-align:center"></div>
+      </div>
+    </div>
+    <div id="meso-content" style="display:none">
+      <div class="cards" id="meso-cards">
+        <div style="grid-column:1/-1;text-align:center;padding:50px;color:#aaa">데이터를 불러오는 중...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: REGISTER CLIENT (오너 전용) ══ -->
+  <div class="tab-content" id="tab-register">
+    <div id="reg-lock" class="tab-lock">
+      <div class="tab-lock-box">
+        <div class="lock-icon">🔐</div>
+        <div class="lock-title">Owner Only</div>
+        <div class="lock-sub">비밀번호를 입력해주세요</div>
+        <div class="form-row" style="margin-top:0">
+          <input type="password" id="pw-reg" placeholder="비밀번호" style="text-align:center;letter-spacing:4px" onkeydown="if(event.key==='Enter')tryAuth('reg')"/>
+          <button class="btn" onclick="tryAuth('reg')">입장</button>
+        </div>
+        <div id="err-reg" class="notify err" style="text-align:center"></div>
+      </div>
+    </div>
+    <div id="reg-content" style="display:none">
+      <div class="panel-box">
+        <div class="section-title">Register New FrenzyCast Client</div>
+        <div class="form-row">
+          <div class="form-group"><label>Owner ID</label><input type="text" id="reg-owner" placeholder="e.g. Hyeong"/></div>
+          <div class="form-group"><label>Token (64 char hex)</label><input type="text" id="reg-token" placeholder="b5e3720c..."/></div>
+          <button class="btn" onclick="registerClient()">Register</button>
+        </div>
+        <div class="notify" id="reg-notify"></div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- ══ OWNER PANEL: 정산 관리 (오너가 인증 후 SELLER CALC 아래에 추가) ══ -->
+  <!-- 이 섹션은 isAuthed일 때 seller 탭 안에 동적으로 inject됨 -->
+
+  <!-- ══ TAB: CHANGE LOG (오너 전용) ══ -->
+  <div class="tab-content" id="tab-changelog">
+    <div id="changelog-content" style="display:block">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+        <div class="section-title" style="margin-bottom:0">Bot Change Log</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="log-count" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#888"></span>
+          <button class="btn" style="padding:5px 14px;font-size:11px" onclick="fetchChangelog()">↺ Refresh</button>
+          <button class="btn btn-red" style="padding:5px 14px;font-size:11px" onclick="clearChangelog()">Clear All</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th><th>IGN</th><th>Owner</th><th>Field</th><th>From</th><th>→ To</th>
+            </tr>
+          </thead>
+          <tbody id="changelog-body">
+            <tr><td colspan="6"><div class="empty-state">No changes recorded yet</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const OWNER_PW = "7678";
+let isAuthed    = false;
+let botData     = [];
+let prevBotMap  = {};       // {owner|ign: {channel, map_id}}
+let changedCells = {};      // {owner|ign|field: timestamp} — 30초 하이라이트
+let levelSort   = 'default';
+let mapNames    = {};
+let sellerRecords = [];
+
+// ── AUTH ──
+function checkAuth() {
+  if (sessionStorage.getItem("ms_main_auth") === "ok") {
+    isAuthed = true;
+    applyAuth();
+  }
+}
+
+// 각 탭별 비밀번호 입력
+function tryAuth(tab) {
+  const pw  = document.getElementById("pw-"+tab).value;
+  const err = document.getElementById("err-"+tab);
+  if (pw === OWNER_PW) {
+    sessionStorage.setItem("ms_main_auth","ok");
+    isAuthed = true;
+    applyAuth();
+  } else {
+    err.textContent = "🚫 비밀번호 틀렸어요!";
+    document.getElementById("pw-"+tab).value = "";
+    setTimeout(()=>err.textContent="",2000);
+  }
+}
+
+function applyAuth() {
+  // 배너 표시
+  document.getElementById("main-banner").style.display = "flex";
+  document.getElementById("auth-badge").style.display  = "inline-block";
+
+  // 잠금 해제: meso, reg
+  ["meso","reg"].forEach(k => {
+    const lock = document.getElementById(k+"-lock");
+    const cont = document.getElementById(k+"-content");
+    if (lock) lock.style.display = "none";
+    if (cont) cont.style.display = "block";
+  });
+
+  // 탭 버튼 자물쇠 제거
+  document.getElementById("tab-btn-meso").textContent = "MESO TRACKER";
+  document.getElementById("tab-btn-reg").textContent  = "REGISTER CLIENT";
+  document.querySelectorAll(".owner-tab").forEach(b=>b.classList.remove("owner-tab"));
+
+  // SELLER 탭에 오너 관리 패널 추가
+  injectOwnerSellerPanel();
+
+  // 데이터 로드
+  fetchMeso();
+  fetchSellerRecords();
+  fetchChangelog();
+}
+
+// SELLER 탭에 오너 전용 관리 패널 동적 삽입
+function injectOwnerSellerPanel() {
+  if (document.getElementById("owner-seller-panel")) return;
+  const panel = document.createElement("div");
+  panel.id = "owner-seller-panel";
+  panel.innerHTML = `
+    <hr style="border:none;border-top:2px dashed var(--ms-border-dark);margin:24px 0"/>
+    <div class="section-title" style="color:#e67e22">🔧 오너 관리</div>
+    <div class="panel-box">
+      <div class="section-title">정산 내역 추가</div>
+      <div class="form-row">
+        <div class="form-group"><label>셀러 이름</label><input type="text" id="s-name" placeholder="예: Rudy"/></div>
+        <div class="form-group"><label>시작일시</label><input type="datetime-local" id="s-start"/></div>
+        <div class="form-group"><label>종료일시</label><input type="datetime-local" id="s-end"/></div>
+        <div class="form-group"><label>시간당 가격 (메소)</label><input type="number" id="s-price" placeholder="예: 50000000"/></div>
+        <div class="form-group"><label>메모 (선택)</label><input type="text" id="s-note" placeholder="선택사항"/></div>
+        <button class="btn" onclick="addSellerRecord()" style="align-self:flex-end">추가</button>
+      </div>
+      <div class="notify" id="seller-notify"></div>
+    </div>`;
+  document.getElementById("tab-seller").appendChild(panel);
+}
+
+// ── TABS ──
+function switchTab(name, btn) {
+  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(".tab-content").forEach(c=>c.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById("tab-"+name).classList.add("active");
+}
+
+// ── FORMAT ──
+function fmt(n) {
+  if (!n) return "0";
+  if (n>=1e9) return (n/1e9).toFixed(2)+"B";
+  if (n>=1e6) return (n/1e6).toFixed(1)+"M";
+  if (n>=1e3) return (n/1e3).toFixed(1)+"K";
+  return n.toLocaleString();
+}
+function formatAgo(sec) {
+  if (sec<60) return sec+"s ago";
+  if (sec<3600) return Math.floor(sec/60)+"m ago";
+  return Math.floor(sec/3600)+"h ago";
+}
+function nullDash(v) {
+  return (v===null||v===undefined)?'<span style="color:#bbb">—</span>':v;
+}
+
+// ── MAP NAMES ──
+async function loadMapNames() {
+  try {
+    const rows = await (await fetch("/api/mapnames")).json();
+    mapNames = {};
+    rows.forEach(r=>mapNames[String(r.map_id)]=r.map_name);
+  } catch(e){}
+}
+
+// ── BOT TABLE ──
+async function fetchFC() {
+  try {
+    const data = await (await fetch("/api/bot-heartbeat/client")).json();
+    const now  = Date.now();
+    const HIGHLIGHT_MS = 30_000;
+
+    data.forEach(b => {
+      const key  = b.owner + '|' + b.ign;
+      const prev = prevBotMap[key];
+      if (prev) {
+        if (String(prev.channel) !== String(b.channel ?? null))
+          changedCells[key + '|channel'] = now;
+        if (String(prev.map_id)  !== String(b.map_id  ?? null))
+          changedCells[key + '|map_id']  = now;
+      }
+      prevBotMap[key] = { channel: b.channel ?? null, map_id: b.map_id ?? null };
+    });
+    // 30초 지난 하이라이트 제거
+    Object.keys(changedCells).forEach(k => {
+      if (now - changedCells[k] > HIGHLIGHT_MS) delete changedCells[k];
+    });
+
+    botData = data;
+    const online = data.filter(b=>b.online).length;
+    if (isAuthed) document.getElementById("s-fc-online").textContent=`${online} | ${data.length}`;
+    renderBotTable();
+    document.getElementById("last-upd").textContent="UPDATED: "+new Date().toLocaleTimeString("ko-KR",{hour12:false});
+  } catch(e){}
+}
+function sortBots(dir) {
+  levelSort = dir;
+  const th = document.getElementById("th-level");
+  th.classList.remove("sort-asc","sort-desc");
+  if (dir==='asc') th.classList.add("sort-asc");
+  else if (dir==='desc') th.classList.add("sort-desc");
+  renderBotTable();
+}
+function renderBotTable() {
+  const tbody = document.getElementById("bot-table-body");
+  if (!botData.length){tbody.innerHTML=`<tr><td colspan="8"><div class="empty-state">Waiting for heartbeat signals...</div></td></tr>`;return;}
+  let s=[...botData];
+  if (levelSort==='asc')  s.sort((a,b)=>(a.level||0)-(b.level||0));
+  if (levelSort==='desc') s.sort((a,b)=>(b.level||0)-(a.level||0));
+  tbody.innerHTML=s.map(b=>{
+    const key       = b.owner + '|' + b.ign;
+    const chChanged  = !!changedCells[key + '|channel'];
+    const mapChanged = !!changedCells[key + '|map_id'];
+    return `<tr>
+      <td class="td-ign">${b.ign}</td>
+      <td class="td-owner">${b.owner}</td>
+      <td class="td-level">Lv.${b.level}</td>
+      <td class="td-loc">${nullDash(b.world_id)}</td>
+      <td class="td-loc${chChanged  ? ' cell-changed' : ''}">${nullDash(b.channel)}${chChanged  ? ' <span class="changed-badge">CHANGED</span>' : ''}</td>
+      <td class="td-loc${mapChanged ? ' cell-changed' : ''}" id="mapcell-${b.map_id}">${buildMapCell(b.map_id)}${mapChanged ? ' <span class="changed-badge">CHANGED</span>' : ''}</td>
+      <td>${b.online?'<span class="badge-online">ONLINE</span>':'<span class="badge-offline">OFFLINE</span>'}</td>
+      <td class="td-ago">${formatAgo(b.ago_sec)}</td>
+    </tr>`;
+  }).join("");
+}
+
+// Map 셀 렌더링: 이름 있으면 이름+ID, 없으면 ID만. 항상 [이름짓기] 버튼 노출
+function buildMapCell(mapId) {
+  if (mapId===null||mapId===undefined) return '<span style="color:#bbb">—</span>';
+  const name = mapNames[String(mapId)];
+  const label = name
+    ? `<span class="map-label">${name}</span><span class="map-id">(${mapId})</span>`
+    : `<span class="map-id">${mapId}</span>`;
+  const btnText = name ? '✏️' : '+ 이름';
+  return `<div class="map-cell">
+    ${label}
+    <button class="map-edit-btn" onclick="startMapEdit(${mapId}, this)">${btnText}</button>
+  </div>`;
+}
+
+// 인라인 편집 시작
+function startMapEdit(mapId, btn) {
+  const cell = document.getElementById('mapcell-'+mapId);
+  if (!cell) return;
+  const current = mapNames[String(mapId)] || '';
+  cell.innerHTML = `<div class="map-inline-form">
+    <input class="map-inline-input" id="map-input-${mapId}" value="${current}" placeholder="맵 이름 입력" autofocus/>
+    <button class="map-inline-save" onclick="saveMapName(${mapId})">저장</button>
+    <button class="map-inline-cancel" onclick="cancelMapEdit(${mapId})">취소</button>
+  </div>`;
+  const inp = document.getElementById('map-input-'+mapId);
+  inp.focus();
+  inp.addEventListener('keydown', e => {
+    if (e.key==='Enter') saveMapName(mapId);
+    if (e.key==='Escape') cancelMapEdit(mapId);
+  });
+}
+
+async function saveMapName(mapId) {
+  const inp = document.getElementById('map-input-'+mapId);
+  if (!inp) return;
+  const name = inp.value.trim();
+  if (!name) { cancelMapEdit(mapId); return; }
+  await fetch('/api/mapnames', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({map_id:String(mapId), map_name:name})});
+  mapNames[String(mapId)] = name;
+  const cell = document.getElementById('mapcell-'+mapId);
+  if (cell) cell.innerHTML = buildMapCell(mapId);
+}
+
+function cancelMapEdit(mapId) {
+  const cell = document.getElementById('mapcell-'+mapId);
+  if (cell) cell.innerHTML = buildMapCell(mapId);
+}
+
+// ── MESO TRACKER ──
+const ICON_MAP = {
+  // 기존
+  "펫먹이":      "/images/pet.png",
+  "연료":        "/images/fuel.png",
+  "재획":        "/images/potion.png",
+  "조각":        "/images/frag.png",
+  "주흔":        "/images/scroll.png",
+  // 신규
+  "elixir":      "/images/elixir.png",
+  "chest":       "/images/chest.png",
+  "box":         "/images/box.png",
+  "flame":       "/images/flame.png",
+  "eternal_flame":"/images/eternal_flame.png",
+  "black_flame": "/images/black_flame.png",
+  "arcane":      "/images/arcane.png",
+  "cer_sac":     "/images/cer_sac.png",
+  "arcus_sac":   "/images/arcus_sac.png",
+  "ordium_sac":  "/images/ordium_sac.png",
+  "shang_sac":   "/images/shang_sac.png",
+};
+
+// 아이템 name → ICON_MAP 키 매핑
+function getIcon(name) {
+  if (!name) return "";
+  if (name.includes("펫먹이"))      return ICON_MAP["펫먹이"];
+  if (name.includes("연료") || name.includes("에센스")) return ICON_MAP["연료"];
+  if (name.includes("재획"))        return ICON_MAP["재획"];
+  if (name.includes("조각"))        return ICON_MAP["조각"];
+  if (name.includes("주흔"))        return ICON_MAP["주흔"];
+  if (name.includes("elixir"))      return ICON_MAP["elixir"];
+  if (name.includes("chest"))       return ICON_MAP["chest"];
+  if (name.includes("box"))         return ICON_MAP["box"];
+  if (name.includes("black_flame")) return ICON_MAP["black_flame"];
+  if (name.includes("eternal_flame"))return ICON_MAP["eternal_flame"];
+  if (name.includes("flame"))       return ICON_MAP["flame"];
+  if (name.includes("arcane"))      return ICON_MAP["arcane"];
+  if (name.includes("cer_sac"))     return ICON_MAP["cer_sac"];
+  if (name.includes("arcus_sac"))   return ICON_MAP["arcus_sac"];
+  if (name.includes("ordium_sac"))  return ICON_MAP["ordium_sac"];
+  if (name.includes("shang_sac"))   return ICON_MAP["shang_sac"];
+  return "";
+}
+
+// 아이템 배열에서 특정 name 키워드에 해당하는 항목 찾기
+// exclude 키워드가 있으면 해당 아이템은 제외
+function findItem(items, keyword, ...excludes) {
+  if (!items) return null;
+  return items.find(it => {
+    if (!it.name || !it.name.includes(keyword)) return false;
+    if (excludes.some(ex => it.name.includes(ex))) return false;
+    return true;
+  }) || null;
+}
+
+function makeSlot(item, small=false) {
+  const cls = small ? "c-slot" : "slot";
+  if (!item) return `<div class="${cls}"></div>`;
+  const ic = getIcon(item.name);
+  if (!ic) return `<div class="${cls}"></div>`;
+  return `<div class="${cls}">
+    <img src="${ic}" alt="" onerror="this.style.display='none'">
+    <span class="slot-count">${fmt(item.count)}</span>
+  </div>`;
+}
+
+function makeEmptySlots(n, small=false) {
+  const cls = small ? "c-slot" : "slot";
+  return Array(n).fill(`<div class="${cls}"></div>`).join("");
+}
+
+async function fetchMeso() {
+  if (!isAuthed) return;
+  try {
+    const data=await (await fetch("/api/tracker")).json();
+    let tFrag=0,tMeso=0,tHr=0,online=0;
+    data.forEach(d=>{
+      tMeso+=(d.meso||0); tHr+=(d.meso_hr||0);
+      if(d.online) online++;
+      d.items?.forEach(it=>{ if(it.name.includes("조각")) tFrag+=it.count; });
+    });
+    document.getElementById("s-fragments").textContent=tFrag.toLocaleString();
+    document.getElementById("s-meso").textContent=fmt(tMeso);
+    document.getElementById("s-total-hr").textContent=fmt(tHr);
+    document.getElementById("s-meso-online").textContent=`${online} | ${data.length}`;
+    renderMesoCards(data);
+  } catch(e){}
+}
+
+function renderMesoCards(data) {
+  const grid = document.getElementById("meso-cards");
+  if (!data.length) { grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:50px;color:#aaa">데이터 없음</div>`; return; }
+  const sorted = [...data].sort((a,b)=>(b.meso_hr||0)-(a.meso_hr||0));
+  const maxHr  = Math.max(...sorted.map(d=>d.meso_hr||0), 1);
+
+  grid.innerHTML = sorted.map(d => {
+    const items  = d.items || [];
+    const barW   = Math.min(100, (d.meso_hr/maxHr)*100);
+
+    // ── 소비템 바 (1×5): 펫먹이 · 연료 · elixir · chest · potion
+    const consRow = [
+      findItem(items, "펫먹이"),
+      findItem(items, "연료", "에센스"),
+      findItem(items, "elixir"),
+      findItem(items, "chest"),
+      findItem(items, "재획"),
+    ].map(it => makeSlot(it, true)).join("");
+
+    // ── Row1: frag · box · 주흔(scroll/spell)
+    const row1 = [
+      findItem(items, "조각"),
+      findItem(items, "box"),
+      findItem(items, "주흔"),
+    ].map(it => makeSlot(it)).join("");
+
+    // ── Row2: arcane · cer_sac · arcus_sac · ordium_sac · shang_sac
+    const row2 = [
+      findItem(items, "arcane"),
+      findItem(items, "cer_sac"),
+      findItem(items, "arcus_sac"),
+      findItem(items, "ordium_sac"),
+      findItem(items, "shang_sac"),
+    ].map(it => makeSlot(it)).join("");
+
+    // ── Row3: flame · eternal_flame · black_flame
+    const row3 = [
+      findItem(items, "flame", "eternal_flame", "black_flame"), // plain flame only
+      findItem(items, "eternal_flame"),
+      findItem(items, "black_flame"),
+    ].map(it => makeSlot(it)).join("");
+
+    const offlineAgo = !d.online ? `<span style="font-size:10px;color:var(--ms-red);font-family:'JetBrains Mono',monospace;margin-left:6px">(${formatAgo(d.ago_sec)})</span>` : '';
+    return `<div class="ccard${d.online?'':' ccard-dim'}">
+      <div class="ccard-head">
+        <div>
+          <div class="ign">${d.ign||'Unknown'} <span>Lv.${d.level||'?'}</span>${offlineAgo}</div>
+          <div style="font-size:11px;color:#555;font-weight:bold">OWNER: ${d.owner||'Hyeong'}</div>
+        </div>
+        <div class="${d.online?'ccard-online':'ccard-offline'}">${d.online?'ONLINE':'OFFLINE'}</div>
+      </div>
+
+      <div class="consumable-bar">${consRow}</div>
+
+      <div class="inv-section">
+        <div class="inv-row">${row1}</div>
+        <div class="inv-row">${row2}</div>
+        <div class="inv-row">${row3}</div>
+      </div>
+
+      <div class="efficiency-bar" style="margin:8px 0 6px"><div class="bar-fill" style="width:${barW}%"></div></div>
+      <div class="status-row"><span>MESO/HR</span><span class="v" style="color:${d.online?'#e67e22':'var(--ms-red)'}">${d.online?fmt(d.meso_hr):'— OFFLINE'}</span></div>
+      <div class="status-row"><span>TOTAL MESO</span><span class="v">${fmt(d.meso)}</span></div>
+      <div class="ccard-bottom-controls"><div class="ccard-money">
+        <div class="money-pill"><img src="/images/meso.png" class="money-icon"><span class="money-val">${fmt(d.meso)}</span></div>
+      </div></div>
+    </div>`;
+  }).join("");
+}
+
+// ── SELLER CALC ──
+// ✅ Discord Webhook URL (설정 완료)
+const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1498930266570494036/DUEJUxMwR61BdxjQs5nTw5MBokX6vEHW8eM0VuQ9xriA6MisV36PMdtXFjZwLzufiyhq";
+const RATE_PER_HOUR = 50_000_000;
+
+let sessions = [], sessionCounter = 0;
+
+function addSession() {
+  const id = ++sessionCounter;
+  sessions.push({ id, start:'', end:'', qty:1, _meso:0 });
+  renderSessions();
+  setTimeout(()=>{ const el=document.getElementById(`ss-start-${id}`); if(el)el.focus(); },50);
+}
+
+function removeSession(id) {
+  sessions = sessions.filter(s=>s.id!==id);
+  renderSessions();
+  recalcTotal();
+}
+
+function onSessionChange(id, field, val) {
+  const s = sessions.find(s=>s.id===id);
+  if (!s) return;
+  s[field] = (field==='qty') ? Math.max(1,parseInt(val)||1) : val;
+  recalcRow(id);
+  recalcTotal();
+}
+
+function recalcRow(id) {
+  const s=sessions.find(s=>s.id===id);
+  if(!s)return;
+  const hrsEl=document.getElementById(`ss-hrs-${id}`);
+  const mesoEl=document.getElementById(`ss-meso-${id}`);
+  if(!hrsEl||!mesoEl)return;
+  if(s.start && s.end){
+    const ms=new Date(s.end)-new Date(s.start);
+    if(ms>0){
+      const hrs=ms/3600000;
+      const qty=s.qty||1;
+      s._meso=hrs*qty*RATE_PER_HOUR;
+      hrsEl.textContent=`${hrs.toFixed(2)}h × ${qty}`;
+      mesoEl.textContent=fmtBig(s._meso);
+    } else {
+      s._meso=0; hrsEl.textContent='⚠ invalid'; mesoEl.textContent='—';
+    }
+  } else {
+    s._meso=0; hrsEl.textContent='—'; mesoEl.textContent='—';
+  }
+}
+
+function recalcTotal() {
+  const total=sessions.reduce((sum,s)=>sum+(s._meso||0),0);
+  const el=document.getElementById('calc-total');
+  if(el) el.textContent=fmtBig(total)+' meso';
+}
+
+function fmtBig(n) {
+  if(!n)return'0';
+  if(n>=1e12)return(n/1e12).toFixed(2)+'T';
+  if(n>=1e9) return(n/1e9).toFixed(2)+'B';
+  if(n>=1e6) return(n/1e6).toFixed(1)+'M';
+  return n.toLocaleString();
+}
+
+function renderSessions() {
+  const list=document.getElementById('session-list');
+  if(!list)return;
+  if(!sessions.length){
+    list.innerHTML=`<div class="session-empty">No sessions yet — press "+ Add Session" to get started</div>`;
+    recalcTotal(); return;
+  }
+  list.innerHTML=sessions.map((s,i)=>`
+    <div class="session-row" id="ss-row-${s.id}">
+      <div class="session-num">#${i+1}</div>
+      <div class="session-dt">
+        <label>Start</label>
+        <input type="datetime-local" id="ss-start-${s.id}" value="${s.start}"
+          onchange="onSessionChange(${s.id},'start',this.value)"/>
+      </div>
+      <div class="session-arrow">→</div>
+      <div class="session-dt">
+        <label>End</label>
+        <input type="datetime-local" id="ss-end-${s.id}" value="${s.end}"
+          onchange="onSessionChange(${s.id},'end',this.value)"/>
+      </div>
+      <div class="session-qty">
+        <label>Qty</label>
+        <input type="number" id="ss-qty-${s.id}" value="${s.qty}" min="1" max="99"
+          oninput="onSessionChange(${s.id},'qty',this.value)"/>
+      </div>
+      <div class="session-result">
+        <div class="session-hrs" id="ss-hrs-${s.id}">${s.start&&s.end?fmtBig(s._meso):'—'}</div>
+        <div class="session-meso" id="ss-meso-${s.id}">${s._meso?fmtBig(s._meso):'—'}</div>
+      </div>
+      <button class="session-del" onclick="removeSession(${s.id})" title="Remove">✕</button>
+    </div>`).join('');
+  sessions.forEach(s=>recalcRow(s.id));
+  recalcTotal();
+}
+
+function previewImg(input) {
+  const p=document.getElementById("img-preview");
+  if(input.files&&input.files[0]){const r=new FileReader();r.onload=e=>{p.src=e.target.result;p.style.display="block";};r.readAsDataURL(input.files[0]);}
+}
+
+async function sendDiscord() {
+  const imgFile=document.getElementById("wh-img").files[0];
+  const n=document.getElementById("wh-notify");
+  const url=DISCORD_WEBHOOK_URL;
+  if(!url||!url.startsWith("https://discord.com/api/webhooks/")){n.className="notify err";n.textContent="! 유효한 Discord Webhook URL이 아닙니다";return;}
+  const total=sessions.reduce((sum,s)=>sum+(s._meso||0),0);
+  const lines=sessions.filter(s=>s._meso>0).map((s,i)=>{
+    const hrs=((new Date(s.end)-new Date(s.start))/3600000).toFixed(2);
+    return `  #${i+1} · ${s.start.replace('T',' ')} → ${s.end.replace('T',' ')} · qty:${s.qty} · ${hrs}h → **${fmtBig(s._meso)} meso**`;
+  }).join('\n');
+  const content=`💸 **Seller Payment Request**\n${lines||'(no sessions)'}\n\n🏷️ **Total: ${fmtBig(total)} meso**`;
+  n.className="notify"; n.textContent="Sending...";
+  try {
+    let body={webhook_url:url,content};
+    if(imgFile){const b64=await new Promise(res=>{const r=new FileReader();r.onload=e=>res(e.target.result.split(",")[1]);r.readAsDataURL(imgFile);});body.image_base64=b64;body.image_mime=imgFile.type;}
+    const json=await(await fetch("/api/seller/notify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})).json();
+    if(json.ok){n.className="notify";n.textContent="✓ Sent to owner!";}
+    else throw new Error(json.error);
+  } catch(e){n.className="notify err";n.textContent="! "+e.message;}
+}
+
+async function fetchSellerRecords() {
+  try { sellerRecords=await(await fetch("/api/seller")).json(); } catch(e){}
+}
+async function deleteRecord(id) {
+  if(!confirm("Delete this record?"))return;
+  await fetch(`/api/seller/${id}`,{method:"DELETE"});
+  await fetchSellerRecords();
+}
+async function addSellerRecord() {
+  const name=document.getElementById("s-name")?.value.trim();
+  const start=document.getElementById("s-start")?.value;
+  const end=document.getElementById("s-end")?.value;
+  const price=document.getElementById("s-price")?.value;
+  const note=document.getElementById("s-note")?.value.trim()||"";
+  const n=document.getElementById("seller-notify");
+  if(!name||!start||!end||!price){n.className="notify err";n.textContent="! All required fields must be filled";return;}
+  try {
+    const json=await(await fetch("/api/seller",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({seller_name:name,start_date:start,end_date:end,price_per_hour:parseFloat(price),note})})).json();
+    if(json.ok){n.className="notify";n.textContent=`✓ Added — ${json.hours_worked}h · ${Number(json.total_price).toLocaleString()} meso`;["s-name","s-start","s-end","s-price","s-note"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});await fetchSellerRecords();}
+    else throw new Error(json.error);
+  } catch(e){n.className="notify err";n.textContent="! "+e.message;}
+}
+
+// ── CHANGE LOG ──
+async function fetchChangelog() {
+  try {
+    const rows = await (await fetch("/api/bot-change-log?limit=300")).json();
+    renderChangelog(rows);
+  } catch(e) {}
+}
+
+function renderChangelog(rows) {
+  const tbody   = document.getElementById("changelog-body");
+  const countEl = document.getElementById("log-count");
+  if (!tbody) return;
+  if (countEl) countEl.textContent = rows.length + " entries";
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">No changes recorded yet</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const d    = new Date(r.ts);
+    const time = d.toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"})
+               + " " + d.toLocaleTimeString("ko-KR",{hour12:false});
+    const isMap      = r.field === "map_id";
+    const fieldLabel = isMap
+      ? `<span class="log-field-map">MAP</span>`
+      : `<span class="log-field-ch">CH</span>`;
+    const oldVal = isMap
+      ? (mapNames[r.old_val] ? `${mapNames[r.old_val]} (${r.old_val})` : (r.old_val === 'null' ? '—' : r.old_val))
+      : (r.old_val === 'null' ? '—' : r.old_val);
+    const newVal = isMap
+      ? (mapNames[r.new_val] ? `${mapNames[r.new_val]} (${r.new_val})` : (r.new_val === 'null' ? '—' : r.new_val))
+      : (r.new_val === 'null' ? '—' : r.new_val);
+    return `<tr>
+      <td class="log-time">${time}</td>
+      <td class="td-ign">${r.ign}</td>
+      <td class="td-owner">${r.owner}</td>
+      <td>${fieldLabel}</td>
+      <td><span class="log-old">${oldVal}</span></td>
+      <td><span class="log-new">${newVal}</span></td>
+    </tr>`;
+  }).join("");
+}
+
+async function clearChangelog() {
+  if (!confirm("모든 로그를 삭제할까요?")) return;
+  await fetch("/api/bot-change-log", { method: "DELETE" });
+  renderChangelog([]);
+}
+
+// ── REGISTER CLIENT ──
+async function registerClient() {
+  const owner=document.getElementById("reg-owner").value.trim();
+  const token=document.getElementById("reg-token").value.trim();
+  const n=document.getElementById("reg-notify");
+  if(!owner||!token){n.className="notify err";n.textContent="! Owner and token are required";return;}
+  try {
+    const json=await (await fetch("/api/clients",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({owner,token})})).json();
+    if(json.ok){n.className="notify";n.textContent="✓ Client registered";document.getElementById("reg-owner").value="";document.getElementById("reg-token").value="";}
+    else throw new Error(json.error);
+  } catch(e){n.className="notify err";n.textContent="! "+e.message;}
+}
+
+// ── INIT ──
+async function init() {
+  checkAuth();
+  await loadMapNames();
+  fetchFC();
+  fetchChangelog(); // changelog is public — load immediately
+  renderSessions(); // init empty state
+  setInterval(()=>{fetchFC();if(isAuthed)fetchMeso();},10000);
+}
+window.onload=init;
+</script>
+</body>
+</html>
