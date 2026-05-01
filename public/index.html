@@ -129,17 +129,17 @@ input::placeholder{color:#aaa;font-weight:normal}
 .ccard-online{color:var(--ms-green);font-size:11px;font-weight:900;border:1.5px solid;padding:2px 6px;border-radius:4px}
 .ccard-offline{color:var(--ms-red);font-size:11px;font-weight:900;border:1.5px solid;padding:2px 6px;border-radius:4px}
 
-/* 소비템 바 (1행 × 5칸, 작고 납작) */
+/* 소비템 바 (1행 × 5칸, 꽉차게) */
 .consumable-bar{display:flex;gap:3px;background:rgba(0,0,0,0.06);padding:4px;border:1px solid var(--ms-border-dark);margin-bottom:5px}
-.c-slot{width:36px;height:36px;flex-shrink:0;background:var(--ms-slot);border-top:1px solid #fff;border-left:1px solid #fff;border-right:1px solid var(--ms-border-dark);border-bottom:1px solid var(--ms-border-dark);display:flex;align-items:center;justify-content:center;position:relative}
+.c-slot{flex:1 1 0;min-width:0;aspect-ratio:1/1;background:var(--ms-slot);border-top:1px solid #fff;border-left:1px solid #fff;border-right:1px solid var(--ms-border-dark);border-bottom:1px solid var(--ms-border-dark);display:flex;align-items:center;justify-content:center;position:relative}
 .c-slot img{width:82%;height:82%;object-fit:contain;image-rendering:pixelated}
 .c-slot .slot-count{font-size:9px;bottom:1px;right:1px}
 
-/* 메인 인벤토리 - 줄별 가변 칸 */
+/* 메인 인벤토리 - 모든 행이 동일 너비로 꽉차게 */
 .inv-section{background:var(--ms-panel-dark);padding:4px;border:1px solid var(--ms-border-dark);margin-bottom:4px}
 .inv-row{display:flex;gap:3px}
 .inv-row:not(:last-child){margin-bottom:3px}
-.slot{width:48px;height:48px;flex-shrink:0;background:var(--ms-slot);border-top:1px solid #fff;border-left:1px solid #fff;border-right:1px solid var(--ms-border-dark);border-bottom:1px solid var(--ms-border-dark);display:flex;align-items:center;justify-content:center;position:relative}
+.slot{flex:1 1 0;min-width:0;aspect-ratio:1/1;background:var(--ms-slot);border-top:1px solid #fff;border-left:1px solid #fff;border-right:1px solid var(--ms-border-dark);border-bottom:1px solid var(--ms-border-dark);display:flex;align-items:center;justify-content:center;position:relative}
 .slot img{width:85%;height:85%;object-fit:contain;image-rendering:pixelated}
 .slot-count{position:absolute;bottom:2px;right:2px;font-size:11px;font-weight:900;font-family:'JetBrains Mono',monospace;color:#fff;text-shadow:-1.5px -1.5px 0 #000,1.5px -1.5px 0 #000,-1.5px 1.5px 0 #000,1.5px 1.5px 0 #000;z-index:5;line-height:1}
 .efficiency-bar{background:#eee;height:12px;border-radius:6px;overflow:hidden;margin:10px 0;border:1px solid var(--ms-border-dark)}
@@ -730,36 +730,36 @@ function renderMesoCards(data) {
     const items  = d.items || [];
     const barW   = Math.min(100, (d.meso_hr/maxHr)*100);
 
-    // ── 소비템 바 (1×5): 펫먹이 · 연료 · elixir · chest · potion
+    // ── 소비템 바 (1×5): potion → fuel → pet → elixir → chest
     const consRow = [
-      findItem(items, "펫먹이"),
+      findItem(items, "재획"),
       findItem(items, "연료", "에센스"),
+      findItem(items, "펫먹이"),
       findItem(items, "elixir"),
       findItem(items, "chest"),
-      findItem(items, "재획"),
     ].map(it => makeSlot(it, true)).join("");
 
-    // ── Row1: frag · box · 주흔(scroll/spell)
+    // ── 1층 (3칸): box / frag / spell
     const row1 = [
-      findItem(items, "조각"),
       findItem(items, "box"),
+      findItem(items, "조각"),
       findItem(items, "주흔"),
     ].map(it => makeSlot(it)).join("");
 
-    // ── Row2: arcane · cer_sac · arcus_sac · ordium_sac · shang_sac
+    // ── 2층 (3칸): flame / eternal flame / black flame
     const row2 = [
+      findItem(items, "flame", "eternal_flame", "black_flame"),
+      findItem(items, "eternal_flame"),
+      findItem(items, "black_flame"),
+    ].map(it => makeSlot(it)).join("");
+
+    // ── 3층 (5칸): arcane → cer → arcus → ordium → shang
+    const row3 = [
       findItem(items, "arcane"),
       findItem(items, "cer_sac"),
       findItem(items, "arcus_sac"),
       findItem(items, "ordium_sac"),
       findItem(items, "shang_sac"),
-    ].map(it => makeSlot(it)).join("");
-
-    // ── Row3: flame · eternal_flame · black_flame
-    const row3 = [
-      findItem(items, "flame", "eternal_flame", "black_flame"), // plain flame only
-      findItem(items, "eternal_flame"),
-      findItem(items, "black_flame"),
     ].map(it => makeSlot(it)).join("");
 
     return `<div class="ccard">
