@@ -995,24 +995,38 @@ async function registerClient() {
 async function autoRegisterDefault() {
   const DEFAULT_OWNER = "Hyeong";
   const DEFAULT_TOKEN = "fd9601cc2d89007ea64825510908023994b55e445d8d930ed582f7a8532afe30";
+  const FZ_BASE       = "https://rudy-hyeong-fz-board.up.railway.app";
+
+  // ── 1) 로컬 트래커 서버 등록 ──
   try {
-    // Check if already registered
     const check = await fetch("/api/clients");
     if (check.ok) {
       const data = await check.json();
       const exists = Array.isArray(data) && data.some(c => c.owner === DEFAULT_OWNER);
-      if (exists) return; // already registered, skip
+      if (!exists) {
+        await fetch("/api/clients", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({owner: DEFAULT_OWNER, token: DEFAULT_TOKEN})
+        });
+      }
     }
-    // Register
-    await fetch("/api/clients", {
+  } catch(e) {}
+
+  // ── 2) Railway FrenzyCast 보드 등록 ──
+  try {
+    const check = await fetch(`${FZ_BASE}/api/clients`);
+    if (check.ok) {
+      const data = await check.json();
+      const exists = Array.isArray(data) && data.some(c => c.owner === DEFAULT_OWNER);
+      if (exists) return;
+    }
+    await fetch(`${FZ_BASE}/api/clients`, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({owner: DEFAULT_OWNER, token: DEFAULT_TOKEN})
     });
-    core && core.log && core.log("Auto-registered Hyeong client.");
-  } catch(e) {
-    // silently fail — server may not be ready yet
-  }
+  } catch(e) {}
 }
 
 // ── INIT ──
