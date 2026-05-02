@@ -235,10 +235,10 @@ input::placeholder{color:#aaa;font-weight:normal}
     <!-- 셀러 공개 -->
     <button class="tab-btn active" onclick="switchTab('bots',this)">BOT STATUS</button>
     <button class="tab-btn" onclick="switchTab('seller',this)">SELLER CALC</button>
+    <button class="tab-btn" id="tab-btn-log"     onclick="switchTab('changelog',this)">CHANGE LOG</button>
     <!-- 오너 전용 -->
     <button class="tab-btn owner-tab" id="tab-btn-meso"    onclick="switchTab('meso',this)">MESO TRACKER 🔒</button>
     <button class="tab-btn owner-tab" id="tab-btn-reg"     onclick="switchTab('register',this)">REGISTER CLIENT 🔒</button>
-    <button class="tab-btn owner-tab" id="tab-btn-log"     onclick="switchTab('changelog',this)">CHANGE LOG 🔒</button>
 
   </div>
 
@@ -365,21 +365,7 @@ input::placeholder{color:#aaa;font-weight:normal}
 
   <!-- ══ TAB: CHANGE LOG (오너 전용) ══ -->
   <div class="tab-content" id="tab-changelog">
-    <div id="changelog-lock" class="tab-lock">
-      <div class="tab-lock-box">
-        <div class="lock-icon">🔐</div>
-        <div class="lock-title">Owner Only</div>
-        <div class="lock-sub">비밀번호를 입력해주세요</div>
-        <div class="form-row" style="margin-top:0">
-          <input type="password" id="pw-changelog" placeholder="비밀번호"
-            style="text-align:center;letter-spacing:4px"
-            onkeydown="if(event.key==='Enter')tryAuth('changelog')"/>
-          <button class="btn" onclick="tryAuth('changelog')">입장</button>
-        </div>
-        <div id="err-changelog" class="notify err" style="text-align:center"></div>
-      </div>
-    </div>
-    <div id="changelog-content" style="display:none">
+    <div id="changelog-content">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
         <div class="section-title" style="margin-bottom:0">Bot Change Log</div>
         <div style="display:flex;gap:8px;align-items:center">
@@ -494,6 +480,7 @@ function switchTab(name, btn) {
   document.querySelectorAll(".tab-content").forEach(c=>c.classList.remove("active"));
   btn.classList.add("active");
   document.getElementById("tab-"+name).classList.add("active");
+  if (name === "changelog") fetchChangelog();
 }
 
 // ── FORMAT ──
@@ -983,6 +970,9 @@ function renderChangelog(rows) {
 }
 
 async function clearChangelog() {
+  const pw = prompt("비밀번호를 입력해주세요:");
+  if (pw === null) return;
+  if (pw !== OWNER_PW) { alert("❌ 비밀번호가 틀렸습니다."); return; }
   if (!confirm("모든 로그를 삭제할까요?")) return;
   await fetch("/api/bot-change-log", { method: "DELETE" });
   renderChangelog([]);
@@ -1001,10 +991,35 @@ async function registerClient() {
   } catch(e){n.className="notify err";n.textContent="! "+e.message;}
 }
 
+// ── AUTO-REGISTER DEFAULT CLIENT (Hyeong) ──
+async function autoRegisterDefault() {
+  const DEFAULT_OWNER = "Hyeong";
+  const DEFAULT_TOKEN = "fd9601cc2d89007ea64825510908023994b55e445d8d930ed582f7a8532afe30";
+  try {
+    // Check if already registered
+    const check = await fetch("/api/clients");
+    if (check.ok) {
+      const data = await check.json();
+      const exists = Array.isArray(data) && data.some(c => c.owner === DEFAULT_OWNER);
+      if (exists) return; // already registered, skip
+    }
+    // Register
+    await fetch("/api/clients", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({owner: DEFAULT_OWNER, token: DEFAULT_TOKEN})
+    });
+    core && core.log && core.log("Auto-registered Hyeong client.");
+  } catch(e) {
+    // silently fail — server may not be ready yet
+  }
+}
+
 // ── INIT ──
 async function init() {
   checkAuth();
   await loadMapNames();
+  autoRegisterDefault();
   fetchFC();
   renderSessions(); // init empty state
   setInterval(()=>{fetchFC();if(isAuthed)fetchMeso();},10000);
