@@ -246,10 +246,12 @@ input::placeholder{color:#aaa;font-weight:normal}
   <div class="tab-content active" id="tab-bots">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
       <div class="section-title" style="margin-bottom:0">Bot Status</div>
-      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-        <span style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace">SORT LV:</span>
-        <button class="btn" style="padding:5px 12px;font-size:11px" onclick="sortBots('asc')">▲ ASC</button>
-        <button class="btn" style="padding:5px 12px;font-size:11px" onclick="sortBots('desc')">▼ DESC</button>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace">SORT:</span>
+        <button class="btn" style="padding:5px 12px;font-size:11px" onclick="sortBots('lv-asc')">LV ▲</button>
+        <button class="btn" style="padding:5px 12px;font-size:11px" onclick="sortBots('lv-desc')">LV ▼</button>
+        <button class="btn" style="padding:5px 12px;font-size:11px" onclick="sortBots('map-asc')">MAP A→Z</button>
+        <button class="btn" style="padding:5px 12px;font-size:11px" onclick="sortBots('map-desc')">MAP Z→A</button>
         <button class="btn" style="padding:5px 12px;font-size:11px;background:linear-gradient(180deg,#888,#666);border-color:#999" onclick="sortBots('default')">DEFAULT</button>
       </div>
     </div>
@@ -258,12 +260,14 @@ input::placeholder{color:#aaa;font-weight:normal}
         <thead>
           <tr>
             <th>IGN</th><th>Owner</th>
-            <th class="sortable" id="th-level" onclick="sortBots(levelSort==='asc'?'desc':'asc')">Level <span class="sort-icon"></span></th>
-            <th>World</th><th>Channel</th><th>Map</th><th>Status</th><th>Last Seen</th>
+            <th class="sortable" id="th-level" onclick="sortByLevel()">Level <span class="sort-icon"></span></th>
+            <th>Channel</th>
+            <th class="sortable" id="th-map" onclick="sortByMap()">Map <span class="sort-icon"></span></th>
+            <th>Status</th><th>Last Seen</th>
           </tr>
         </thead>
         <tbody id="bot-table-body">
-          <tr><td colspan="8"><div class="empty-state">Waiting for heartbeat signals...</div></td></tr>
+          <tr><td colspan="7"><div class="empty-state">Waiting for heartbeat signals...</div></td></tr>
         </tbody>
       </table>
     </div>
@@ -396,7 +400,7 @@ let isAuthed    = false;
 let botData     = [];
 let prevBotMap  = {};       // {owner|ign: {channel, map_id}}
 let changedCells = {};      // {owner|ign|field: timestamp} — 30초 하이라이트
-let levelSort   = 'default';
+let currentSort = 'default';
 let mapNames    = {};
 let sellerRecords = [];
 
@@ -540,34 +544,92 @@ async function fetchFC() {
   } catch(e){}
 }
 function sortBots(dir) {
-  levelSort = dir;
-  const th = document.getElementById("th-level");
-  th.classList.remove("sort-asc","sort-desc");
-  if (dir==='asc') th.classList.add("sort-asc");
-  else if (dir==='desc') th.classList.add("sort-desc");
+  currentSort = dir;
+  // update th-level header indicator
+  const thLv  = document.getElementById("th-level");
+  const thMap = document.getElementById("th-map");
+  if (thLv)  thLv.classList.remove("sort-asc","sort-desc");
+  if (thMap) thMap.classList.remove("sort-asc","sort-desc");
+  if (dir==='lv-asc')   thLv  && thLv.classList.add("sort-asc");
+  if (dir==='lv-desc')  thLv  && thLv.classList.add("sort-desc");
+  if (dir==='map-asc')  thMap && thMap.classList.add("sort-asc");
+  if (dir==='map-desc') thMap && thMap.classList.add("sort-desc");
   renderBotTable();
 }
+function sortByLevel() {
+  sortBots(currentSort==='lv-asc' ? 'lv-desc' : 'lv-asc');
+}
+function sortByMap() {
+  sortBots(currentSort==='map-asc' ? 'map-desc' : 'map-asc');
+}
+
+function applySort(arr) {
+  const s = [...arr];
+  if (currentSort==='lv-asc')   s.sort((a,b)=>(a.level||0)-(b.level||0));
+  if (currentSort==='lv-desc')  s.sort((a,b)=>(b.level||0)-(a.level||0));
+  if (currentSort==='map-asc')  s.sort((a,b)=>{
+    const na = mapNames[String(a.map_id)]||String(a.map_id||'');
+    const nb = mapNames[String(b.map_id)]||String(b.map_id||'');
+    return na.localeCompare(nb,'ko');
+  });
+  if (currentSort==='map-desc') s.sort((a,b)=>{
+    const na = mapNames[String(a.map_id)]||String(a.map_id||'');
+    const nb = mapNames[String(b.map_id)]||String(b.map_id||'');
+    return nb.localeCompare(na,'ko');
+  });
+  return s;
+}
+
+function buildBotRow(b) {
+  const key       = b.owner + '|' + b.ign;
+  const chChanged  = !!changedCells[key + '|channel'];
+  const mapChanged = !!changedCells[key + '|map_id'];
+  return `<tr>
+    <td class="td-ign">${b.ign}</td>
+    <td class="td-owner">${b.owner}</td>
+    <td class="td-level">Lv.${b.level}</td>
+    <td class="td-loc${chChanged  ? ' cell-changed' : ''}">${nullDash(b.channel)}${chChanged  ? ' <span class="changed-badge">CHANGED</span>' : ''}</td>
+    <td class="td-loc${mapChanged ? ' cell-changed' : ''}" id="mapcell-${b.map_id}">${buildMapCell(b.map_id)}${mapChanged ? ' <span class="changed-badge">CHANGED</span>' : ''}</td>
+    <td>${b.online?'<span class="badge-online">ONLINE</span>':'<span class="badge-offline">OFFLINE</span>'}</td>
+    <td class="td-ago">${formatAgo(b.ago_sec)}</td>
+  </tr>`;
+}
+
 function renderBotTable() {
   const tbody = document.getElementById("bot-table-body");
-  if (!botData.length){tbody.innerHTML=`<tr><td colspan="8"><div class="empty-state">Waiting for heartbeat signals...</div></td></tr>`;return;}
-  let s=[...botData];
-  if (levelSort==='asc')  s.sort((a,b)=>(a.level||0)-(b.level||0));
-  if (levelSort==='desc') s.sort((a,b)=>(b.level||0)-(a.level||0));
-  tbody.innerHTML=s.map(b=>{
-    const key       = b.owner + '|' + b.ign;
-    const chChanged  = !!changedCells[key + '|channel'];
-    const mapChanged = !!changedCells[key + '|map_id'];
-    return `<tr>
-      <td class="td-ign">${b.ign}</td>
-      <td class="td-owner">${b.owner}</td>
-      <td class="td-level">Lv.${b.level}</td>
-      <td class="td-loc">${nullDash(b.world_id)}</td>
-      <td class="td-loc${chChanged  ? ' cell-changed' : ''}">${nullDash(b.channel)}${chChanged  ? ' <span class="changed-badge">CHANGED</span>' : ''}</td>
-      <td class="td-loc${mapChanged ? ' cell-changed' : ''}" id="mapcell-${b.map_id}">${buildMapCell(b.map_id)}${mapChanged ? ' <span class="changed-badge">CHANGED</span>' : ''}</td>
-      <td>${b.online?'<span class="badge-online">ONLINE</span>':'<span class="badge-offline">OFFLINE</span>'}</td>
-      <td class="td-ago">${formatAgo(b.ago_sec)}</td>
-    </tr>`;
-  }).join("");
+  if (!botData.length){
+    tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state">Waiting for heartbeat signals...</div></td></tr>`;
+    return;
+  }
+  const online  = applySort(botData.filter(b=>b.online));
+  const offline = applySort(botData.filter(b=>!b.online));
+
+  let html = '';
+
+  // ── ONLINE section ──
+  if (online.length) {
+    html += `<tr style="background:rgba(46,204,113,.07)">
+      <td colspan="7" style="padding:6px 14px;font-size:10px;font-family:'JetBrains Mono',monospace;
+        letter-spacing:2px;color:var(--ms-green);border-bottom:1px solid rgba(46,204,113,.25)">
+        ● ONLINE — ${online.length}
+      </td></tr>`;
+    html += online.map(buildBotRow).join('');
+  }
+
+  // ── OFFLINE section ──
+  if (offline.length) {
+    html += `<tr style="background:rgba(231,76,60,.05)">
+      <td colspan="7" style="padding:6px 14px;font-size:10px;font-family:'JetBrains Mono',monospace;
+        letter-spacing:2px;color:var(--ms-red);border-top:2px solid rgba(231,76,60,.18);border-bottom:1px solid rgba(231,76,60,.15)">
+        ○ OFFLINE — ${offline.length}
+      </td></tr>`;
+    html += offline.map(b => {
+      // offline rows dimmed
+      return buildBotRow(b).replace('<tr>', '<tr style="opacity:.55">');
+    }).join('');
+  }
+
+  tbody.innerHTML = html;
 }
 
 // Map 셀 렌더링: 이름 있으면 이름+ID, 없으면 ID만. 항상 [이름짓기] 버튼 노출
