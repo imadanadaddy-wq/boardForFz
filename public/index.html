@@ -193,6 +193,60 @@ input::placeholder{color:#aaa;font-weight:normal}
 
 /* OWNER badge */
 #auth-badge{display:none;font-size:11px;color:#b2ff59;font-family:'JetBrains Mono',monospace;border:1px solid #b2ff59;padding:3px 8px;border-radius:3px}
+
+/* ── MOBILE RESPONSIVE ── */
+@media (max-width: 640px) {
+
+  /* 헤더 */
+  header{padding:8px 12px;gap:8px}
+  .header-title{font-size:15px}
+  .nav-link{padding:3px 8px;font-size:11px}
+  #last-upd{font-size:10px;display:none}
+
+  /* 배너 */
+  .summary-banner{gap:8px;padding:10px 12px;min-height:unset}
+  .info-pill{min-width:unset;padding:5px 10px}
+  .info-val{font-size:14px}
+  .info-label{font-size:9px}
+
+  /* 메인 패딩 */
+  main{padding:10px}
+
+  /* 탭 */
+  .tab-bar{gap:0;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .tab-bar::-webkit-scrollbar{display:none}
+  .tab-btn{padding:7px 12px;font-size:10px;white-space:nowrap;flex-shrink:0}
+
+  /* 정렬 버튼 줄바꿈 */
+  #tab-bots > div:first-child{flex-direction:column;align-items:flex-start !important;gap:8px}
+  #tab-bots > div:first-child > div{margin-left:0 !important;flex-wrap:wrap}
+
+  /* 테이블: 가로 스크롤 허용 */
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{min-width:520px}   /* 최소 너비 강제 → 작은 화면에서 스크롤 생김 */
+  th{padding:8px 10px;font-size:9px}
+  td{padding:8px 10px;font-size:12px}
+  .td-ign{font-size:11px}
+  .td-owner{font-size:10px}
+  .td-ago{font-size:10px}
+  .badge-online,.badge-offline{font-size:10px;padding:1px 5px}
+
+  /* 폼 */
+  .form-row{flex-direction:column}
+  .btn{font-size:11px;padding:8px 14px}
+  .panel-box{padding:12px}
+
+  /* 셀러 카드 */
+  .cards,.seller-grid{grid-template-columns:1fr}
+
+  /* 메소 카드 */
+  .ccard{padding:10px}
+  .ign{font-size:15px}
+
+  /* 세션 행 */
+  .session-row{flex-wrap:wrap;gap:6px}
+  .session-result{min-width:unset;width:100%;align-items:flex-start}
+}
 </style>
 </head>
 <body>
