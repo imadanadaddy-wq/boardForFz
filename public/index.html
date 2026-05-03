@@ -313,7 +313,7 @@ input::placeholder{color:#aaa;font-weight:normal}
       <table>
         <thead>
           <tr>
-            <th>IGN</th><th>Owner</th>
+            <th>IGN</th>
             <th class="sortable" id="th-level" onclick="sortByLevel()">Level <span class="sort-icon"></span></th>
             <th>Channel</th>
             <th class="sortable" id="th-map" onclick="sortByMap()">Map <span class="sort-icon"></span></th>
@@ -321,7 +321,7 @@ input::placeholder{color:#aaa;font-weight:normal}
           </tr>
         </thead>
         <tbody id="bot-table-body">
-          <tr><td colspan="7"><div class="empty-state">Waiting for heartbeat signals...</div></td></tr>
+          <tr><td colspan="6"><div class="empty-state">Waiting for heartbeat signals...</div></td></tr>
         </tbody>
       </table>
     </div>
@@ -436,11 +436,11 @@ input::placeholder{color:#aaa;font-weight:normal}
         <table>
           <thead>
             <tr>
-              <th>Time</th><th>IGN</th><th>Owner</th><th>Field</th><th>From</th><th>→ To</th>
+              <th>Time</th><th>IGN</th><th>Field</th><th>From</th><th>→ To</th>
             </tr>
           </thead>
           <tbody id="changelog-body">
-            <tr><td colspan="6"><div class="empty-state">No changes recorded yet</div></td></tr>
+            <tr><td colspan="5"><div class="empty-state">No changes recorded yet</div></td></tr>
           </tbody>
         </table>
       </div>
@@ -455,7 +455,35 @@ let botData     = [];
 let prevBotMap  = {};       // {owner|ign: {channel, map_id}}
 let changedCells = {};      // {owner|ign|field: timestamp} — 30초 하이라이트
 let currentSort = 'default';
-let mapNames    = {};
+let mapNames    = {
+  "450002001": "🍎 [Chu Chu] Hill Path",
+  "450003320": "🎭 [Lachelein] Chicken Festival 3",
+  "450005131": "🌿 [Arcana] Where Earth and Sunlight Meet",
+  "450006030": "⚰️ [Morass] Path to the Coral Forest 4",
+  "450007210": "💎 [Esfera] Radiant Temple 2",
+  "450007230": "💎 [Esfera] Radiant Temple 4",
+  "410000860": "🔥 [Cernium] Burning Royal Library Section 3",
+  "410000890": "🔥 [Cernium] Burning Royal Library Section 6",
+  "410000940": "🔥 [Cernium] Western City Ramparts in Battle 3",
+  "410000950": "🔥 [Cernium] Western City Ramparts in Battle 4",
+  "410001000": "🔥 [Cernium] Eastern City Ramparts in Battle 3",
+  "410001030": "🔥 [Cernium] Eastern City Ramparts in Battle 6",
+  "410003060": "🌵 [Arcus] Outlaw-Infested Wastes 3",
+  "410003070": "🌵 [Arcus] Outlaw-Infested Wastes 4",
+  "410003110": "🍿 [Arcus] Nostalgic Drive-in Theater 3",
+  "410003170": "🚂 [Arcus] Train with No Destination 3",
+  "410003200": "🚂 [Arcus] Train with No Destination 6",
+  "410007005": "👁️ [Odium] Road to the Castle's Gate 5",
+  "410007008": "👁️ [Odium] Captured Alley 3",
+  "410007009": "👁️ [Odium] Captured Alley 4",
+  "410007051": "👁️ [Odium] Road to the Castle's Gate 4",
+  "410007027": "🌸 [Shangri-La] Blooming Spring 2",
+  "410007028": "🌸 [Shangri-La] Blooming Spring 5",
+  "410000610": "🔥 [Cernium] Cernium Western City Ramparts 3",
+  "450007020": "💎 [Esfera] Living Spring 3",
+  "410007523": "✨ [Arteria] Western Outskirts",
+  "410007525": "✨ [Arteria] Eastern Outskirts"
+};
 let sellerRecords = [];
 
 // ── AUTH ──
@@ -562,7 +590,7 @@ function nullDash(v) {
 async function loadMapNames() {
   try {
     const rows = await (await fetch("/api/mapnames")).json();
-    mapNames = {};
+    // 하드코딩 기본값 위에 API 결과를 merge (API 우선, 실패해도 기본값 유지)
     rows.forEach(r=>mapNames[String(r.map_id)]=r.map_name);
   } catch(e){}
 }
@@ -640,7 +668,6 @@ function buildBotRow(b) {
   const mapChanged = !!changedCells[key + '|map_id'];
   return `<tr>
     <td class="td-ign">${b.ign}</td>
-    <td class="td-owner">${b.owner}</td>
     <td class="td-level">Lv.${b.level}</td>
     <td class="td-loc${chChanged  ? ' cell-changed' : ''}">${nullDash(b.channel)}${chChanged  ? ' <span class="changed-badge">CHANGED</span>' : ''}</td>
     <td class="td-loc${mapChanged ? ' cell-changed' : ''}" id="mapcell-${b.map_id}">${buildMapCell(b.map_id)}${mapChanged ? ' <span class="changed-badge">CHANGED</span>' : ''}</td>
@@ -652,7 +679,7 @@ function buildBotRow(b) {
 function renderBotTable() {
   const tbody = document.getElementById("bot-table-body");
   if (!botData.length){
-    tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state">Waiting for heartbeat signals...</div></td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state">Waiting for heartbeat signals...</div></td></tr>`;
     return;
   }
   const online  = applySort(botData.filter(b=>b.online));
@@ -663,7 +690,7 @@ function renderBotTable() {
   // ── ONLINE section ──
   if (online.length) {
     html += `<tr style="background:rgba(46,204,113,.07)">
-      <td colspan="7" style="padding:6px 14px;font-size:10px;font-family:'JetBrains Mono',monospace;
+      <td colspan="6" style="padding:6px 14px;font-size:10px;font-family:'JetBrains Mono',monospace;
         letter-spacing:2px;color:var(--ms-green);border-bottom:1px solid rgba(46,204,113,.25)">
         ● ONLINE — ${online.length}
       </td></tr>`;
@@ -673,7 +700,7 @@ function renderBotTable() {
   // ── OFFLINE section ──
   if (offline.length) {
     html += `<tr style="background:rgba(231,76,60,.05)">
-      <td colspan="7" style="padding:6px 14px;font-size:10px;font-family:'JetBrains Mono',monospace;
+      <td colspan="6" style="padding:6px 14px;font-size:10px;font-family:'JetBrains Mono',monospace;
         letter-spacing:2px;color:var(--ms-red);border-top:2px solid rgba(231,76,60,.18);border-bottom:1px solid rgba(231,76,60,.15)">
         ○ OFFLINE — ${offline.length}
       </td></tr>`;
@@ -1057,7 +1084,7 @@ function renderChangelog(rows) {
   if (!tbody) return;
   if (countEl) countEl.textContent = rows.length + " entries";
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">No changes recorded yet</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">No changes recorded yet</div></td></tr>`;
     return;
   }
   tbody.innerHTML = rows.map(r => {
@@ -1077,7 +1104,6 @@ function renderChangelog(rows) {
     return `<tr>
       <td class="log-time">${time}</td>
       <td class="td-ign">${r.ign}</td>
-      <td class="td-owner">${r.owner}</td>
       <td>${fieldLabel}</td>
       <td><span class="log-old">${oldVal}</span></td>
       <td><span class="log-new">${newVal}</span></td>
