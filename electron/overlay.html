@@ -182,6 +182,58 @@ input[type=range].ov-slider::-webkit-slider-thumb {
   font-size: 9px; color: rgba(231,76,60,.8);
   background: rgba(231,76,60,.08); border-top: 1px solid rgba(231,76,60,.15); letter-spacing: .5px;
 }
+
+/* ── 로그 패널 ── */
+#ov-log-panel {
+  display: none; flex-direction: column;
+  border-top: 1px solid rgba(255,255,255,.07);
+  flex-shrink: 0; max-height: 220px;
+}
+#ov-log-panel.open { display: flex; }
+
+.ov-log-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 11px;
+  background: rgba(0,172,193,.07);
+  border-bottom: 1px solid rgba(0,172,193,.15);
+  flex-shrink: 0; cursor: pointer;
+}
+.ov-log-hdr:hover { background: rgba(0,172,193,.12); }
+.ov-log-title {
+  font-size: 8px; letter-spacing: 2px; color: #00acc1;
+  text-transform: uppercase; display: flex; align-items: center; gap: 6px;
+}
+.ov-log-title::before {
+  content: ''; width: 5px; height: 5px; border-radius: 50%;
+  background: #00acc1; box-shadow: 0 0 4px #00acc1;
+}
+.ov-log-badge {
+  font-size: 8px; font-weight: 800; color: #fff;
+  background: rgba(0,172,193,.4); border: 1px solid rgba(0,172,193,.5);
+  padding: 1px 6px; border-radius: 10px; min-width: 18px; text-align: center;
+}
+
+.ov-log-scroll {
+  flex: 1; overflow-y: auto; padding: 5px 8px;
+  scrollbar-width: thin; scrollbar-color: rgba(0,172,193,.2) transparent;
+}
+.ov-log-scroll::-webkit-scrollbar { width: 3px; }
+.ov-log-scroll::-webkit-scrollbar-thumb { background: rgba(0,172,193,.2); border-radius: 2px; }
+
+.ov-log-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 3px 4px; border-radius: 3px;
+  font-size: 10px; margin-bottom: 2px;
+  animation: ov-row-in .2s ease both;
+}
+.ov-log-row:hover { background: rgba(255,255,255,.04); }
+.ov-log-time  { font-size: 9px; color: rgba(255,255,255,.22); white-space: nowrap; min-width: 42px; }
+.ov-log-ign   { color: #e0f7fa; font-weight: 800; white-space: nowrap; }
+.ov-log-field-ch  { color: #00acc1; border: 1px solid rgba(0,172,193,.4); padding: 0 4px; border-radius: 2px; font-size: 9px; }
+.ov-log-field-map { color: #e67e22; border: 1px solid rgba(230,126,34,.4); padding: 0 4px; border-radius: 2px; font-size: 9px; }
+.ov-log-arrow { color: rgba(255,255,255,.2); font-size: 9px; }
+.ov-log-old   { color: rgba(255,255,255,.3); text-decoration: line-through; font-size: 10px; }
+.ov-log-new   { color: #b2ff59; font-weight: 800; font-size: 10px; }
 </style>
 </head>
 <body>
@@ -191,6 +243,7 @@ input[type=range].ov-slider::-webkit-slider-thumb {
     <div class="ov-hdr-title">MAPLE OVERLAY</div>
     <div class="ov-hdr-btns">
       <button class="ov-mini-btn" id="ov-set-btn" title="설정">⚙</button>
+      <button class="ov-mini-btn" id="ov-log-btn" title="Change Log">📋</button>
       <button class="ov-mini-btn" id="ov-min-btn" title="최소화">—</button>
       <button class="ov-mini-btn close-btn" id="ov-close-btn" title="숨기기">✕</button>
     </div>
@@ -247,6 +300,17 @@ input[type=range].ov-slider::-webkit-slider-thumb {
 
   <div id="ov-error">⚠ 서버 연결 실패 — ⚙ 설정에서 API URL 확인</div>
 
+  <!-- ── 로그 패널 (📋 토글) ── -->
+  <div id="ov-log-panel">
+    <div class="ov-log-hdr" onclick="toggleLog()">
+      <div class="ov-log-title">CHANGE LOG</div>
+      <span class="ov-log-badge" id="ov-log-cnt">0</span>
+    </div>
+    <div class="ov-log-scroll" id="ov-log-list">
+      <div class="ov-empty">로그 없음</div>
+    </div>
+  </div>
+
   <div class="ov-footer">
     <span id="ov-upd-time">—</span>
     <button class="ov-footer-btn" onclick="ovFetch()">↺ REFRESH</button>
@@ -302,6 +366,27 @@ document.getElementById('ov-set-btn').onclick = () =>
 document.getElementById('ov-close-btn').onclick = () =>
   window.electronAPI.hide();
 
+// ── 로그 토글 ──
+let logOpen    = false;
+let logTimer   = null;
+
+function toggleLog() {
+  logOpen = !logOpen;
+  const panel = document.getElementById('ov-log-panel');
+  const btn   = document.getElementById('ov-log-btn');
+  panel.classList.toggle('open', logOpen);
+  btn.style.color       = logOpen ? 'var(--ms-accent)' : '';
+  btn.style.borderColor = logOpen ? 'var(--ms-accent)' : '';
+  if (logOpen) {
+    logFetch();
+    logTimer = setInterval(logFetch, 15000);
+  } else {
+    clearInterval(logTimer);
+    logTimer = null;
+  }
+}
+document.getElementById('ov-log-btn').onclick = toggleLog;
+
 // ── 드래그 ──
 const hdr = document.getElementById('ov-drag');
 hdr.addEventListener('mousedown', e => window.electronAPI.startDrag(e.screenX, e.screenY));
@@ -331,6 +416,44 @@ async function ovFetch() {
 }
 function startFetchLoop()   { ovFetch(); fetchTimer = setInterval(ovFetch, config.interval); }
 function restartFetchLoop() { clearInterval(fetchTimer); startFetchLoop(); }
+
+// ── 로그 fetch ──
+async function logFetch() {
+  try {
+    // apiUrl에서 베이스 URL 추출 후 /api/bot-change-log 호출
+    const base = config.apiUrl.replace(/\/api\/.*$/, '');
+    const res  = await fetch(base + '/api/bot-change-log?limit=50');
+    if (!res.ok) return;
+    const rows = await res.json();
+    renderLog(rows);
+  } catch(e) {}
+}
+
+function renderLog(rows) {
+  const el  = document.getElementById('ov-log-list');
+  const cnt = document.getElementById('ov-log-cnt');
+  cnt.textContent = rows.length;
+  if (!rows.length) {
+    el.innerHTML = '<div class="ov-empty">로그 없음</div>';
+    return;
+  }
+  el.innerHTML = rows.map(r => {
+    const d    = new Date(r.ts);
+    const time = d.toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit' });
+    const fieldCls  = r.field === 'channel' ? 'ov-log-field-ch' : 'ov-log-field-map';
+    const fieldLabel= r.field === 'channel' ? 'CH' : 'MAP';
+    const oldVal = r.old_val === 'null' || !r.old_val ? '—' : r.old_val;
+    const newVal = r.new_val === 'null' || !r.new_val ? '—' : r.new_val;
+    return `<div class="ov-log-row">
+      <span class="ov-log-time">${time}</span>
+      <span class="ov-log-ign">${r.ign}</span>
+      <span class="${fieldCls}">${fieldLabel}</span>
+      <span class="ov-log-old">${oldVal}</span>
+      <span class="ov-log-arrow">→</span>
+      <span class="ov-log-new">${newVal}</span>
+    </div>`;
+  }).join('');
+}
 
 // ── 포맷 헬퍼 ──
 function fmt(n) {
