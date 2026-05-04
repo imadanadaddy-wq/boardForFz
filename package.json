@@ -1,10 +1,11 @@
 {
   "name": "hyeong-maple-unified",
-  "version": "1.0.0",
-  "description": "Hyeong Maple Unified Dashboard (MesoBo + FrenzyCast)",
+  "version": "1.1.0",
+  "description": "Hyeong Maple Unified Dashboard (MesoBo + FrenzyCast) + Desktop Overlay",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "overlay": "cd electron && npm install && npm start"
   },
   "dependencies": {
     "cors": "^2.8.5",

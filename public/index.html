@@ -79,6 +79,22 @@ td{padding:11px 14px;font-size:14px;font-weight:800}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 .badge-offline{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:900;color:var(--ms-red);border:1.5px solid var(--ms-red);padding:2px 8px;border-radius:4px}
 .badge-offline::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--ms-red)}
+
+/* ★ NEW: MAP-offline badge */
+.badge-map{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:900;color:#ff9800;border:1.5px solid #ff9800;padding:2px 7px;border-radius:4px;margin-left:5px;letter-spacing:.5px;white-space:nowrap}
+.badge-map::before{content:'📍';font-size:9px}
+
+/* ★ NEW: FORCED offline badge */
+.badge-forced{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:900;color:#9b59b6;border:1.5px solid #9b59b6;padding:2px 7px;border-radius:4px;margin-left:5px;letter-spacing:.5px;white-space:nowrap}
+.badge-forced::before{content:'🔒';font-size:9px}
+
+/* ★ NEW: force-offline toggle button (오너 전용, hover 시 표시) */
+.force-btn{display:none;background:none;border:1px solid #9b59b6;color:#9b59b6;font-size:10px;font-family:'JetBrains Mono',monospace;font-weight:800;padding:2px 8px;cursor:pointer;border-radius:3px;white-space:nowrap;transition:all .15s;margin-left:4px}
+.force-btn:hover{background:rgba(155,89,182,.15)}
+.force-btn.forced-active{background:rgba(155,89,182,.2);color:#c39bd3;border-color:#c39bd3}
+tr:hover .force-btn{display:inline-flex;align-items:center;gap:3px}
+.force-btn.forced-active{display:inline-flex!important;align-items:center;gap:3px} /* 강제 활성 시 항상 표시 */
+
 .empty-state{padding:50px 20px;text-align:center;color:#aaa;font-size:13px;font-family:'JetBrains Mono',monospace;letter-spacing:1px}
 
 /* CHANGED CELL */
@@ -198,7 +214,7 @@ input::placeholder{color:#aaa;font-weight:normal}
    OVERLAY STYLES
 ══════════════════════════════════════ */
 #ov-toggle-btn {
-  display:none; /* 오너 인증 후 표시 */
+  display:none;
   background:linear-gradient(180deg,rgba(255,179,0,0.18),rgba(255,179,0,0.08));
   border:1.5px solid var(--ms-accent);
   color:var(--ms-accent);
@@ -215,7 +231,7 @@ input::placeholder{color:#aaa;font-weight:normal}
   width:300px;z-index:9999;
   font-family:'JetBrains Mono',monospace;
   transition:opacity .2s,transform .2s;
-  display:none; /* JS로 토글 */
+  display:none;
 }
 #overlay-wrap.ov-visible{display:block;}
 #overlay-wrap.ov-hidden-anim{opacity:0;transform:translateX(12px);}
@@ -230,10 +246,8 @@ input::placeholder{color:#aaa;font-weight:normal}
   user-select:none;
 }
 
-/* drag */
 #ov-panel.ov-dragging{opacity:.82;cursor:grabbing;}
 
-/* header */
 .ov-hdr {
   display:flex;align-items:center;justify-content:space-between;
   padding:7px 11px;
@@ -262,7 +276,6 @@ input::placeholder{color:#aaa;font-weight:normal}
 }
 .ov-mini-btn:hover{border-color:var(--ms-accent);color:var(--ms-accent);}
 
-/* opacity slider row */
 .ov-opacity-row{
   display:flex;align-items:center;gap:8px;
   padding:5px 11px;
@@ -285,7 +298,6 @@ input[type=range].ov-slider::-moz-range-thumb{
   background:var(--ms-accent);
 }
 
-/* stats bar */
 .ov-stats{
   display:flex;justify-content:space-between;align-items:center;
   padding:7px 11px;
@@ -296,7 +308,6 @@ input[type=range].ov-slider::-moz-range-thumb{
 .ov-stat-lbl{font-size:8px;letter-spacing:1px;color:rgba(255,255,255,.3);}
 .ov-stat-val{font-size:14px;font-weight:800;font-family:'JetBrains Mono',monospace;}
 
-/* body */
 .ov-body{padding:9px;}
 
 .ov-sec-lbl{
@@ -337,12 +348,10 @@ input[type=range].ov-slider::-moz-range-thumb{
 .ov-scroll::-webkit-scrollbar-track{background:transparent;}
 .ov-scroll::-webkit-scrollbar-thumb{background:rgba(255,179,0,.2);border-radius:2px;}
 
-/* minimized */
 #ov-panel.ov-minimized .ov-body,
 #ov-panel.ov-minimized .ov-stats,
 #ov-panel.ov-minimized .ov-opacity-row{display:none;}
 
-/* footer */
 .ov-footer{
   display:flex;justify-content:space-between;align-items:center;
   padding:4px 11px;border-top:1px solid rgba(255,255,255,.05);
@@ -355,61 +364,40 @@ input[type=range].ov-slider::-moz-range-thumb{
 }
 .ov-footer-btn:hover{color:var(--ms-accent);}
 
-/* rank colors */
 .ov-rank-great{color:#f59e0b;}
 .ov-rank-good{color:#2ecc71;}
 .ov-rank-ok{color:#00acc1;}
 
 /* ── MOBILE RESPONSIVE ── */
 @media (max-width: 640px) {
-
-  /* 헤더 */
   header{padding:8px 12px;gap:8px}
   .header-title{font-size:15px}
   .nav-link{padding:3px 8px;font-size:11px}
   #last-upd{font-size:10px;display:none}
-
-  /* 배너 */
   .summary-banner{gap:8px;padding:10px 12px;min-height:unset}
   .info-pill{min-width:unset;padding:5px 10px}
   .info-val{font-size:14px}
   .info-label{font-size:9px}
-
-  /* 메인 패딩 */
   main{padding:10px}
-
-  /* 탭 */
   .tab-bar{gap:0;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   .tab-bar::-webkit-scrollbar{display:none}
   .tab-btn{padding:7px 12px;font-size:10px;white-space:nowrap;flex-shrink:0}
-
-  /* 정렬 버튼 줄바꿈 */
   #tab-bots > div:first-child{flex-direction:column;align-items:flex-start !important;gap:8px}
   #tab-bots > div:first-child > div{margin-left:0 !important;flex-wrap:wrap}
-
-  /* 테이블: 가로 스크롤 허용 */
   .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  table{min-width:520px}   /* 최소 너비 강제 → 작은 화면에서 스크롤 생김 */
+  table{min-width:520px}
   th{padding:8px 10px;font-size:9px}
   td{padding:8px 10px;font-size:12px}
   .td-ign{font-size:11px}
   .td-owner{font-size:10px}
   .td-ago{font-size:10px}
   .badge-online,.badge-offline{font-size:10px;padding:1px 5px}
-
-  /* 폼 */
   .form-row{flex-direction:column}
   .btn{font-size:11px;padding:8px 14px}
   .panel-box{padding:12px}
-
-  /* 셀러 카드 */
   .cards,.seller-grid{grid-template-columns:1fr}
-
-  /* 메소 카드 */
   .ccard{padding:10px}
   .ign{font-size:15px}
-
-  /* 세션 행 */
   .session-row{flex-wrap:wrap;gap:6px}
   .session-result{min-width:unset;width:100%;align-items:flex-start}
 }
@@ -500,17 +488,14 @@ input[type=range].ov-slider::-moz-range-thumb{
 <main>
   <!-- TABS -->
   <div class="tab-bar">
-    <!-- 셀러 공개 -->
     <button class="tab-btn active" onclick="switchTab('bots',this)">BOT STATUS</button>
     <button class="tab-btn" onclick="switchTab('seller',this)">SELLER CALC</button>
     <button class="tab-btn" id="tab-btn-log"     onclick="switchTab('changelog',this)">CHANGE LOG</button>
-    <!-- 오너 전용 -->
     <button class="tab-btn owner-tab" id="tab-btn-meso"    onclick="switchTab('meso',this)">MESO TRACKER 🔒</button>
     <button class="tab-btn owner-tab" id="tab-btn-reg"     onclick="switchTab('register',this)">REGISTER CLIENT 🔒</button>
-
   </div>
 
-  <!-- ══ TAB: BOT STATUS (공개) ══ -->
+  <!-- ══ TAB: BOT STATUS ══ -->
   <div class="tab-content active" id="tab-bots">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
       <div class="section-title" style="margin-bottom:0">Bot Status</div>
@@ -541,10 +526,8 @@ input[type=range].ov-slider::-moz-range-thumb{
     </div>
   </div>
 
-  <!-- ══ TAB: SELLER CALC (public — seller facing) ══ -->
+  <!-- ══ TAB: SELLER CALC ══ -->
   <div class="tab-content" id="tab-seller">
-
-    <!-- CALCULATOR -->
     <div class="panel-box">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
         <div class="section-title" style="margin-bottom:0">Payment Calculator</div>
@@ -553,18 +536,12 @@ input[type=range].ov-slider::-moz-range-thumb{
           <button class="btn" style="padding:6px 16px;font-size:12px" onclick="addSession()">＋ Add Session</button>
         </div>
       </div>
-
-      <!-- Session rows container -->
       <div id="session-list"></div>
-
-      <!-- Total -->
       <div style="border-top:2px solid var(--ms-border-dark);margin-top:16px;padding-top:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
         <div style="font-size:13px;font-weight:800;color:var(--ms-text);letter-spacing:1px">TOTAL PAYMENT</div>
         <div id="calc-total" style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:800;color:var(--ms-gold)">0 meso</div>
       </div>
     </div>
-
-    <!-- SEND TO OWNER -->
     <div class="panel-box">
       <div class="section-title">Send to Owner</div>
       <p style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace;margin-bottom:14px;letter-spacing:.5px">Upload a screenshot after calculating — a Discord notification will be sent to the owner automatically.</p>
@@ -578,11 +555,9 @@ input[type=range].ov-slider::-moz-range-thumb{
       </div>
       <div class="notify" id="wh-notify"></div>
     </div>
-
-    <!-- OWNER PANEL injected here after auth -->
   </div>
 
-  <!-- ══ TAB: MESO TRACKER (오너 전용) ══ -->
+  <!-- ══ TAB: MESO TRACKER ══ -->
   <div class="tab-content" id="tab-meso">
     <div id="meso-lock" class="tab-lock">
       <div class="tab-lock-box">
@@ -603,7 +578,7 @@ input[type=range].ov-slider::-moz-range-thumb{
     </div>
   </div>
 
-  <!-- ══ TAB: REGISTER CLIENT (오너 전용) ══ -->
+  <!-- ══ TAB: REGISTER CLIENT ══ -->
   <div class="tab-content" id="tab-register">
     <div id="reg-lock" class="tab-lock">
       <div class="tab-lock-box">
@@ -630,12 +605,7 @@ input[type=range].ov-slider::-moz-range-thumb{
     </div>
   </div>
 
-
-
-  <!-- ══ OWNER PANEL: 정산 관리 (오너가 인증 후 SELLER CALC 아래에 추가) ══ -->
-  <!-- 이 섹션은 isAuthed일 때 seller 탭 안에 동적으로 inject됨 -->
-
-  <!-- ══ TAB: CHANGE LOG (오너 전용) ══ -->
+  <!-- ══ TAB: CHANGE LOG ══ -->
   <div class="tab-content" id="tab-changelog">
     <div id="changelog-content">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
@@ -666,8 +636,8 @@ input[type=range].ov-slider::-moz-range-thumb{
 const OWNER_PW = "7678";
 let isAuthed    = false;
 let botData     = [];
-let prevBotMap  = {};       // {owner|ign: {channel, map_id}}
-let changedCells = {};      // {owner|ign|field: timestamp} — 30초 하이라이트
+let prevBotMap  = {};
+let changedCells = {};
 let currentSort = 'default';
 let mapNames    = {
   "450002001": "🍎 [Chu Chu] Hill Path",
@@ -700,6 +670,30 @@ let mapNames    = {
 };
 let sellerRecords = [];
 
+// ── 강제 오프라인 목록 (localStorage 영속) ──
+// key 형식: "owner|ign"
+let manualOffline = new Set(JSON.parse(localStorage.getItem('ms_forced_offline') || '[]'));
+
+function saveManualOffline() {
+  try { localStorage.setItem('ms_forced_offline', JSON.stringify([...manualOffline])); } catch(e) {}
+}
+
+function toggleForceOffline(key) {
+  if (manualOffline.has(key)) {
+    manualOffline.delete(key);
+  } else {
+    manualOffline.add(key);
+  }
+  saveManualOffline();
+  renderBotTable();
+}
+
+// ── 설정된 맵 여부 확인 ──
+function isKnownMap(mapId) {
+  if (mapId === null || mapId === undefined) return false;
+  return !!mapNames[String(mapId)];
+}
+
 // ── AUTH ──
 function checkAuth() {
   if (sessionStorage.getItem("ms_main_auth") === "ok") {
@@ -708,7 +702,6 @@ function checkAuth() {
   }
 }
 
-// 각 탭별 비밀번호 입력
 function tryAuth(tab) {
   const pw  = document.getElementById("pw-"+tab).value;
   const err = document.getElementById("err-"+tab);
@@ -724,37 +717,25 @@ function tryAuth(tab) {
 }
 
 function applyAuth() {
-  // 배너 표시
   document.getElementById("main-banner").style.display = "flex";
   document.getElementById("auth-badge").style.display  = "inline-block";
-
-  // 잠금 해제: meso, reg
   ["meso","reg","changelog"].forEach(k => {
     const lock = document.getElementById(k+"-lock");
     const cont = document.getElementById(k+"-content");
     if (lock) lock.style.display = "none";
     if (cont) cont.style.display = "block";
   });
-
-  // 탭 버튼 자물쇠 제거
   document.getElementById("tab-btn-meso").textContent = "MESO TRACKER";
   document.getElementById("tab-btn-reg").textContent  = "REGISTER CLIENT";
   document.getElementById("tab-btn-log").textContent  = "CHANGE LOG";
   document.querySelectorAll(".owner-tab").forEach(b=>b.classList.remove("owner-tab"));
-
-  // SELLER 탭에 오너 관리 패널 추가
   injectOwnerSellerPanel();
-
-  // 오버레이 버튼 표시
   document.getElementById("ov-toggle-btn").style.display = "inline-block";
-
-  // 데이터 로드
   fetchMeso();
   fetchSellerRecords();
   fetchChangelog();
 }
 
-// SELLER 탭에 오너 전용 관리 패널 동적 삽입
 function injectOwnerSellerPanel() {
   if (document.getElementById("owner-seller-panel")) return;
   const panel = document.createElement("div");
@@ -807,7 +788,6 @@ function nullDash(v) {
 async function loadMapNames() {
   try {
     const rows = await (await fetch("/api/mapnames")).json();
-    // 하드코딩 기본값 위에 API 결과를 merge (API 우선, 실패해도 기본값 유지)
     rows.forEach(r=>mapNames[String(r.map_id)]=r.map_name);
   } catch(e){}
 }
@@ -830,21 +810,22 @@ async function fetchFC() {
       }
       prevBotMap[key] = { channel: b.channel ?? null, map_id: b.map_id ?? null };
     });
-    // 30초 지난 하이라이트 제거
     Object.keys(changedCells).forEach(k => {
       if (now - changedCells[k] > HIGHLIGHT_MS) delete changedCells[k];
     });
 
     botData = data;
-    const online = data.filter(b=>b.online).length;
+
+    // ★ 온라인 카운트: 설정된 맵에 있고 강제오프 아닌 봇만 집계
+    const online = data.filter(b => b.online && isKnownMap(b.map_id) && !manualOffline.has(b.owner+'|'+b.ign)).length;
     if (isAuthed) document.getElementById("s-fc-online").textContent=`${online} | ${data.length}`;
     renderBotTable();
     document.getElementById("last-upd").textContent="UPDATED: "+new Date().toLocaleTimeString("ko-KR",{hour12:false});
   } catch(e){}
 }
+
 function sortBots(dir) {
   currentSort = dir;
-  // update th-level header indicator
   const thLv  = document.getElementById("th-level");
   const thMap = document.getElementById("th-map");
   if (thLv)  thLv.classList.remove("sort-asc","sort-desc");
@@ -879,16 +860,36 @@ function applySort(arr) {
   return s;
 }
 
-function buildBotRow(b) {
+// ★ mapOff=true: 서버에서 online이지만 설정되지 않은 맵에 있어서 오프라인 처리된 봇
+function buildBotRow(b, mapOff = false) {
   const key       = b.owner + '|' + b.ign;
   const chChanged  = !!changedCells[key + '|channel'];
   const mapChanged = !!changedCells[key + '|map_id'];
+  const isForced   = manualOffline.has(key);
+
+  // 강제 오프라인 토글 버튼 (오너 인증 시에만 렌더링)
+  const forceBtn = isAuthed
+    ? `<button class="force-btn${isForced ? ' forced-active' : ''}" onclick="toggleForceOffline('${key}')" title="${isForced ? '강제오프 해제' : '강제 오프라인 설정'}">${isForced ? '🔒 FORCED' : '🔒'}</button>`
+    : '';
+
+  // 상태 배지 결정
+  let statusBadge;
+  if (isForced) {
+    statusBadge = `<span class="badge-offline">OFFLINE</span><span class="badge-forced">FORCED</span>${forceBtn}`;
+  } else if (mapOff) {
+    statusBadge = `<span class="badge-offline">OFFLINE</span><span class="badge-map">MAP</span>${forceBtn}`;
+  } else if (b.online) {
+    statusBadge = `<span class="badge-online">ONLINE</span>${forceBtn}`;
+  } else {
+    statusBadge = `<span class="badge-offline">OFFLINE</span>${forceBtn}`;
+  }
+
   return `<tr>
     <td class="td-ign">${b.ign}</td>
     <td class="td-level">Lv.${b.level}</td>
     <td class="td-loc${chChanged  ? ' cell-changed' : ''}">${nullDash(b.channel)}${chChanged  ? ' <span class="changed-badge">CHANGED</span>' : ''}</td>
     <td class="td-loc${mapChanged ? ' cell-changed' : ''}" id="mapcell-${b.map_id}">${buildMapCell(b.map_id)}${mapChanged ? ' <span class="changed-badge">CHANGED</span>' : ''}</td>
-    <td>${b.online?'<span class="badge-online">ONLINE</span>':'<span class="badge-offline">OFFLINE</span>'}</td>
+    <td>${statusBadge}</td>
     <td class="td-ago">${formatAgo(b.ago_sec)}</td>
   </tr>`;
 }
@@ -899,10 +900,32 @@ function renderBotTable() {
     tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state">Waiting for heartbeat signals...</div></td></tr>`;
     return;
   }
-  const online  = applySort(botData.filter(b=>b.online));
-  const offline = applySort(botData.filter(b=>!b.online));
+
+  // ★ 4가지로 분류
+  // 1) 강제 오프라인: manualOffline에 등록된 봇 (서버 상태 무시)
+  const forced     = applySort(botData.filter(b =>  manualOffline.has(b.owner+'|'+b.ign)));
+  const forcedKeys = new Set(forced.map(b => b.owner+'|'+b.ign));
+  // 2) 진짜 온라인: online=true + 설정된 맵 + 강제오프 아님
+  const online     = applySort(botData.filter(b =>  b.online && isKnownMap(b.map_id) && !forcedKeys.has(b.owner+'|'+b.ign)));
+  // 3) MAP 오프라인: online=true이지만 설정되지 않은 맵 + 강제오프 아님
+  const mapOffline = applySort(botData.filter(b =>  b.online && !isKnownMap(b.map_id) && !forcedKeys.has(b.owner+'|'+b.ign)));
+  // 4) 진짜 오프라인: online=false + 강제오프 아님
+  const offline    = applySort(botData.filter(b => !b.online && !forcedKeys.has(b.owner+'|'+b.ign)));
 
   let html = '';
+
+  // ── FORCED OFFLINE section ──
+  if (forced.length) {
+    html += `<tr style="background:rgba(155,89,182,.08)">
+      <td colspan="6" style="padding:6px 14px;font-size:10px;font-family:'JetBrains Mono',monospace;
+        letter-spacing:2px;color:#9b59b6;border-bottom:1px solid rgba(155,89,182,.25)">
+        🔒 FORCED OFFLINE (수동 설정) — ${forced.length}
+      </td></tr>`;
+    html += forced.map(b => {
+      const isMapOff = b.online && !isKnownMap(b.map_id);
+      return buildBotRow(b, isMapOff).replace('<tr>', '<tr style="opacity:.7;background:rgba(155,89,182,.04)">');
+    }).join('');
+  }
 
   // ── ONLINE section ──
   if (online.length) {
@@ -911,7 +934,19 @@ function renderBotTable() {
         letter-spacing:2px;color:var(--ms-green);border-bottom:1px solid rgba(46,204,113,.25)">
         ● ONLINE — ${online.length}
       </td></tr>`;
-    html += online.map(buildBotRow).join('');
+    html += online.map(b => buildBotRow(b, false)).join('');
+  }
+
+  // ── MAP OFFLINE section ──
+  if (mapOffline.length) {
+    html += `<tr style="background:rgba(255,152,0,.07)">
+      <td colspan="6" style="padding:6px 14px;font-size:10px;font-family:'JetBrains Mono',monospace;
+        letter-spacing:2px;color:#ff9800;border-top:2px solid rgba(255,152,0,.25);border-bottom:1px solid rgba(255,152,0,.2)">
+        📍 MAP OFFLINE (설정 외 맵) — ${mapOffline.length}
+      </td></tr>`;
+    html += mapOffline.map(b => {
+      return buildBotRow(b, true).replace('<tr>', '<tr style="opacity:.75">');
+    }).join('');
   }
 
   // ── OFFLINE section ──
@@ -922,15 +957,14 @@ function renderBotTable() {
         ○ OFFLINE — ${offline.length}
       </td></tr>`;
     html += offline.map(b => {
-      // offline rows dimmed
-      return buildBotRow(b).replace('<tr>', '<tr style="opacity:.55">');
+      return buildBotRow(b, false).replace('<tr>', '<tr style="opacity:.55">');
     }).join('');
   }
 
   tbody.innerHTML = html;
 }
 
-// Map 셀 렌더링: 이름 있으면 이름+ID, 없으면 ID만. 항상 [이름짓기] 버튼 노출
+// Map 셀 렌더링
 function buildMapCell(mapId) {
   if (mapId===null||mapId===undefined) return '<span style="color:#bbb">—</span>';
   const name = mapNames[String(mapId)];
@@ -944,7 +978,6 @@ function buildMapCell(mapId) {
   </div>`;
 }
 
-// 인라인 편집 시작
 function startMapEdit(mapId, btn) {
   const cell = document.getElementById('mapcell-'+mapId);
   if (!cell) return;
@@ -980,13 +1013,11 @@ function cancelMapEdit(mapId) {
 
 // ── MESO TRACKER ──
 const ICON_MAP = {
-  // 기존
   "펫먹이":      "/images/pet.png",
   "연료":        "/images/fuel.png",
   "재획":        "/images/potion.png",
   "조각":        "/images/frag.png",
   "주흔":        "/images/scroll.png",
-  // 신규
   "elixir":      "/images/elixir.png",
   "chest":       "/images/chest.png",
   "box":         "/images/box.png",
@@ -1000,7 +1031,6 @@ const ICON_MAP = {
   "shang_sac":   "/images/shang_sac.png",
 };
 
-// 아이템 name → ICON_MAP 키 매핑
 function getIcon(name) {
   if (!name) return "";
   if (name.includes("펫먹이"))      return ICON_MAP["펫먹이"];
@@ -1022,8 +1052,6 @@ function getIcon(name) {
   return "";
 }
 
-// 아이템 배열에서 특정 name 키워드에 해당하는 항목 찾기
-// exclude 키워드가 있으면 해당 아이템은 제외
 function findItem(items, keyword, ...excludes) {
   if (!items) return null;
   return items.find(it => {
@@ -1077,7 +1105,6 @@ function renderMesoCards(data) {
     const items  = d.items || [];
     const barW   = Math.min(100, (d.meso_hr/maxHr)*100);
 
-    // ── 소비템 바 (1×5): potion → fuel → pet → elixir → chest
     const consRow = [
       findItem(items, "재획"),
       findItem(items, "연료", "에센스"),
@@ -1086,21 +1113,18 @@ function renderMesoCards(data) {
       findItem(items, "chest"),
     ].map(it => makeSlot(it, true)).join("");
 
-    // ── 1층 (3칸): box / frag / spell
     const row1 = [
       findItem(items, "box"),
       findItem(items, "조각"),
       findItem(items, "주흔"),
     ].map(it => makeSlot(it)).join("");
 
-    // ── 2층 (3칸): flame / eternal flame / black flame
     const row2 = [
       findItem(items, "flame", "eternal_flame", "black_flame"),
       findItem(items, "eternal_flame"),
       findItem(items, "black_flame"),
     ].map(it => makeSlot(it)).join("");
 
-    // ── 3층 (5칸): arcane → cer → arcus → ordium → shang
     const row3 = [
       findItem(items, "arcane"),
       findItem(items, "cer_sac"),
@@ -1137,7 +1161,6 @@ function renderMesoCards(data) {
 }
 
 // ── SELLER CALC ──
-// 👇 Set your Discord Webhook URL here:
 const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1498930266570494036/DUEJUxMwR61BdxjQs5nTw5MBokX6vEHW8eM0VuQ9xriA6MisV36PMdtXFjZwLzufiyhq";
 const RATE_PER_HOUR = 50_000_000;
 
@@ -1350,13 +1373,12 @@ async function registerClient() {
   } catch(e){n.className="notify err";n.textContent="! "+e.message;}
 }
 
-// ── AUTO-REGISTER DEFAULT CLIENT (Hyeong) ──
+// ── AUTO-REGISTER DEFAULT CLIENT ──
 async function autoRegisterDefault() {
   const DEFAULT_OWNER = "Hyeong";
   const DEFAULT_TOKEN = "fd9601cc2d89007ea64825510908023994b55e445d8d930ed582f7a8532afe30";
   const FZ_BASE       = "https://rudy-hyeong-fz-board.up.railway.app";
 
-  // ── 1) 로컬 트래커 서버 등록 ──
   try {
     const check = await fetch("/api/clients");
     if (check.ok) {
@@ -1372,7 +1394,6 @@ async function autoRegisterDefault() {
     }
   } catch(e) {}
 
-  // ── 2) Railway FrenzyCast 보드 등록 ──
   try {
     const check = await fetch(`${FZ_BASE}/api/clients`);
     if (check.ok) {
@@ -1394,9 +1415,10 @@ async function init() {
   await loadMapNames();
   autoRegisterDefault();
   fetchFC();
-  renderSessions(); // init empty state
+  renderSessions();
   setInterval(()=>{fetchFC();if(isAuthed)fetchMeso();},10000);
 }
+
 // ══════════════════════════════════════
 // OVERLAY LOGIC
 // ══════════════════════════════════════
@@ -1411,7 +1433,6 @@ async function init() {
   const MESO_GOOD  = 100_000_000;
   const OV_INTERVAL = 10_000;
 
-  // ── show/hide ──
   window.toggleOverlay = function() {
     const wrap = document.getElementById("overlay-wrap");
     const btn  = document.getElementById("ov-toggle-btn");
@@ -1428,7 +1449,6 @@ async function init() {
     }
   };
 
-  // ── minimize ──
   window.ovToggleMin = function() {
     const panel = document.getElementById("ov-panel");
     const mb    = document.getElementById("ov-min-btn");
@@ -1437,16 +1457,13 @@ async function init() {
     mb.textContent = ovMinimized ? "▲" : "—";
   };
 
-  // ── opacity ──
   window.ovSetOpacity = function(val) {
     document.getElementById("ov-opacity-val").textContent = val + "%";
     document.getElementById("ov-panel").style.background =
       `rgba(8,10,16,${(val/100).toFixed(2)})`;
-    // 저장
     try { localStorage.setItem("ov_opacity", val); } catch(e){}
   };
 
-  // ── drag (mouse) ──
   const wrap  = document.getElementById("overlay-wrap");
   const panel = document.getElementById("ov-panel");
   const handle= document.getElementById("ov-drag");
@@ -1471,7 +1488,6 @@ async function init() {
     panel.classList.remove("ov-dragging");
   });
 
-  // ── drag (touch) ──
   handle.addEventListener("touchstart", e => {
     const t = e.touches[0];
     const rect = wrap.getBoundingClientRect();
@@ -1489,7 +1505,6 @@ async function init() {
   }, {passive:true});
   document.addEventListener("touchend", () => { ovDragging = false; });
 
-  // ── fetch ──
   async function ovFetch() {
     try {
       const data = await (await fetch("/api/tracker")).json();
@@ -1502,7 +1517,6 @@ async function init() {
   }
   window.ovRefresh = function() { ovFetch(); };
 
-  // ── render ──
   function ovFmt(n) {
     if (!n || isNaN(n)) return "—";
     if (n >= 1e9) return (n/1e9).toFixed(2)+"B";
@@ -1531,7 +1545,6 @@ async function init() {
     document.getElementById("ov-online-cnt").textContent  = online.length;
     document.getElementById("ov-offline-cnt").textContent = offline.length;
 
-    // B/HR list
     const bhrEl = document.getElementById("ov-bhr-list");
     if (!online.length) {
       bhrEl.innerHTML = '<div class="ov-empty">온라인 봇 없음</div>';
@@ -1549,7 +1562,6 @@ async function init() {
       }).join("");
     }
 
-    // Offline list
     const offEl = document.getElementById("ov-offline-list");
     if (!offline.length) {
       offEl.innerHTML = '<div class="ov-empty">— 모든 봇 온라인 ✓ —</div>';
@@ -1565,7 +1577,6 @@ async function init() {
     }
   }
 
-  // ── 저장된 opacity 복원 ──
   try {
     const saved = localStorage.getItem("ov_opacity");
     if (saved) {
@@ -1575,7 +1586,6 @@ async function init() {
   } catch(e) {}
 
 })();
-// ══════════════════════════════════════
 
 window.onload=init;
 </script>

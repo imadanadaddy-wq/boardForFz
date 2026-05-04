@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<title>Maple Overlay</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet"/>
+<style>
+@font-face {
+  font-family: 'MaplestoryOTFBold';
+  src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@ProjectNoonnu_2.1/MaplestoryOTFBold.woff') format('woff');
+}
+:root {
+  --ms-accent: #ffb300;
+  --ms-green:  #2ecc71;
+  --ms-red:    #e74c3c;
+  --ms-gold:   #f59e0b;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: transparent !important;
+  overflow: hidden;
+  font-family: 'JetBrains Mono', monospace;
+  -webkit-user-select: none; user-select: none;
+}
+
+#ov-panel {
+  width: 100%; height: 100%;
+  background: rgba(8,10,16,0.93);
+  border: 1px solid rgba(255,179,0,.38);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.05);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+
+/* ── 헤더 ── */
+.ov-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 11px;
+  background: linear-gradient(90deg, rgba(255,179,0,.13) 0%, transparent 100%);
+  border-bottom: 1px solid rgba(255,179,0,.25);
+  cursor: grab; flex-shrink: 0;
+}
+.ov-hdr:active { cursor: grabbing; }
+.ov-hdr-title {
+  font-family: 'MaplestoryOTFBold', sans-serif;
+  font-size: 10px; color: var(--ms-accent);
+  letter-spacing: 1.5px; text-transform: uppercase;
+  display: flex; align-items: center; gap: 7px;
+}
+.ov-hdr-title::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--ms-accent); box-shadow: 0 0 6px var(--ms-accent);
+  animation: ov-blink 2s ease-in-out infinite;
+}
+@keyframes ov-blink { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.8)} }
+.ov-hdr-btns { display: flex; gap: 5px; align-items: center; }
+.ov-mini-btn {
+  background: none; border: 1px solid rgba(255,255,255,.14);
+  color: rgba(255,255,255,.4); font-size: 11px;
+  font-family: 'JetBrains Mono', monospace; font-weight: 700;
+  padding: 2px 8px; border-radius: 3px; cursor: pointer; transition: all .15s; line-height: 1.4;
+}
+.ov-mini-btn:hover { border-color: var(--ms-accent); color: var(--ms-accent); }
+.ov-mini-btn.close-btn:hover { border-color: var(--ms-red); color: var(--ms-red); }
+
+/* ── 설정 바 ── */
+.ov-settings-bar {
+  display: none; flex-direction: column; gap: 6px;
+  padding: 8px 11px;
+  background: rgba(255,179,0,.04);
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+.ov-settings-bar.open { display: flex; }
+.ov-settings-row { display: flex; align-items: center; gap: 8px; }
+.ov-settings-label { font-size: 9px; color: rgba(255,255,255,.4); letter-spacing: 1px; min-width: 60px; }
+.ov-settings-input {
+  flex: 1; background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,179,0,.2); color: #fff;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  padding: 4px 8px; border-radius: 3px; outline: none;
+}
+.ov-settings-input:focus { border-color: var(--ms-accent); }
+.ov-save-btn {
+  background: linear-gradient(180deg, rgba(255,179,0,.3), rgba(255,179,0,.15));
+  border: 1px solid var(--ms-accent); color: var(--ms-accent);
+  font-family: 'MaplestoryOTFBold', sans-serif; font-size: 10px;
+  padding: 4px 12px; border-radius: 3px; cursor: pointer;
+}
+.ov-save-btn:hover { background: rgba(255,179,0,.4); }
+
+/* ── 투명도 ── */
+.ov-opacity-row {
+  display: flex; align-items: center; gap: 8px; padding: 5px 11px;
+  background: rgba(255,255,255,.03); border-bottom: 1px solid rgba(255,255,255,.05);
+  flex-shrink: 0;
+}
+.ov-opacity-label { font-size: 9px; color: rgba(255,255,255,.3); letter-spacing: 1px; white-space: nowrap; }
+.ov-opacity-val   { font-size: 9px; color: var(--ms-accent); min-width: 32px; text-align: right; }
+input[type=range].ov-slider {
+  flex: 1; height: 3px; -webkit-appearance: none; appearance: none;
+  background: rgba(255,255,255,.12); border-radius: 2px; outline: none; cursor: pointer;
+}
+input[type=range].ov-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--ms-accent); box-shadow: 0 0 5px rgba(255,179,0,.5);
+}
+
+/* ── 통계 ── */
+.ov-stats {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 11px; background: rgba(255,179,0,.05);
+  border-bottom: 1px solid rgba(255,255,255,.04); flex-shrink: 0;
+}
+.ov-stat-item { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.ov-stat-lbl  { font-size: 8px; letter-spacing: 1px; color: rgba(255,255,255,.3); }
+.ov-stat-val  { font-size: 14px; font-weight: 800; }
+
+/* ── 바디 ── */
+.ov-body {
+  padding: 9px; flex: 1; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.ov-sec-lbl {
+  font-size: 8px; letter-spacing: 2px; color: rgba(255,255,255,.28);
+  text-transform: uppercase; padding: 2px 3px 7px;
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+}
+.ov-sec-dot { width: 5px; height: 5px; border-radius: 50%; }
+.ov-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 8px; border-radius: 4px;
+  background: rgba(255,255,255,.04); margin-bottom: 3px;
+  transition: background .15s; animation: ov-row-in .22s ease both;
+}
+@keyframes ov-row-in { from{opacity:0;transform:translateX(7px)} to{opacity:1;transform:none} }
+.ov-row:last-child { margin-bottom: 0; }
+.ov-row:hover { background: rgba(255,255,255,.09); }
+.ov-ign       { font-size: 11px; font-weight: 800; color: #e0f7fa; display: flex; align-items: center; gap: 5px; }
+.ov-lv        { font-size: 9px; color: rgba(255,255,255,.3); font-weight: 400; }
+.ov-bhr       { font-size: 12px; font-weight: 800; }
+.ov-bhr-unit  { font-size: 8px; color: rgba(255,255,255,.28); font-weight: 400; }
+.ov-badge-off { font-size: 8px; font-weight: 800; color: #e74c3c; border: 1px solid rgba(231,76,60,.45); padding: 1px 6px; border-radius: 3px; letter-spacing: .5px; }
+.ov-badge-map { font-size: 8px; font-weight: 800; color: #ff9800; border: 1px solid rgba(255,152,0,.45); padding: 1px 6px; border-radius: 3px; letter-spacing: .5px; margin-left: 3px; }
+.ov-ago       { font-size: 9px; color: rgba(255,255,255,.22); }
+.ov-divider   { height: 1px; background: rgba(255,255,255,.06); margin: 7px 0; flex-shrink: 0; }
+.ov-empty     { text-align: center; padding: 10px 0; font-size: 9px; color: rgba(255,255,255,.18); letter-spacing: 1px; }
+
+.ov-scroll {
+  flex: 1; overflow-y: auto; min-height: 40px;
+  scrollbar-width: thin; scrollbar-color: rgba(255,179,0,.18) transparent;
+}
+.ov-scroll::-webkit-scrollbar { width: 3px; }
+.ov-scroll::-webkit-scrollbar-thumb { background: rgba(255,179,0,.2); border-radius: 2px; }
+
+#ov-panel.ov-minimized .ov-body,
+#ov-panel.ov-minimized .ov-stats,
+#ov-panel.ov-minimized .ov-opacity-row,
+#ov-panel.ov-minimized .ov-settings-bar { display: none !important; }
+
+.ov-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 4px 11px; border-top: 1px solid rgba(255,255,255,.05);
+  font-size: 8px; color: rgba(255,255,255,.18); letter-spacing: .5px; flex-shrink: 0;
+}
+.ov-footer-btn {
+  background: none; border: none; color: rgba(255,255,255,.25);
+  font-family: 'JetBrains Mono', monospace; font-size: 8px;
+  cursor: pointer; letter-spacing: .5px; transition: color .15s;
+}
+.ov-footer-btn:hover { color: var(--ms-accent); }
+
+.ov-rank-great { color: #f59e0b; }
+.ov-rank-good  { color: #2ecc71; }
+.ov-rank-ok    { color: #00acc1; }
+
+#ov-error {
+  display: none; text-align: center; padding: 6px;
+  font-size: 9px; color: rgba(231,76,60,.8);
+  background: rgba(231,76,60,.08); border-top: 1px solid rgba(231,76,60,.15); letter-spacing: .5px;
+}
+</style>
+</head>
+<body>
+
+<div id="ov-panel">
+  <div class="ov-hdr" id="ov-drag">
+    <div class="ov-hdr-title">MAPLE OVERLAY</div>
+    <div class="ov-hdr-btns">
+      <button class="ov-mini-btn" id="ov-set-btn" title="설정">⚙</button>
+      <button class="ov-mini-btn" id="ov-min-btn" title="최소화">—</button>
+      <button class="ov-mini-btn close-btn" id="ov-close-btn" title="숨기기">✕</button>
+    </div>
+  </div>
+
+  <div class="ov-settings-bar" id="ov-settings">
+    <div class="ov-settings-row">
+      <span class="ov-settings-label">API URL</span>
+      <input class="ov-settings-input" id="cfg-url" type="text" placeholder="http://your-server/api/tracker"/>
+    </div>
+    <div class="ov-settings-row">
+      <span class="ov-settings-label">갱신(ms)</span>
+      <input class="ov-settings-input" id="cfg-interval" type="number" placeholder="10000"/>
+      <button class="ov-save-btn" onclick="saveConfig()">저장</button>
+    </div>
+  </div>
+
+  <div class="ov-opacity-row">
+    <span class="ov-opacity-label">OPACITY</span>
+    <input type="range" class="ov-slider" id="ov-opacity" min="20" max="100" value="93" oninput="setOpacity(this.value)"/>
+    <span class="ov-opacity-val" id="ov-opacity-val">93%</span>
+  </div>
+
+  <div class="ov-stats">
+    <div class="ov-stat-item">
+      <span class="ov-stat-lbl">TOTAL B/HR</span>
+      <span class="ov-stat-val ov-rank-great" id="ov-total-hr">—</span>
+    </div>
+    <div class="ov-stat-item">
+      <span class="ov-stat-lbl">ONLINE</span>
+      <span class="ov-stat-val" style="color:#2ecc71" id="ov-online-cnt">—</span>
+    </div>
+    <div class="ov-stat-item">
+      <span class="ov-stat-lbl">OFFLINE</span>
+      <span class="ov-stat-val" style="color:#e74c3c" id="ov-offline-cnt">—</span>
+    </div>
+  </div>
+
+  <div class="ov-body">
+    <div class="ov-sec-lbl">
+      <span class="ov-sec-dot" style="background:#f59e0b;box-shadow:0 0 4px #f59e0b"></span>B/HR RANKING
+    </div>
+    <div class="ov-scroll" id="ov-bhr-list">
+      <div class="ov-empty">데이터 대기 중...</div>
+    </div>
+    <div class="ov-divider"></div>
+    <div class="ov-sec-lbl">
+      <span class="ov-sec-dot" style="background:#e74c3c"></span>OFFLINE BOTS
+    </div>
+    <div class="ov-scroll" id="ov-offline-list">
+      <div class="ov-empty">데이터 대기 중...</div>
+    </div>
+  </div>
+
+  <div id="ov-error">⚠ 서버 연결 실패 — ⚙ 설정에서 API URL 확인</div>
+
+  <div class="ov-footer">
+    <span id="ov-upd-time">—</span>
+    <button class="ov-footer-btn" onclick="ovFetch()">↺ REFRESH</button>
+  </div>
+</div>
+
+<script>
+const { ipcRenderer } = require('electron');
+
+const MESO_GREAT = 200_000_000;
+const MESO_GOOD  = 100_000_000;
+
+let ovMinimized = false;
+let fetchTimer  = null;
+let config      = { apiUrl: '', interval: 10000, opacity: 93 };
+
+// ── init ──
+(async function init() {
+  config = await window.electronAPI.getConfig();
+  document.getElementById('cfg-url').value      = config.apiUrl;
+  document.getElementById('cfg-interval').value = config.interval;
+  const op = config.opacity || 93;
+  document.getElementById('ov-opacity').value       = op;
+  document.getElementById('ov-opacity-val').textContent = op + '%';
+  startFetchLoop();
+})();
+
+// ── 설정 저장 ──
+async function saveConfig() {
+  config.apiUrl   = document.getElementById('cfg-url').value.trim() || config.apiUrl;
+  config.interval = parseInt(document.getElementById('cfg-interval').value) || 10000;
+  await window.electronAPI.saveConfig(config);
+  restartFetchLoop();
+  document.getElementById('ov-settings').classList.remove('open');
+}
+
+// ── 투명도 ──
+function setOpacity(val) {
+  document.getElementById('ov-opacity-val').textContent = val + '%';
+  window.electronAPI.setOpacity(val / 100);
+  config.opacity = parseInt(val);
+  window.electronAPI.saveConfig(config);
+}
+
+// ── 버튼 핸들러 ──
+document.getElementById('ov-min-btn').onclick = function() {
+  ovMinimized = !ovMinimized;
+  document.getElementById('ov-panel').classList.toggle('ov-minimized', ovMinimized);
+  this.textContent = ovMinimized ? '▲' : '—';
+};
+document.getElementById('ov-set-btn').onclick = () =>
+  document.getElementById('ov-settings').classList.toggle('open');
+document.getElementById('ov-close-btn').onclick = () =>
+  window.electronAPI.hide();
+
+// ── 드래그 ──
+const hdr = document.getElementById('ov-drag');
+hdr.addEventListener('mousedown', e => window.electronAPI.startDrag(e.screenX, e.screenY));
+document.addEventListener('mousemove', e => window.electronAPI.moveDrag(e.screenX, e.screenY));
+document.addEventListener('mouseup', () => window.electronAPI.endDrag());
+
+// ── 트레이 → 설정 열기 ──
+window.electronAPI.onOpenSettings(() =>
+  document.getElementById('ov-settings').classList.add('open'));
+
+// ── fetch ──
+async function ovFetch() {
+  const errEl = document.getElementById('ov-error');
+  if (!config.apiUrl) { errEl.style.display = 'block'; return; }
+  try {
+    const res = await fetch(config.apiUrl);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    ovRender(data);
+    errEl.style.display = 'none';
+    document.getElementById('ov-upd-time').textContent =
+      new Date().toLocaleTimeString('ko-KR', { hour12: false });
+  } catch(e) {
+    document.getElementById('ov-upd-time').textContent = 'ERROR';
+    errEl.style.display = 'block';
+  }
+}
+function startFetchLoop()   { ovFetch(); fetchTimer = setInterval(ovFetch, config.interval); }
+function restartFetchLoop() { clearInterval(fetchTimer); startFetchLoop(); }
+
+// ── 포맷 헬퍼 ──
+function fmt(n) {
+  if (!n || isNaN(n)) return '—';
+  if (n >= 1e9) return (n/1e9).toFixed(2)+'B';
+  if (n >= 1e6) return (n/1e6).toFixed(1)+'M';
+  if (n >= 1e3) return (n/1e3).toFixed(0)+'K';
+  return String(n);
+}
+function fmtAgo(sec) {
+  if (sec == null) return '';
+  if (sec < 60)   return Math.round(sec)+'s ago';
+  if (sec < 3600) return Math.round(sec/60)+'m ago';
+  return Math.round(sec/3600)+'h ago';
+}
+function rankCls(hr) {
+  if (hr >= MESO_GREAT) return 'ov-rank-great';
+  if (hr >= MESO_GOOD)  return 'ov-rank-good';
+  return 'ov-rank-ok';
+}
+
+// ── 렌더링 ──
+// GET /api/tracker → private_data (meso_hr 있음)
+// GET /api/bot-heartbeat/client → heartbeats (online, ago_sec 있음)
+// 둘 다 지원: meso_hr 있으면 tracker, 없으면 heartbeat 형식
+function ovRender(data) {
+  const online  = data.filter(d => d.online);
+  const offline = data.filter(d => !d.online);
+
+  // meso_hr가 있는 경우(tracker API)만 합산
+  const totalHr = data.reduce((s, d) => s + (d.meso_hr || 0), 0);
+
+  document.getElementById('ov-total-hr').textContent    = totalHr > 0 ? fmt(totalHr) : online.length + ' bots';
+  document.getElementById('ov-online-cnt').textContent  = online.length;
+  document.getElementById('ov-offline-cnt').textContent = offline.length;
+
+  // ── B/HR 랭킹 (또는 채널/맵 정보) ──
+  const bhrEl = document.getElementById('ov-bhr-list');
+  if (!online.length) {
+    bhrEl.innerHTML = '<div class="ov-empty">온라인 봇 없음</div>';
+  } else {
+    const sorted = [...online].sort((a,b) => (b.meso_hr||0) - (a.meso_hr||0));
+    bhrEl.innerHTML = sorted.map((d, i) => {
+      const cls = rankCls(d.meso_hr || 0);
+      const right = d.meso_hr
+        ? `<div class="ov-bhr ${cls}">${fmt(d.meso_hr)}<span class="ov-bhr-unit">/hr</span></div>`
+        : `<div style="font-size:10px;color:rgba(255,255,255,.3)">ch${d.channel||'?'}</div>`;
+      return `<div class="ov-row" style="animation-delay:${i*25}ms">
+        <div class="ov-ign">
+          <span class="${cls}" style="font-size:9px;min-width:14px">#${i+1}</span>
+          ${d.ign||'Unknown'} <span class="ov-lv">Lv.${d.level||'?'}</span>
+        </div>
+        ${right}
+      </div>`;
+    }).join('');
+  }
+
+  // ── 오프라인 목록 ──
+  const offEl = document.getElementById('ov-offline-list');
+  if (!offline.length) {
+    offEl.innerHTML = '<div class="ov-empty">— 모든 봇 온라인 ✓ —</div>';
+  } else {
+    offEl.innerHTML = offline.map((d, i) => `
+      <div class="ov-row" style="opacity:.7;animation-delay:${i*25}ms">
+        <div class="ov-ign">
+          ${d.ign||'Unknown'} <span class="ov-lv">Lv.${d.level||'?'}</span>
+          <span class="ov-ago">${fmtAgo(d.ago_sec)}</span>
+        </div>
+        <span class="ov-badge-off">OFFLINE</span>
+      </div>`).join('');
+  }
+}
+</script>
+</body>
+</html>
