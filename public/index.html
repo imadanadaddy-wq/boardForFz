@@ -194,6 +194,172 @@ input::placeholder{color:#aaa;font-weight:normal}
 /* OWNER badge */
 #auth-badge{display:none;font-size:11px;color:#b2ff59;font-family:'JetBrains Mono',monospace;border:1px solid #b2ff59;padding:3px 8px;border-radius:3px}
 
+/* ══════════════════════════════════════
+   OVERLAY STYLES
+══════════════════════════════════════ */
+#ov-toggle-btn {
+  display:none; /* 오너 인증 후 표시 */
+  background:linear-gradient(180deg,rgba(255,179,0,0.18),rgba(255,179,0,0.08));
+  border:1.5px solid var(--ms-accent);
+  color:var(--ms-accent);
+  font-family:'MaplestoryOTFBold',sans-serif;
+  font-size:11px;font-weight:800;letter-spacing:1px;
+  padding:4px 13px;border-radius:4px;cursor:pointer;
+  transition:all .2s;white-space:nowrap;
+}
+#ov-toggle-btn:hover{background:rgba(255,179,0,0.28);}
+#ov-toggle-btn.ov-active{background:rgba(255,179,0,0.32);border-color:#fff;color:#fff;}
+
+#overlay-wrap {
+  position:fixed;top:70px;right:18px;
+  width:300px;z-index:9999;
+  font-family:'JetBrains Mono',monospace;
+  transition:opacity .2s,transform .2s;
+  display:none; /* JS로 토글 */
+}
+#overlay-wrap.ov-visible{display:block;}
+#overlay-wrap.ov-hidden-anim{opacity:0;transform:translateX(12px);}
+
+#ov-panel {
+  background:rgba(8,10,16,0.93);
+  border:1px solid rgba(255,179,0,.38);
+  border-radius:6px;
+  box-shadow:0 8px 32px rgba(0,0,0,.65),inset 0 1px 0 rgba(255,255,255,.05);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  overflow:hidden;
+  user-select:none;
+}
+
+/* drag */
+#ov-panel.ov-dragging{opacity:.82;cursor:grabbing;}
+
+/* header */
+.ov-hdr {
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 11px;
+  background:linear-gradient(90deg,rgba(255,179,0,.13) 0%,transparent 100%);
+  border-bottom:1px solid rgba(255,179,0,.25);
+  cursor:grab;
+}
+.ov-hdr:active{cursor:grabbing;}
+.ov-hdr-title {
+  font-family:'MaplestoryOTFBold',sans-serif;
+  font-size:10px;color:var(--ms-accent);letter-spacing:1.5px;text-transform:uppercase;
+  display:flex;align-items:center;gap:7px;
+}
+.ov-hdr-title::before{
+  content:'';width:6px;height:6px;border-radius:50%;
+  background:var(--ms-accent);box-shadow:0 0 6px var(--ms-accent);
+  animation:ov-blink 2s ease-in-out infinite;
+}
+@keyframes ov-blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+.ov-hdr-btns{display:flex;gap:5px;align-items:center;}
+.ov-mini-btn{
+  background:none;border:1px solid rgba(255,255,255,.14);
+  color:rgba(255,255,255,.4);font-size:10px;
+  font-family:'JetBrains Mono',monospace;font-weight:700;
+  padding:2px 7px;border-radius:3px;cursor:pointer;transition:all .15s;
+}
+.ov-mini-btn:hover{border-color:var(--ms-accent);color:var(--ms-accent);}
+
+/* opacity slider row */
+.ov-opacity-row{
+  display:flex;align-items:center;gap:8px;
+  padding:5px 11px;
+  background:rgba(255,255,255,.03);
+  border-bottom:1px solid rgba(255,255,255,.05);
+}
+.ov-opacity-label{font-size:9px;color:rgba(255,255,255,.3);letter-spacing:1px;white-space:nowrap;}
+.ov-opacity-val{font-size:9px;color:var(--ms-accent);min-width:28px;text-align:right;}
+input[type=range].ov-slider{
+  flex:1;height:3px;
+  -webkit-appearance:none;appearance:none;
+  background:rgba(255,255,255,.12);border-radius:2px;outline:none;cursor:pointer;
+}
+input[type=range].ov-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;width:12px;height:12px;border-radius:50%;
+  background:var(--ms-accent);box-shadow:0 0 5px rgba(255,179,0,.5);
+}
+input[type=range].ov-slider::-moz-range-thumb{
+  width:12px;height:12px;border-radius:50%;border:none;
+  background:var(--ms-accent);
+}
+
+/* stats bar */
+.ov-stats{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:7px 11px;
+  background:rgba(255,179,0,.05);
+  border-bottom:1px solid rgba(255,255,255,.04);
+}
+.ov-stat-item{display:flex;flex-direction:column;align-items:center;gap:1px;}
+.ov-stat-lbl{font-size:8px;letter-spacing:1px;color:rgba(255,255,255,.3);}
+.ov-stat-val{font-size:14px;font-weight:800;font-family:'JetBrains Mono',monospace;}
+
+/* body */
+.ov-body{padding:9px;}
+
+.ov-sec-lbl{
+  font-size:8px;letter-spacing:2px;color:rgba(255,255,255,.28);
+  text-transform:uppercase;padding:2px 3px 7px;
+  display:flex;align-items:center;gap:6px;
+}
+.ov-sec-dot{width:5px;height:5px;border-radius:50%;}
+
+.ov-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:5px 8px;border-radius:4px;
+  background:rgba(255,255,255,.04);margin-bottom:3px;
+  transition:background .15s;
+  animation:ov-row-in .22s ease both;
+}
+@keyframes ov-row-in{from{opacity:0;transform:translateX(7px)}to{opacity:1;transform:none}}
+.ov-row:last-child{margin-bottom:0;}
+.ov-row:hover{background:rgba(255,255,255,.09);}
+.ov-ign{font-size:11px;font-weight:800;color:#e0f7fa;display:flex;align-items:center;gap:5px;}
+.ov-lv{font-size:9px;color:rgba(255,255,255,.3);font-weight:400;}
+.ov-bhr{font-size:12px;font-weight:800;font-family:'JetBrains Mono',monospace;}
+.ov-bhr-unit{font-size:8px;color:rgba(255,255,255,.28);font-weight:400;}
+.ov-badge-off{
+  font-size:8px;font-weight:800;
+  color:#e74c3c;border:1px solid rgba(231,76,60,.45);
+  padding:1px 6px;border-radius:3px;letter-spacing:.5px;
+}
+.ov-ago{font-size:9px;color:rgba(255,255,255,.22);}
+.ov-divider{height:1px;background:rgba(255,255,255,.06);margin:7px 0;}
+.ov-empty{text-align:center;padding:10px 0;font-size:9px;color:rgba(255,255,255,.18);letter-spacing:1px;}
+
+.ov-scroll{
+  max-height:180px;overflow-y:auto;
+  scrollbar-width:thin;scrollbar-color:rgba(255,179,0,.18) transparent;
+}
+.ov-scroll::-webkit-scrollbar{width:3px;}
+.ov-scroll::-webkit-scrollbar-track{background:transparent;}
+.ov-scroll::-webkit-scrollbar-thumb{background:rgba(255,179,0,.2);border-radius:2px;}
+
+/* minimized */
+#ov-panel.ov-minimized .ov-body,
+#ov-panel.ov-minimized .ov-stats,
+#ov-panel.ov-minimized .ov-opacity-row{display:none;}
+
+/* footer */
+.ov-footer{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:4px 11px;border-top:1px solid rgba(255,255,255,.05);
+  font-size:8px;color:rgba(255,255,255,.18);letter-spacing:.5px;
+}
+.ov-footer-btn{
+  background:none;border:none;color:rgba(255,255,255,.18);
+  font-family:'JetBrains Mono',monospace;font-size:8px;
+  cursor:pointer;letter-spacing:.5px;transition:color .15s;
+}
+.ov-footer-btn:hover{color:var(--ms-accent);}
+
+/* rank colors */
+.ov-rank-great{color:#f59e0b;}
+.ov-rank-good{color:#2ecc71;}
+.ov-rank-ok{color:#00acc1;}
+
 /* ── MOBILE RESPONSIVE ── */
 @media (max-width: 640px) {
 
@@ -257,9 +423,57 @@ input::placeholder{color:#aaa;font-weight:normal}
     <a href="/" class="nav-link active">MAIN</a>
     <a href="/private.html" class="nav-link">PRIVATE</a>
     <span id="auth-badge">OWNER</span>
+    <button id="ov-toggle-btn" onclick="toggleOverlay()">📊 OVERLAY</button>
     <div id="last-upd">READY</div>
   </div>
 </header>
+
+<!-- ══ OVERLAY PANEL ══ -->
+<div id="overlay-wrap">
+  <div id="ov-panel">
+    <div class="ov-hdr" id="ov-drag">
+      <div class="ov-hdr-title">MAPLE OVERLAY</div>
+      <div class="ov-hdr-btns">
+        <button class="ov-mini-btn" id="ov-min-btn" onclick="ovToggleMin()" title="최소화">—</button>
+        <button class="ov-mini-btn" onclick="ovRefresh()" title="새로고침">↺</button>
+      </div>
+    </div>
+    <div class="ov-opacity-row">
+      <span class="ov-opacity-label">OPACITY</span>
+      <input type="range" class="ov-slider" id="ov-opacity" min="20" max="100" value="93" oninput="ovSetOpacity(this.value)"/>
+      <span class="ov-opacity-val" id="ov-opacity-val">93%</span>
+    </div>
+    <div class="ov-stats">
+      <div class="ov-stat-item">
+        <span class="ov-stat-lbl">TOTAL B/HR</span>
+        <span class="ov-stat-val ov-rank-great" id="ov-total-hr">—</span>
+      </div>
+      <div class="ov-stat-item">
+        <span class="ov-stat-lbl">ONLINE</span>
+        <span class="ov-stat-val" style="color:#2ecc71" id="ov-online-cnt">—</span>
+      </div>
+      <div class="ov-stat-item">
+        <span class="ov-stat-lbl">OFFLINE</span>
+        <span class="ov-stat-val" style="color:#e74c3c" id="ov-offline-cnt">—</span>
+      </div>
+    </div>
+    <div class="ov-body">
+      <div class="ov-sec-lbl">
+        <span class="ov-sec-dot" style="background:#f59e0b;box-shadow:0 0 4px #f59e0b"></span>B/HR RANKING
+      </div>
+      <div class="ov-scroll" id="ov-bhr-list"><div class="ov-empty">데이터 대기 중...</div></div>
+      <div class="ov-divider"></div>
+      <div class="ov-sec-lbl">
+        <span class="ov-sec-dot" style="background:#e74c3c"></span>OFFLINE BOTS
+      </div>
+      <div class="ov-scroll" id="ov-offline-list"><div class="ov-empty">데이터 대기 중...</div></div>
+    </div>
+    <div class="ov-footer">
+      <span id="ov-upd-time">—</span>
+      <button class="ov-footer-btn" onclick="ovRefresh()">↺ REFRESH</button>
+    </div>
+  </div>
+</div>
 
 <!-- BANNER: owner only -->
 <div class="summary-banner" id="main-banner" style="display:none">
@@ -530,6 +744,9 @@ function applyAuth() {
 
   // SELLER 탭에 오너 관리 패널 추가
   injectOwnerSellerPanel();
+
+  // 오버레이 버튼 표시
+  document.getElementById("ov-toggle-btn").style.display = "inline-block";
 
   // 데이터 로드
   fetchMeso();
@@ -1180,6 +1397,186 @@ async function init() {
   renderSessions(); // init empty state
   setInterval(()=>{fetchFC();if(isAuthed)fetchMeso();},10000);
 }
+// ══════════════════════════════════════
+// OVERLAY LOGIC
+// ══════════════════════════════════════
+(function() {
+  let ovVisible  = false;
+  let ovMinimized= false;
+  let ovDragging = false;
+  let ovDX=0, ovDY=0;
+  let ovTimer    = null;
+
+  const MESO_GREAT = 200_000_000;
+  const MESO_GOOD  = 100_000_000;
+  const OV_INTERVAL = 10_000;
+
+  // ── show/hide ──
+  window.toggleOverlay = function() {
+    const wrap = document.getElementById("overlay-wrap");
+    const btn  = document.getElementById("ov-toggle-btn");
+    ovVisible  = !ovVisible;
+    if (ovVisible) {
+      wrap.classList.add("ov-visible");
+      btn.classList.add("ov-active");
+      btn.textContent = "✖ OVERLAY";
+      if (!ovTimer) { ovFetch(); ovTimer = setInterval(ovFetch, OV_INTERVAL); }
+    } else {
+      wrap.classList.remove("ov-visible");
+      btn.classList.remove("ov-active");
+      btn.textContent = "📊 OVERLAY";
+    }
+  };
+
+  // ── minimize ──
+  window.ovToggleMin = function() {
+    const panel = document.getElementById("ov-panel");
+    const mb    = document.getElementById("ov-min-btn");
+    ovMinimized = !ovMinimized;
+    panel.classList.toggle("ov-minimized", ovMinimized);
+    mb.textContent = ovMinimized ? "▲" : "—";
+  };
+
+  // ── opacity ──
+  window.ovSetOpacity = function(val) {
+    document.getElementById("ov-opacity-val").textContent = val + "%";
+    document.getElementById("ov-panel").style.background =
+      `rgba(8,10,16,${(val/100).toFixed(2)})`;
+    // 저장
+    try { localStorage.setItem("ov_opacity", val); } catch(e){}
+  };
+
+  // ── drag (mouse) ──
+  const wrap  = document.getElementById("overlay-wrap");
+  const panel = document.getElementById("ov-panel");
+  const handle= document.getElementById("ov-drag");
+
+  handle.addEventListener("mousedown", e => {
+    ovDragging = true;
+    const rect = wrap.getBoundingClientRect();
+    ovDX = e.clientX - rect.left;
+    ovDY = e.clientY - rect.top;
+    panel.classList.add("ov-dragging");
+    e.preventDefault();
+  });
+  document.addEventListener("mousemove", e => {
+    if (!ovDragging) return;
+    wrap.style.right  = "auto";
+    wrap.style.bottom = "auto";
+    wrap.style.left   = (e.clientX - ovDX) + "px";
+    wrap.style.top    = (e.clientY - ovDY) + "px";
+  });
+  document.addEventListener("mouseup", () => {
+    ovDragging = false;
+    panel.classList.remove("ov-dragging");
+  });
+
+  // ── drag (touch) ──
+  handle.addEventListener("touchstart", e => {
+    const t = e.touches[0];
+    const rect = wrap.getBoundingClientRect();
+    ovDragging = true;
+    ovDX = t.clientX - rect.left;
+    ovDY = t.clientY - rect.top;
+  }, {passive:true});
+  document.addEventListener("touchmove", e => {
+    if (!ovDragging) return;
+    const t = e.touches[0];
+    wrap.style.right  = "auto";
+    wrap.style.bottom = "auto";
+    wrap.style.left   = (t.clientX - ovDX) + "px";
+    wrap.style.top    = (t.clientY - ovDY) + "px";
+  }, {passive:true});
+  document.addEventListener("touchend", () => { ovDragging = false; });
+
+  // ── fetch ──
+  async function ovFetch() {
+    try {
+      const data = await (await fetch("/api/tracker")).json();
+      ovRender(data);
+      document.getElementById("ov-upd-time").textContent =
+        new Date().toLocaleTimeString("ko-KR", {hour12:false});
+    } catch(e) {
+      document.getElementById("ov-upd-time").textContent = "ERROR";
+    }
+  }
+  window.ovRefresh = function() { ovFetch(); };
+
+  // ── render ──
+  function ovFmt(n) {
+    if (!n || isNaN(n)) return "—";
+    if (n >= 1e9) return (n/1e9).toFixed(2)+"B";
+    if (n >= 1e6) return (n/1e6).toFixed(1)+"M";
+    if (n >= 1e3) return (n/1e3).toFixed(0)+"K";
+    return String(n);
+  }
+  function ovFmtAgo(sec) {
+    if (sec == null) return "";
+    if (sec < 60)   return Math.round(sec)+"s ago";
+    if (sec < 3600) return Math.round(sec/60)+"m ago";
+    return Math.round(sec/3600)+"h ago";
+  }
+  function ovRankClass(hr) {
+    if (hr >= MESO_GREAT) return "ov-rank-great";
+    if (hr >= MESO_GOOD)  return "ov-rank-good";
+    return "ov-rank-ok";
+  }
+
+  function ovRender(data) {
+    const online  = data.filter(d => d.online);
+    const offline = data.filter(d => !d.online);
+    const totalHr = data.reduce((s,d) => s + (d.meso_hr||0), 0);
+
+    document.getElementById("ov-total-hr").textContent   = ovFmt(totalHr);
+    document.getElementById("ov-online-cnt").textContent  = online.length;
+    document.getElementById("ov-offline-cnt").textContent = offline.length;
+
+    // B/HR list
+    const bhrEl = document.getElementById("ov-bhr-list");
+    if (!online.length) {
+      bhrEl.innerHTML = '<div class="ov-empty">온라인 봇 없음</div>';
+    } else {
+      const sorted = [...online].sort((a,b) => (b.meso_hr||0)-(a.meso_hr||0));
+      bhrEl.innerHTML = sorted.map((d,i) => {
+        const cls = ovRankClass(d.meso_hr||0);
+        return `<div class="ov-row" style="animation-delay:${i*25}ms">
+          <div class="ov-ign">
+            <span class="${cls}" style="font-size:9px;min-width:14px">#${i+1}</span>
+            ${d.ign||'Unknown'} <span class="ov-lv">Lv.${d.level||'?'}</span>
+          </div>
+          <div class="ov-bhr ${cls}">${ovFmt(d.meso_hr)}<span class="ov-bhr-unit">/hr</span></div>
+        </div>`;
+      }).join("");
+    }
+
+    // Offline list
+    const offEl = document.getElementById("ov-offline-list");
+    if (!offline.length) {
+      offEl.innerHTML = '<div class="ov-empty">— 모든 봇 온라인 ✓ —</div>';
+    } else {
+      offEl.innerHTML = offline.map((d,i) => `
+        <div class="ov-row" style="opacity:.7;animation-delay:${i*25}ms">
+          <div class="ov-ign">
+            ${d.ign||'Unknown'} <span class="ov-lv">Lv.${d.level||'?'}</span>
+            <span class="ov-ago">${ovFmtAgo(d.ago_sec)}</span>
+          </div>
+          <span class="ov-badge-off">OFFLINE</span>
+        </div>`).join("");
+    }
+  }
+
+  // ── 저장된 opacity 복원 ──
+  try {
+    const saved = localStorage.getItem("ov_opacity");
+    if (saved) {
+      document.getElementById("ov-opacity").value = saved;
+      window.ovSetOpacity(saved);
+    }
+  } catch(e) {}
+
+})();
+// ══════════════════════════════════════
+
 window.onload=init;
 </script>
 </body>
