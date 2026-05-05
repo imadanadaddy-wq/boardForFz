@@ -74,6 +74,14 @@ async function getDb() {
       old_val TEXT,
       new_val TEXT
     );
+    CREATE TABLE IF NOT EXISTS meso_history (
+      id      INTEGER PRIMARY KEY AUTOINCREMENT,
+      owner   TEXT NOT NULL,
+      ign     TEXT NOT NULL,
+      meso    INTEGER NOT NULL,
+      meso_hr INTEGER NOT NULL,
+      ts      INTEGER NOT NULL
+    );
   `);
 
   // ── 기본 클라이언트 시드 (서버 재시작해도 항상 유지) ──
