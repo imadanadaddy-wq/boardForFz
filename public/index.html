@@ -305,16 +305,20 @@ input[type=range].ov-slider::-moz-range-thumb{
   border-bottom:1px solid rgba(255,255,255,.04);
 }
 .ov-stat-item{display:flex;flex-direction:column;align-items:center;gap:1px;}
-.ov-stat-lbl{font-size:8px;letter-spacing:1px;color:rgba(255,255,255,.3);}
-.ov-stat-val{font-size:14px;font-weight:800;font-family:'JetBrains Mono',monospace;}
+.ov-stat-lbl{font-size:10px;letter-spacing:1px;color:rgba(255,255,255,.3);}
+.ov-stat-val{font-size:17px;font-weight:800;font-family:'JetBrains Mono',monospace;}
 
 .ov-body{padding:9px;}
 
 .ov-sec-lbl{
-  font-size:8px;letter-spacing:2px;color:rgba(255,255,255,.28);
+  font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.4);
   text-transform:uppercase;padding:2px 3px 7px;
   display:flex;align-items:center;gap:6px;
+  cursor:pointer;user-select:none;
 }
+.ov-sec-lbl:hover{color:rgba(255,255,255,.65);}
+.ov-sec-arrow{margin-left:auto;font-size:9px;color:rgba(255,255,255,.25);transition:transform .2s;}
+.ov-sec-lbl.collapsed .ov-sec-arrow{transform:rotate(-90deg);}
 .ov-sec-dot{width:5px;height:5px;border-radius:50%;}
 
 .ov-row{
@@ -327,18 +331,18 @@ input[type=range].ov-slider::-moz-range-thumb{
 @keyframes ov-row-in{from{opacity:0;transform:translateX(7px)}to{opacity:1;transform:none}}
 .ov-row:last-child{margin-bottom:0;}
 .ov-row:hover{background:rgba(255,255,255,.09);}
-.ov-ign{font-size:11px;font-weight:800;color:#e0f7fa;display:flex;align-items:center;gap:5px;}
-.ov-lv{font-size:9px;color:rgba(255,255,255,.3);font-weight:400;}
-.ov-bhr{font-size:12px;font-weight:800;font-family:'JetBrains Mono',monospace;}
-.ov-bhr-unit{font-size:8px;color:rgba(255,255,255,.28);font-weight:400;}
+.ov-ign{font-size:13px;font-weight:800;color:#e0f7fa;display:flex;align-items:center;gap:5px;}
+.ov-lv{font-size:11px;color:rgba(255,255,255,.3);font-weight:400;}
+.ov-bhr{font-size:14px;font-weight:800;font-family:'JetBrains Mono',monospace;}
+.ov-bhr-unit{font-size:10px;color:rgba(255,255,255,.28);font-weight:400;}
 .ov-badge-off{
-  font-size:8px;font-weight:800;
+  font-size:10px;font-weight:800;
   color:#e74c3c;border:1px solid rgba(231,76,60,.45);
   padding:1px 6px;border-radius:3px;letter-spacing:.5px;
 }
-.ov-ago{font-size:9px;color:rgba(255,255,255,.22);}
+.ov-ago{font-size:11px;color:rgba(255,255,255,.22);}
 .ov-divider{height:1px;background:rgba(255,255,255,.06);margin:7px 0;}
-.ov-empty{text-align:center;padding:10px 0;font-size:9px;color:rgba(255,255,255,.18);letter-spacing:1px;}
+.ov-empty{text-align:center;padding:10px 0;font-size:11px;color:rgba(255,255,255,.18);letter-spacing:1px;}
 
 .ov-scroll{
   max-height:180px;overflow-y:auto;
@@ -355,11 +359,11 @@ input[type=range].ov-slider::-moz-range-thumb{
 .ov-footer{
   display:flex;justify-content:space-between;align-items:center;
   padding:4px 11px;border-top:1px solid rgba(255,255,255,.05);
-  font-size:8px;color:rgba(255,255,255,.18);letter-spacing:.5px;
+  font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.5px;
 }
 .ov-footer-btn{
   background:none;border:none;color:rgba(255,255,255,.18);
-  font-family:'JetBrains Mono',monospace;font-size:8px;
+  font-family:'JetBrains Mono',monospace;font-size:10px;
   cursor:pointer;letter-spacing:.5px;transition:color .15s;
 }
 .ov-footer-btn:hover{color:var(--ms-accent);}
@@ -446,13 +450,24 @@ input[type=range].ov-slider::-moz-range-thumb{
       </div>
     </div>
     <div class="ov-body">
-      <div class="ov-sec-lbl">
+      <!-- ONLINE -->
+      <div class="ov-sec-lbl" id="ov-sec-online" onclick="ovToggleSec('online')">
         <span class="ov-sec-dot" style="background:#f59e0b;box-shadow:0 0 4px #f59e0b"></span>B/HR RANKING
+        <span class="ov-sec-arrow">▼</span>
       </div>
       <div class="ov-scroll" id="ov-bhr-list"><div class="ov-empty">데이터 대기 중...</div></div>
       <div class="ov-divider"></div>
-      <div class="ov-sec-lbl">
+      <!-- CHANGE LOG -->
+      <div class="ov-sec-lbl" id="ov-sec-log" onclick="ovToggleSec('log')">
+        <span class="ov-sec-dot" style="background:#0097a7;box-shadow:0 0 4px #0097a7"></span>CHANGE LOG
+        <span class="ov-sec-arrow">▼</span>
+      </div>
+      <div class="ov-scroll" id="ov-log-list"><div class="ov-empty">데이터 대기 중...</div></div>
+      <div class="ov-divider" id="ov-div-offline"></div>
+      <!-- OFFLINE -->
+      <div class="ov-sec-lbl" id="ov-sec-offline" onclick="ovToggleSec('offline')">
         <span class="ov-sec-dot" style="background:#e74c3c"></span>OFFLINE BOTS
+        <span class="ov-sec-arrow">▼</span>
       </div>
       <div class="ov-scroll" id="ov-offline-list"><div class="ov-empty">데이터 대기 중...</div></div>
     </div>
@@ -1441,6 +1456,7 @@ async function init() {
       wrap.classList.add("ov-visible");
       btn.classList.add("ov-active");
       btn.textContent = "✖ OVERLAY";
+      ovApplyInitCollapse();
       if (!ovTimer) { ovFetch(); ovTimer = setInterval(ovFetch, OV_INTERVAL); }
     } else {
       wrap.classList.remove("ov-visible");
@@ -1456,6 +1472,33 @@ async function init() {
     panel.classList.toggle("ov-minimized", ovMinimized);
     mb.textContent = ovMinimized ? "▲" : "—";
   };
+
+  const ovCollapsed = {online: false, log: true, offline: true};
+  window.ovToggleSec = function(sec) {
+    ovCollapsed[sec] = !ovCollapsed[sec];
+    const listId = sec === 'online' ? 'ov-bhr-list' : sec === 'log' ? 'ov-log-list' : 'ov-offline-list';
+    const lbl    = document.getElementById('ov-sec-' + sec);
+    const list   = document.getElementById(listId);
+    const collapsed = ovCollapsed[sec];
+    list.style.display  = collapsed ? 'none' : '';
+    lbl.classList.toggle('collapsed', collapsed);
+    if (sec === 'offline') {
+      const div = document.getElementById('ov-div-offline');
+      if (div) div.style.display = collapsed ? 'none' : '';
+    }
+  };
+  // 초기 상태 적용 (log/offline 접힘)
+  function ovApplyInitCollapse() {
+    ['log','offline'].forEach(sec => {
+      const listId = sec === 'log' ? 'ov-log-list' : 'ov-offline-list';
+      document.getElementById(listId).style.display = 'none';
+      document.getElementById('ov-sec-' + sec).classList.add('collapsed');
+      if (sec === 'offline') {
+        const div = document.getElementById('ov-div-offline');
+        if (div) div.style.display = 'none';
+      }
+    });
+  }
 
   window.ovSetOpacity = function(val) {
     document.getElementById("ov-opacity-val").textContent = val + "%";
@@ -1507,8 +1550,13 @@ async function init() {
 
   async function ovFetch() {
     try {
-      const data = await (await fetch("/api/tracker")).json();
-      ovRender(data);
+      const [trackerRes, logRes] = await Promise.all([
+        fetch("/api/tracker"),
+        fetch("/api/bot-change-log?limit=30")
+      ]);
+      const data = await trackerRes.json();
+      const logs = logRes.ok ? await logRes.json() : [];
+      ovRender(data, logs);
       document.getElementById("ov-upd-time").textContent =
         new Date().toLocaleTimeString("ko-KR", {hour12:false});
     } catch(e) {
@@ -1536,7 +1584,7 @@ async function init() {
     return "ov-rank-ok";
   }
 
-  function ovRender(data) {
+  function ovRender(data, logs) {
     const online  = data.filter(d => d.online);
     const offline = data.filter(d => !d.online);
     const totalHr = data.reduce((s,d) => s + (d.meso_hr||0), 0);
@@ -1574,6 +1622,29 @@ async function init() {
           </div>
           <span class="ov-badge-off">OFFLINE</span>
         </div>`).join("");
+    }
+
+    // Change Log
+    const logEl = document.getElementById("ov-log-list");
+    if (!logs || !logs.length) {
+      logEl.innerHTML = '<div class="ov-empty">변경 기록 없음</div>';
+    } else {
+      logEl.innerHTML = logs.slice(0,20).map((l,i) => {
+        const t = new Date(l.ts).toLocaleTimeString("ko-KR",{hour12:false,hour:"2-digit",minute:"2-digit"});
+        const fieldCls = l.field === "channel" ? "color:#0097a7" : "color:#e67e22";
+        const fieldLabel = l.field === "channel" ? "CH" : "MAP";
+        return `<div class="ov-row" style="animation-delay:${i*15}ms">
+          <div class="ov-ign" style="gap:4px;flex-wrap:wrap;max-width:170px">
+            <span style="font-size:10px;color:rgba(255,255,255,.25)">${t}</span>
+            <span style="font-size:12px">${l.ign||'?'}</span>
+            <span style="font-size:10px;font-weight:900;border:1px solid;padding:0 4px;border-radius:2px;${fieldCls}">${fieldLabel}</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
+            <span style="font-size:10px;color:#888;text-decoration:line-through">${l.old_val??'—'}</span>
+            <span style="font-size:11px;font-weight:800;color:#e0f7fa">${l.new_val??'—'}</span>
+          </div>
+        </div>`;
+      }).join("");
     }
   }
 
