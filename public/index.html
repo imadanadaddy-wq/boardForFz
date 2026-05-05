@@ -374,6 +374,27 @@ input[type=range].ov-slider::-moz-range-thumb{
 .ov-rank-good{color:#2ecc71;}
 .ov-rank-ok{color:#00acc1;}
 
+/* ── ZONE FILTER BUTTONS ── */
+.zone-btn{padding:5px 15px;font-size:11px;font-weight:800;font-family:'MaplestoryOTFBold',sans-serif;
+  border-radius:20px;cursor:pointer;border:1.5px solid;transition:all .2s;letter-spacing:.5px;white-space:nowrap}
+.zone-btn.active{color:#fff!important;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.zone-btn:not(.active):hover{opacity:.75}
+.zone-all{border-color:#aaa;color:#aaa;background:transparent}
+.zone-all.active{background:#888;border-color:#888}
+.zone-300{border-color:#f59e0b;color:#f59e0b;background:transparent}
+.zone-300.active{background:#f59e0b}
+.zone-200{border-color:#2ecc71;color:#2ecc71;background:transparent}
+.zone-200.active{background:#2ecc71}
+.zone-100{border-color:#3498db;color:#3498db;background:transparent}
+.zone-100.active{background:#3498db}
+.zone-0{border-color:#e74c3c;color:#e74c3c;background:transparent}
+.zone-0.active{background:#e74c3c}
+
+/* EXT:ON warning badge */
+.badge-ext-on{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:900;
+  color:#888;border:1px solid #555;padding:1px 5px;border-radius:3px;margin-left:4px;
+  letter-spacing:.3px;cursor:help;vertical-align:middle}
+
 /* ── MOBILE RESPONSIVE ── */
 @media (max-width: 640px) {
   header{padding:8px 12px;gap:8px}
@@ -671,6 +692,17 @@ input[type=range].ov-slider::-moz-range-thumb{
       </div>
     </div>
 
+    <!-- 구간 필터 버튼 -->
+    <div id="zone-filter-bar" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:10px;color:#888;font-family:'JetBrains Mono',monospace;letter-spacing:1px;white-space:nowrap">구간 필터:</span>
+      <button class="zone-btn zone-all active" onclick="setZoneFilter(null)">전체</button>
+      <button class="zone-btn zone-300" onclick="setZoneFilter('300')">🔥 300M+</button>
+      <button class="zone-btn zone-200" onclick="setZoneFilter('200')">💚 200–300M</button>
+      <button class="zone-btn zone-100" onclick="setZoneFilter('100')">🔵 100–200M</button>
+      <button class="zone-btn zone-0"   onclick="setZoneFilter('0')">🔴 0–100M</button>
+      <span id="zone-filter-label" style="font-size:10px;color:#888;font-family:'JetBrains Mono',monospace;margin-left:4px"></span>
+    </div>
+
     <!-- 그래프 + 사이드바 레이아웃 -->
     <div style="display:flex;gap:16px;align-items:flex-start">
 
@@ -772,6 +804,9 @@ function toggleForceOffline(key) {
   }
   saveManualOffline();
   renderBotTable();
+  // ★ 온라인 카운트도 즉시 갱신
+  const online = botData.filter(b => b.online && isKnownMap(b.map_id) && !manualOffline.has(b.owner+'|'+b.ign)).length;
+  if (isAuthed) document.getElementById("s-fc-online").textContent=`${online} | ${botData.length}`;
 }
 
 // ── 설정된 맵 여부 확인 ──
@@ -895,6 +930,8 @@ async function fetchFC() {
           changedCells[key + '|map_id']  = now;
       }
       prevBotMap[key] = { channel: b.channel ?? null, map_id: b.map_id ?? null };
+      // ★ 요구사항 1: forced offline 상태는 데이터 갱신으로 절대 변경되지 않음
+      // manualOffline은 localStorage에 영속 저장되며, toggleForceOffline으로만 변경 가능
     });
     Object.keys(changedCells).forEach(k => {
       if (now - changedCells[k] > HIGHLIGHT_MS) delete changedCells[k];
@@ -958,12 +995,17 @@ function buildBotRow(b, mapOff = false) {
     ? `<button class="force-btn${isForced ? ' forced-active' : ''}" onclick="toggleForceOffline('${key}')" title="${isForced ? '강제오프 해제' : '강제 오프라인 설정'}">${isForced ? '🔒 FORCED' : '🔒'}</button>`
     : '';
 
+  // ★ 요구사항 3: forced/map offline인 봇은 외부 서버에서 ONLINE으로 보임을 경고
+  const extOnlineWarn = (isForced || mapOff)
+    ? `<span class="badge-ext-on" title="⚠ 외부 하트비트 API에서는 ONLINE으로 표시됩니다.\n이는 오프라인 처리가 대시보드 표시 전용이기 때문입니다.\n서버 측 수정이 필요합니다.">⚠ EXT:ON</span>`
+    : '';
+
   // 상태 배지 결정
   let statusBadge;
   if (isForced) {
-    statusBadge = `<span class="badge-offline">OFFLINE</span><span class="badge-forced">FORCED</span>${forceBtn}`;
+    statusBadge = `<span class="badge-offline">OFFLINE</span><span class="badge-forced">FORCED</span>${extOnlineWarn}${forceBtn}`;
   } else if (mapOff) {
-    statusBadge = `<span class="badge-offline">OFFLINE</span><span class="badge-map">MAP</span>${forceBtn}`;
+    statusBadge = `<span class="badge-offline">OFFLINE</span><span class="badge-map">MAP</span>${extOnlineWarn}${forceBtn}`;
   } else if (b.online) {
     statusBadge = `<span class="badge-online">ONLINE</span>${forceBtn}`;
   } else {
@@ -984,65 +1026,54 @@ function buildBotRow(b, mapOff = false) {
 function renderBotTable() {
   const tbody = document.getElementById("bot-table-body");
   if (!botData.length){
-    tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state">Waiting for heartbeat signals...</div></td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state">Waiting for heartbeat signals...</div></td></tr>`;
     return;
   }
 
-  // ★ 4가지로 분류
-  // 1) 강제 오프라인: manualOffline에 등록된 봇 (서버 상태 무시)
+  // 분류
   const forced     = applySort(botData.filter(b =>  manualOffline.has(b.owner+'|'+b.ign)));
   const forcedKeys = new Set(forced.map(b => b.owner+'|'+b.ign));
-  // 2) 진짜 온라인: online=true + 설정된 맵 + 강제오프 아님
   const online     = applySort(botData.filter(b =>  b.online && isKnownMap(b.map_id) && !forcedKeys.has(b.owner+'|'+b.ign)));
-  // 3) MAP 오프라인: online=true이지만 설정되지 않은 맵 + 강제오프 아님
   const mapOffline = applySort(botData.filter(b =>  b.online && !isKnownMap(b.map_id) && !forcedKeys.has(b.owner+'|'+b.ign)));
-  // 4) 진짜 오프라인: online=false + 강제오프 아님
   const offline    = applySort(botData.filter(b => !b.online && !forcedKeys.has(b.owner+'|'+b.ign)));
 
-  let html = '';
+  // ★ 오프라인 통합 (forced → mapOff → truly offline 순)
+  const allOffline = [...forced, ...mapOffline, ...offline];
 
-  // ── FORCED OFFLINE section ──
-  if (forced.length) {
-    html += `<tr style="background:rgba(155,89,182,.08)">
-      <td colspan="6" style="padding:6px 14px;font-size:10px;font-family:'JetBrains Mono',monospace;
-        letter-spacing:2px;color:#9b59b6;border-bottom:1px solid rgba(155,89,182,.25)">
-        🔒 FORCED OFFLINE (수동 설정) — ${forced.length}
-      </td></tr>`;
-    html += forced.map(b => {
-      const isMapOff = b.online && !isKnownMap(b.map_id);
-      return buildBotRow(b, isMapOff).replace('<tr>', '<tr style="opacity:.7;background:rgba(155,89,182,.04)">');
-    }).join('');
-  }
+  let html = '';
 
   // ── ONLINE section ──
   if (online.length) {
     html += `<tr style="background:rgba(46,204,113,.07)">
-      <td colspan="6" style="padding:6px 14px;font-size:10px;font-family:'JetBrains Mono',monospace;
+      <td colspan="7" style="padding:6px 14px;font-size:10px;font-family:'JetBrains Mono',monospace;
         letter-spacing:2px;color:var(--ms-green);border-bottom:1px solid rgba(46,204,113,.25)">
         ● ONLINE — ${online.length}
       </td></tr>`;
     html += online.map(b => buildBotRow(b, false)).join('');
   }
 
-  // ── MAP OFFLINE section ──
-  if (mapOffline.length) {
-    html += `<tr style="background:rgba(255,152,0,.07)">
-      <td colspan="6" style="padding:6px 14px;font-size:10px;font-family:'JetBrains Mono',monospace;
-        letter-spacing:2px;color:#ff9800;border-top:2px solid rgba(255,152,0,.25);border-bottom:1px solid rgba(255,152,0,.2)">
-        📍 MAP OFFLINE (설정 외 맵) — ${mapOffline.length}
+  // ── OFFLINE section (통합) ──
+  if (allOffline.length) {
+    const subLabels = [
+      forced.length    ? `<span style="color:#9b59b6;margin-left:10px">🔒 FORCED ${forced.length}</span>` : '',
+      mapOffline.length? `<span style="color:#ff9800;margin-left:8px">📍 MAP ${mapOffline.length}</span>` : '',
+      offline.length   ? `<span style="color:#e74c3c;margin-left:8px">✕ DEAD ${offline.length}</span>` : '',
+    ].filter(Boolean).join('');
+    html += `<tr style="background:rgba(100,100,120,.06)">
+      <td colspan="7" style="padding:6px 14px;font-size:10px;font-family:'JetBrains Mono',monospace;
+        letter-spacing:2px;color:#bbb;border-top:2px solid rgba(100,100,120,.18);border-bottom:1px solid rgba(100,100,120,.12)">
+        ○ OFFLINE — ${allOffline.length}${subLabels}
       </td></tr>`;
+    // forced 먼저
+    html += forced.map(b => {
+      const isMapOff = b.online && !isKnownMap(b.map_id);
+      return buildBotRow(b, isMapOff).replace('<tr>', '<tr style="opacity:.85;background:rgba(155,89,182,.04)">');
+    }).join('');
+    // map offline
     html += mapOffline.map(b => {
       return buildBotRow(b, true).replace('<tr>', '<tr style="opacity:.75">');
     }).join('');
-  }
-
-  // ── OFFLINE section ──
-  if (offline.length) {
-    html += `<tr style="background:rgba(231,76,60,.05)">
-      <td colspan="6" style="padding:6px 14px;font-size:10px;font-family:'JetBrains Mono',monospace;
-        letter-spacing:2px;color:var(--ms-red);border-top:2px solid rgba(231,76,60,.18);border-bottom:1px solid rgba(231,76,60,.15)">
-        ○ OFFLINE — ${offline.length}
-      </td></tr>`;
+    // truly offline
     html += offline.map(b => {
       return buildBotRow(b, false).replace('<tr>', '<tr style="opacity:.55">');
     }).join('');
@@ -1657,9 +1688,16 @@ async function init() {
   }
 
   function ovRender(data, logs) {
-    const online  = data.filter(d => d.online);
-    const offline = data.filter(d => !d.online);
-    const totalHr = data.reduce((s,d) => s + (d.meso_hr||0), 0);
+    // ★ 오버레이도 forced offline / map offline 반영
+    const online  = data.filter(d => {
+      const key = (d.owner||'Hyeong') + '|' + d.ign;
+      return d.online && !manualOffline.has(key) && isKnownMap(d.map_id);
+    });
+    const offline = data.filter(d => {
+      const key = (d.owner||'Hyeong') + '|' + d.ign;
+      return !d.online || manualOffline.has(key) || !isKnownMap(d.map_id);
+    });
+    const totalHr = online.reduce((s,d) => s + (d.meso_hr||0), 0);
 
     document.getElementById("ov-total-hr").textContent   = ovFmt(totalHr);
     document.getElementById("ov-online-cnt").textContent  = online.length;
@@ -1686,14 +1724,25 @@ async function init() {
     if (!offline.length) {
       offEl.innerHTML = '<div class="ov-empty">— 모든 봇 온라인 ✓ —</div>';
     } else {
-      offEl.innerHTML = offline.map((d,i) => `
-        <div class="ov-row" style="opacity:.7;animation-delay:${i*25}ms">
+      offEl.innerHTML = offline.map((d,i) => {
+        const key = (d.owner||'Hyeong') + '|' + d.ign;
+        const isForced = manualOffline.has(key);
+        const isMapOff = d.online && !isKnownMap(d.map_id);
+        const reasonBadge = isForced
+          ? `<span style="font-size:9px;color:#9b59b6;border:1px solid #9b59b6;padding:0 4px;border-radius:2px;margin-left:3px">FORCED</span>`
+          : isMapOff
+          ? `<span style="font-size:9px;color:#ff9800;border:1px solid #ff9800;padding:0 4px;border-radius:2px;margin-left:3px">MAP</span>`
+          : '';
+        return `
+        <div class="ov-row" style="opacity:.75;animation-delay:${i*25}ms">
           <div class="ov-ign">
             ${d.ign||'Unknown'} <span class="ov-lv">Lv.${d.level||'?'}</span>
+            ${reasonBadge}
             <span class="ov-ago">${ovFmtAgo(d.ago_sec)}</span>
           </div>
           <span class="ov-badge-off">OFFLINE</span>
-        </div>`).join("");
+        </div>`;
+      }).join("");
     }
 
     // Change Log
@@ -1743,6 +1792,85 @@ const GRAPH_COLORS = [
   '#ff7043','#26c6da','#9ccc65','#ec407a','#5c6bc0',
   '#ffca28','#00897b','#d32f2f','#1565c0','#6a1b9a'
 ];
+
+// ── 구간 정의 ──
+const ZONE_DEFS = [
+  { id: '300', label: '300M+',     color: '#f59e0b', min: 300e6, max: Infinity },
+  { id: '200', label: '200M–300M', color: '#2ecc71', min: 200e6, max: 300e6   },
+  { id: '100', label: '100M–200M', color: '#3498db', min: 100e6, max: 200e6   },
+  { id: '0',   label: '0–100M',    color: '#e74c3c', min: 0,     max: 100e6   },
+];
+let activeZone = null; // null = 전체, '300'|'200'|'100'|'0' = 구간 필터
+
+function setZoneFilter(zone) {
+  activeZone = zone;
+  document.querySelectorAll('.zone-btn').forEach(btn => {
+    const cls = btn.className;
+    const isAll  = cls.includes('zone-all');
+    const is300  = cls.includes('zone-300');
+    const is200  = cls.includes('zone-200');
+    const is100  = cls.includes('zone-100');
+    const is0    = cls.includes('zone-0');
+    btn.classList.toggle('active',
+      (zone === null && isAll)   ||
+      (zone === '300' && is300)  ||
+      (zone === '200' && is200)  ||
+      (zone === '100' && is100)  ||
+      (zone === '0'   && is0));
+  });
+  const lbl = document.getElementById('zone-filter-label');
+  if (lbl) {
+    if (zone === null) { lbl.textContent = ''; }
+    else {
+      const z = ZONE_DEFS.find(d => d.id === zone);
+      lbl.innerHTML = z ? `<span style="color:${z.color};font-weight:800">▶ ${z.label} 구간만 표시</span>` : '';
+    }
+  }
+  renderAllGraphs();
+}
+
+// ── 구간 배경 밴드 커스텀 플러그인 ──
+const zoneBandsPlugin = {
+  id: 'zoneBands',
+  beforeDraw(chart) {
+    const { ctx, chartArea: ca, scales } = chart;
+    if (!ca) return;
+    const yScale = scales.y;
+    ctx.save();
+    for (const zone of ZONE_DEFS) {
+      const topVal = zone.max === Infinity ? yScale.max : Math.min(zone.max, yScale.max);
+      const botVal = Math.max(zone.min, yScale.min);
+      if (botVal >= topVal) continue;
+      const yTop = yScale.getPixelForValue(topVal);
+      const yBot = yScale.getPixelForValue(botVal);
+      if (yBot <= yTop) continue;
+      const isActive = activeZone === zone.id;
+      // 배경 색
+      ctx.fillStyle = isActive ? zone.color + '1a' : zone.color + '0b';
+      ctx.fillRect(ca.left, yTop, ca.right - ca.left, yBot - yTop);
+      // 하단 경계선 (구간 구분)
+      if (zone.min > yScale.min) {
+        ctx.strokeStyle = zone.color + (isActive ? '66' : '33');
+        ctx.lineWidth = isActive ? 1.5 : 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(ca.left, yBot);
+        ctx.lineTo(ca.right, yBot);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      // 구간 레이블 (우상단)
+      const labelY = Math.min(yTop + 13, yBot - 3);
+      if (labelY > ca.top && labelY < ca.bottom) {
+        ctx.fillStyle = zone.color + (isActive ? 'ee' : '99');
+        ctx.font = `${isActive ? 'bold ' : ''}10px "JetBrains Mono", monospace`;
+        ctx.textAlign = 'right';
+        ctx.fillText(zone.label, ca.right - 5, labelY);
+      }
+    }
+    ctx.restore();
+  }
+};
 
 let allGraphData    = {};
 let allChartInst    = null;
@@ -1806,13 +1934,32 @@ function renderAllGraphs() {
   const colorMap = {};
   igns.forEach((ign, i) => colorMap[ign] = GRAPH_COLORS[i % GRAPH_COLORS.length]);
 
-  const datasets = igns.map((ign, i) => ({
+  // ── 구간 필터 적용 ──
+  let filteredIgns = igns;
+  let yMin = undefined, yMax = undefined;
+  if (activeZone !== null) {
+    const zoneDef = ZONE_DEFS.find(z => z.id === activeZone);
+    if (zoneDef) {
+      filteredIgns = igns.filter(ign => {
+        const avg = avgMap[ign];
+        return avg >= zoneDef.min && (zoneDef.max === Infinity || avg < zoneDef.max);
+      });
+      // Y축 구간에 맞게 확대
+      const zoneVals = filteredIgns.map(ign => avgMap[ign]);
+      const zoneMax = zoneVals.length ? Math.max(...zoneVals) : zoneDef.max === Infinity ? 400e6 : zoneDef.max;
+      yMin = zoneDef.min * 0.92;
+      yMax = Math.min(zoneDef.max === Infinity ? zoneMax * 1.2 : zoneDef.max, zoneMax * 1.2);
+      if (yMax <= yMin) yMax = yMin + 50e6;
+    }
+  }
+
+  const datasets = filteredIgns.map((ign) => ({
     label: ign,
     data: bucketData(allGraphData[ign], intervalMs),
     borderColor: colorMap[ign],
     backgroundColor: colorMap[ign] + '22',
-    borderWidth: 2,
-    pointRadius: 3,
+    borderWidth: activeZone !== null ? 2.5 : 2,
+    pointRadius: activeZone !== null ? 4 : 3,
     tension: 0.3,
     fill: false,
   }));
@@ -1822,6 +1969,7 @@ function renderAllGraphs() {
   allChartInst = new Chart(canvas, {
     type: 'line',
     data: { datasets },
+    plugins: [zoneBandsPlugin],
     options: {
       responsive: true,
       interaction: { mode: 'index', intersect: false },
@@ -1839,7 +1987,14 @@ function renderAllGraphs() {
           grid: { color: 'rgba(0,0,0,.07)' }
         },
         y: {
-          ticks: { color: '#555', callback: v => fmtMeso(v) },
+          min: yMin,
+          max: yMax,
+          ticks: {
+            color: '#555',
+            callback: v => fmtMeso(v),
+            font: activeZone !== null ? { size: 12, weight: 'bold' } : undefined,
+            maxTicksLimit: activeZone !== null ? 8 : 10
+          },
           grid: { color: 'rgba(0,0,0,.07)' }
         }
       }
@@ -1856,6 +2011,57 @@ function renderGraphSidebar(igns, avgMap, latestMap, colorMap) {
 
   const maxAvg = Math.max(...igns.map(ign => avgMap[ign]), 1);
 
+  // ── 구간 필터 모드: 해당 구간 봇만 큰 카드로 표시 ──
+  if (activeZone !== null) {
+    const zoneDef = ZONE_DEFS.find(z => z.id === activeZone);
+    const zoneIgns = igns.filter(ign => {
+      const avg = avgMap[ign];
+      return avg >= zoneDef.min && (zoneDef.max === Infinity || avg < zoneDef.max);
+    });
+    if (!zoneIgns.length) {
+      list.innerHTML = `<div style="text-align:center;padding:24px 8px;font-size:11px;color:#bbb;font-family:'JetBrains Mono',monospace;letter-spacing:1px">이 구간에 봇 없음</div>`;
+      return;
+    }
+    list.innerHTML = `
+      <div style="text-align:center;font-size:10px;font-weight:800;color:${zoneDef.color};
+                  font-family:'JetBrains Mono',monospace;letter-spacing:1px;
+                  border:1.5px solid ${zoneDef.color}55;border-radius:8px;
+                  padding:5px 8px;margin-bottom:8px;background:${zoneDef.color}0f">
+        ${zoneDef.label} — ${zoneIgns.length}개 봇
+      </div>
+      ${zoneIgns.map(ign => {
+        const color = colorMap[ign];
+        const avg   = avgMap[ign];
+        const latest= latestMap[ign];
+        const pct   = Math.round((avg / maxAvg) * 100);
+        return `
+          <div onclick="openGraphModal('${ign}')"
+            style="display:flex;flex-direction:column;gap:6px;padding:12px 13px;border-radius:10px;cursor:pointer;
+                   border:2px solid ${color}55;background:${color}12;transition:background .15s;margin-bottom:6px"
+            onmouseover="this.style.background='${color}28'" onmouseout="this.style.background='${color}12'">
+            <div style="display:flex;align-items:center;gap:7px;min-width:0">
+              <span style="width:13px;height:13px;border-radius:50%;background:${color};flex-shrink:0;
+                           box-shadow:0 0 7px ${color}bb"></span>
+              <span style="font-size:13px;font-weight:800;color:#004d40;font-family:'JetBrains Mono',monospace;
+                           white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1" title="${ign}">${ign}</span>
+              <span style="font-size:11px;color:#aaa;flex-shrink:0">📈</span>
+            </div>
+            <div style="display:flex;align-items:baseline;gap:5px">
+              <span style="font-size:20px;font-weight:800;color:${color};font-family:'JetBrains Mono',monospace">${fmtMeso(avg)}</span>
+              <span style="font-size:11px;color:#aaa;font-family:'JetBrains Mono',monospace">/hr avg</span>
+            </div>
+            <div style="height:5px;background:#eee;border-radius:3px;overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width .4s ease"></div>
+            </div>
+            <div style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace">
+              latest: <span style="color:${color};font-weight:800">${fmtMeso(latest)}/hr</span>
+            </div>
+          </div>`;
+      }).join('')}`;
+    return;
+  }
+
+  // ── 일반 모드: 티어 아코디언 ──
   // 티어 정의
   const tiers = [
     { id: 'tier-all',  label: 'TOTAL',       color: '#555',    accent: '#888',    min: 0,        max: Infinity, open: true  },
@@ -1901,12 +2107,14 @@ function renderGraphSidebar(igns, avgMap, latestMap, colorMap) {
 
     if (tier.id !== 'tier-all' && members.length === 0) return '';
 
-    const bodyId = tier.id + '-body';
+    const bodyId  = tier.id + '-body';
     const arrowId = tier.id + '-arrow';
 
+    // 티어 헤더 클릭 → 구간 필터 연동
+    const filterZoneId = tier.id === 'tier-all' ? 'null' : tier.id.replace('tier-','');
     return `
       <!-- 티어 헤더 -->
-      <div onclick="toggleSidebarTier('${bodyId}','${arrowId}')"
+      <div onclick="handleTierClick('${bodyId}','${arrowId}','${filterZoneId}')"
         style="display:flex;align-items:center;justify-content:space-between;
                padding:6px 9px;border-radius:7px;cursor:pointer;
                background:${tier.accent}18;border:1.5px solid ${tier.accent}44;
@@ -1941,6 +2149,20 @@ function toggleSidebarTier(bodyId, arrowId) {
   body.style.gap = '4px';
   body.style.padding = isOpen ? '0' : '4px 0';
   if (arrow) arrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+}
+
+// 티어 헤더 클릭: 아코디언 토글 + 구간 필터 연동
+function handleTierClick(bodyId, arrowId, filterZoneId) {
+  const newZone = filterZoneId === 'null' ? null : filterZoneId;
+  // 이미 같은 구간이 활성이면 → 전체로 돌아감(토글)
+  if (activeZone === newZone && newZone !== null) {
+    setZoneFilter(null);
+    return;
+  }
+  // 구간 필터 적용 (그래프 + 사이드바 모두 업데이트)
+  setZoneFilter(newZone);
+  // TOTAL 클릭은 일반 아코디언 토글도 같이
+  if (newZone === null) toggleSidebarTier(bodyId, arrowId);
 }
 
 let modalRawData = [];
