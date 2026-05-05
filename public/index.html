@@ -651,6 +651,7 @@ input[type=range].ov-slider::-moz-range-thumb{
 
   <!-- ══ TAB: MESO GRAPH ══ -->
   <div class="tab-content" id="tab-mesoGraph">
+    <!-- 상단 컨트롤 -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
       <div class="section-title" style="margin-bottom:0">📈 Meso/HR History (48h)</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -669,10 +670,29 @@ input[type=range].ov-slider::-moz-range-thumb{
         <button class="btn" style="padding:5px 14px;font-size:11px" onclick="fetchAllGraphs()">↺ Refresh</button>
       </div>
     </div>
-    <div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 2px 12px rgba(0,0,0,.08)">
-      <canvas id="graph-all" style="width:100%;max-height:480px"></canvas>
+
+    <!-- 그래프 + 사이드바 레이아웃 -->
+    <div style="display:flex;gap:16px;align-items:flex-start">
+
+      <!-- 왼쪽: 메인 그래프 -->
+      <div style="flex:1;min-width:0;background:#fff;border-radius:12px;padding:16px;box-shadow:0 2px 12px rgba(0,0,0,.08)">
+        <canvas id="graph-all" style="width:100%;max-height:460px"></canvas>
+      </div>
+
+      <!-- 오른쪽: 봇 현황 사이드바 -->
+      <div id="graph-sidebar" style="width:220px;flex-shrink:0;background:#fff;border-radius:12px;padding:12px;box-shadow:0 2px 12px rgba(0,0,0,.08);max-height:500px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
+        <div style="font-size:10px;letter-spacing:1.5px;color:#aaa;font-family:'JetBrains Mono',monospace;text-transform:uppercase;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #eee;">
+          BOT RANKINGS
+        </div>
+        <div id="graph-sidebar-list" style="display:flex;flex-direction:column;gap:4px">
+          <div style="font-size:11px;color:#bbb;font-family:'JetBrains Mono',monospace;text-align:center;padding:20px 0">데이터 없음</div>
+        </div>
+      </div>
+
     </div>
-    <div id="graph-legend" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px"></div>
+
+    <!-- 기존 범례 제거 (사이드바로 대체) -->
+    <div id="graph-legend" style="display:none"></div>
   </div>
 </main>
 
@@ -1717,7 +1737,11 @@ window.onload=init;
 // ══════════════════════════════════════
 const GRAPH_COLORS = [
   '#f59e0b','#0097a7','#e74c3c','#2ecc71','#9b59b6',
-  '#e67e22','#1abc9c','#e91e63','#3498db','#cddc39'
+  '#e67e22','#1abc9c','#e91e63','#3498db','#cddc39',
+  '#ff5722','#00bcd4','#8bc34a','#ff4081','#7c4dff',
+  '#ffd600','#26a69a','#ef5350','#42a5f5','#ab47bc',
+  '#ff7043','#26c6da','#9ccc65','#ec407a','#5c6bc0',
+  '#ffca28','#00897b','#d32f2f','#1565c0','#6a1b9a'
 ];
 
 let allGraphData    = {};
@@ -1763,22 +1787,30 @@ function renderAllGraphs() {
   let igns = Object.keys(allGraphData);
   if (!igns.length) return;
 
-  // 평균 계산
+  // 평균 / 최신값 계산
   const avgMap = {};
+  const latestMap = {};
   for (const ign of igns) {
     const vals = allGraphData[ign].map(d => d.meso_hr).filter(v => v > 0);
     avgMap[ign] = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+    // 최신 기록 (ts 기준)
+    const sorted = [...allGraphData[ign]].sort((a,b)=>b.ts-a.ts);
+    latestMap[ign] = sorted.length ? sorted[0].meso_hr : 0;
   }
 
-  if (sortMode === 'name')      igns.sort((a,b) => a.localeCompare(b));
+  if (sortMode === 'name')          igns.sort((a,b) => a.localeCompare(b));
   else if (sortMode === 'avg-desc') igns.sort((a,b) => avgMap[b] - avgMap[a]);
   else if (sortMode === 'avg-asc')  igns.sort((a,b) => avgMap[a] - avgMap[b]);
+
+  // 색상 고정 (정렬 후 인덱스 기준)
+  const colorMap = {};
+  igns.forEach((ign, i) => colorMap[ign] = GRAPH_COLORS[i % GRAPH_COLORS.length]);
 
   const datasets = igns.map((ign, i) => ({
     label: ign,
     data: bucketData(allGraphData[ign], intervalMs),
-    borderColor: GRAPH_COLORS[i % GRAPH_COLORS.length],
-    backgroundColor: GRAPH_COLORS[i % GRAPH_COLORS.length] + '33',
+    borderColor: colorMap[ign],
+    backgroundColor: colorMap[ign] + '22',
     borderWidth: 2,
     pointRadius: 3,
     tension: 0.3,
@@ -1794,7 +1826,7 @@ function renderAllGraphs() {
       responsive: true,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { labels: { color: '#333', font: { size: 12 } } },
+        legend: { display: false }, // 사이드바로 대체
         tooltip: {
           callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtMeso(ctx.parsed.y)}/hr` }
         }
@@ -1814,25 +1846,132 @@ function renderAllGraphs() {
     }
   });
 
-  // 범례
-  const legend = document.getElementById('graph-legend');
-  legend.innerHTML = igns.map((ign, i) => `
-    <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:#444;cursor:pointer;background:#fff;border:1px solid #ddd;border-radius:20px;padding:3px 10px"
-      onclick="openGraphModal('${ign}')">
-      <span style="width:10px;height:10px;border-radius:50%;background:${GRAPH_COLORS[i%GRAPH_COLORS.length]};display:inline-block;flex-shrink:0"></span>
-      ${ign} 📈
-    </span>`).join('');
+  // ── 사이드바 렌더링 ──
+  renderGraphSidebar(igns, avgMap, latestMap, colorMap);
+}
+
+function renderGraphSidebar(igns, avgMap, latestMap, colorMap) {
+  const list = document.getElementById('graph-sidebar-list');
+  if (!list) return;
+
+  const maxAvg = Math.max(...igns.map(ign => avgMap[ign]), 1);
+
+  // 티어 정의
+  const tiers = [
+    { id: 'tier-all',  label: 'TOTAL',       color: '#555',    accent: '#888',    min: 0,        max: Infinity, open: true  },
+    { id: 'tier-300',  label: '300M+',        color: '#f59e0b', accent: '#f59e0b', min: 300e6,    max: Infinity, open: false },
+    { id: 'tier-200',  label: '200M – 300M',  color: '#2ecc71', accent: '#2ecc71', min: 200e6,    max: 300e6,    open: false },
+    { id: 'tier-100',  label: '100M – 200M',  color: '#3498db', accent: '#3498db', min: 100e6,    max: 200e6,    open: false },
+    { id: 'tier-0',    label: '0 – 100M',     color: '#e74c3c', accent: '#e74c3c', min: 0,        max: 100e6,    open: false },
+  ];
+
+  function botCard(ign) {
+    const color  = colorMap[ign];
+    const avg    = avgMap[ign];
+    const latest = latestMap[ign];
+    const pct    = Math.round((avg / maxAvg) * 100);
+    return `
+      <div onclick="openGraphModal('${ign}')"
+        style="display:flex;flex-direction:column;gap:3px;padding:7px 9px;border-radius:8px;cursor:pointer;
+               border:1.5px solid ${color}22;background:${color}0d;transition:background .15s"
+        onmouseover="this.style.background='${color}22'" onmouseout="this.style.background='${color}0d'">
+        <div style="display:flex;align-items:center;gap:6px;min-width:0">
+          <span style="width:9px;height:9px;border-radius:50%;background:${color};flex-shrink:0;box-shadow:0 0 4px ${color}88"></span>
+          <span style="font-size:11px;font-weight:800;color:#004d40;font-family:'JetBrains Mono',monospace;
+                       white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1" title="${ign}">${ign}</span>
+          <span style="font-size:9px;color:#aaa;flex-shrink:0">📈</span>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:4px">
+          <span style="font-size:13px;font-weight:800;color:${color};font-family:'JetBrains Mono',monospace">${fmtMeso(avg)}</span>
+          <span style="font-size:9px;color:#aaa;font-family:'JetBrains Mono',monospace">/hr avg</span>
+        </div>
+        <div style="height:3px;background:#eee;border-radius:2px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${color};border-radius:2px;transition:width .4s ease"></div>
+        </div>
+        <div style="font-size:9px;color:#999;font-family:'JetBrains Mono',monospace">
+          latest: <span style="color:#555;font-weight:800">${fmtMeso(latest)}/hr</span>
+        </div>
+      </div>`;
+  }
+
+  list.innerHTML = tiers.map(tier => {
+    const members = tier.id === 'tier-all'
+      ? igns
+      : igns.filter(ign => avgMap[ign] >= tier.min && avgMap[ign] < tier.max);
+
+    if (tier.id !== 'tier-all' && members.length === 0) return '';
+
+    const bodyId = tier.id + '-body';
+    const arrowId = tier.id + '-arrow';
+
+    return `
+      <!-- 티어 헤더 -->
+      <div onclick="toggleSidebarTier('${bodyId}','${arrowId}')"
+        style="display:flex;align-items:center;justify-content:space-between;
+               padding:6px 9px;border-radius:7px;cursor:pointer;
+               background:${tier.accent}18;border:1.5px solid ${tier.accent}44;
+               user-select:none;transition:background .15s;margin-top:4px"
+        onmouseover="this.style.background='${tier.accent}28'" onmouseout="this.style.background='${tier.accent}18'">
+        <div style="display:flex;align-items:center;gap:7px">
+          <span style="font-size:10px;font-weight:800;color:${tier.accent};
+                       font-family:'JetBrains Mono',monospace;letter-spacing:.5px">${tier.label}</span>
+          <span style="font-size:9px;background:${tier.accent}33;color:${tier.accent};
+                       border-radius:10px;padding:1px 7px;font-family:'JetBrains Mono',monospace;font-weight:800">${members.length}</span>
+        </div>
+        <span id="${arrowId}" style="font-size:10px;color:${tier.accent};transition:transform .2s;
+              display:inline-block;transform:${tier.open ? 'rotate(90deg)' : 'rotate(0deg)'}">▶</span>
+      </div>
+
+      <!-- 티어 바디 -->
+      <div id="${bodyId}"
+        style="display:${tier.open ? 'flex' : 'none'};flex-direction:column;gap:4px;
+               padding:${tier.open ? '4px 0' : '0'}">
+        ${members.map(ign => botCard(ign)).join('')}
+      </div>`;
+  }).join('');
+}
+
+function toggleSidebarTier(bodyId, arrowId) {
+  const body  = document.getElementById(bodyId);
+  const arrow = document.getElementById(arrowId);
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display  = isOpen ? 'none'  : 'flex';
+  body.style.flexDirection = 'column';
+  body.style.gap = '4px';
+  body.style.padding = isOpen ? '0' : '4px 0';
+  if (arrow) arrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
 }
 
 let modalRawData = [];
 let modalIgnName = '';
+let modalBotColor = '#f59e0b';
 
 async function openGraphModal(ign) {
   document.getElementById('graph-modal').style.display = 'flex';
-  document.getElementById('graph-modal-title').textContent = `📈 ${ign} — Meso/HR (48h)`;
+
+  // 사이드바의 색상과 동일하게 매칭
+  const igns = Object.keys(allGraphData);
+  const sortMode = document.getElementById('graph-sort')?.value || 'avg-desc';
+  const avgMap = {};
+  for (const ig of igns) {
+    const vals = allGraphData[ig].map(d => d.meso_hr).filter(v => v > 0);
+    avgMap[ig] = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+  }
+  let sortedIgns = [...igns];
+  if (sortMode === 'name') sortedIgns.sort((a,b) => a.localeCompare(b));
+  else if (sortMode === 'avg-desc') sortedIgns.sort((a,b) => avgMap[b] - avgMap[a]);
+  else sortedIgns.sort((a,b) => avgMap[a] - avgMap[b]);
+  const colorIdx = sortedIgns.indexOf(ign);
+  const botColor = colorIdx >= 0 ? GRAPH_COLORS[colorIdx % GRAPH_COLORS.length] : '#f59e0b';
+
+  const titleEl = document.getElementById('graph-modal-title');
+  titleEl.innerHTML = `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${botColor};margin-right:8px;vertical-align:middle;flex-shrink:0"></span>📈 ${ign} — Meso/HR (48h)`;
+
   document.getElementById('graph-modal-stats').innerHTML = '<span style="color:#888;font-size:12px">불러오는 중...</span>';
   document.getElementById('modal-sort').value = 'time';
   modalIgnName = ign;
+  modalBotColor = botColor;
 
   try {
     const res  = await fetch(`/api/tracker/history/${encodeURIComponent(ign)}`);
@@ -1846,7 +1985,7 @@ async function openGraphModal(ign) {
     document.getElementById('graph-modal-stats').innerHTML = `
       <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px 20px;text-align:center">
         <div style="font-size:10px;color:#888;letter-spacing:1px">AVG</div>
-        <div style="font-size:20px;font-weight:800;color:#f59e0b;font-family:'JetBrains Mono',monospace">${fmtMeso(avg)}/hr</div>
+        <div style="font-size:20px;font-weight:800;color:${botColor};font-family:'JetBrains Mono',monospace">${fmtMeso(avg)}/hr</div>
       </div>
       <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 20px;text-align:center">
         <div style="font-size:10px;color:#888;letter-spacing:1px">MAX</div>
@@ -1887,8 +2026,8 @@ function renderModalGraph(data) {
       datasets: [{
         label: modalIgnName + ' meso/hr',
         data: points,
-        borderColor: '#f59e0b',
-        backgroundColor: '#f59e0b18',
+        borderColor: modalBotColor,
+        backgroundColor: modalBotColor + '18',
         borderWidth: 2.5,
         pointRadius: 4,
         tension: 0.3,
