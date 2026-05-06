@@ -390,10 +390,6 @@ input[type=range].ov-slider::-moz-range-thumb{
 .zone-0{border-color:#e74c3c;color:#e74c3c;background:transparent}
 .zone-0.active{background:#e74c3c}
 
-/* EXT:ON warning badge */
-.badge-ext-on{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:900;
-  color:#888;border:1px solid #555;padding:1px 5px;border-radius:3px;margin-left:4px;
-  letter-spacing:.3px;cursor:help;vertical-align:middle}
 
 /* ── MOBILE RESPONSIVE ── */
 @media (max-width: 640px) {
@@ -539,6 +535,16 @@ input[type=range].ov-slider::-moz-range-thumb{
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
       <div class="section-title" style="margin-bottom:0">Bot Status</div>
       <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <!-- 전체 강제오프/해제 버튼 (인증 시에만 표시) -->
+        <div id="bulk-force-btns" style="display:none;gap:6px;align-items:center">
+          <button class="btn" id="btn-all-offline"
+            style="padding:5px 14px;font-size:11px;background:linear-gradient(180deg,#9b59b6,#7d3c98);border-color:#9b59b6;color:#fff;font-weight:800"
+            onclick="bulkForceOffline()">🔒 전체 오프라인</button>
+          <button class="btn" id="btn-all-online"
+            style="padding:5px 14px;font-size:11px;background:linear-gradient(180deg,#2ecc71,#27ae60);border-color:#2ecc71;color:#fff;font-weight:800"
+            onclick="bulkForceOnline()">🔓 전체 해제</button>
+          <div style="width:1px;height:18px;background:#ddd;margin:0 2px"></div>
+        </div>
         <span style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace">SORT:</span>
         <button class="btn" style="padding:5px 12px;font-size:11px" onclick="sortBots('lv-asc')">LV ▲</button>
         <button class="btn" style="padding:5px 12px;font-size:11px" onclick="sortBots('lv-desc')">LV ▼</button>
@@ -848,7 +854,65 @@ async function toggleForceOffline(key) {
   }
 }
 
-// ── 설정된 맵 여부 확인 ──
+// ── 전체 강제 오프라인 ──
+async function bulkForceOffline() {
+  const targets = botData.filter(b => !manualOffline.has(b.owner+'|'+b.ign));
+  if (!targets.length) return alert("이미 모든 봇이 강제 오프라인 상태입니다.");
+  if (!confirm(`⚠ 봇 ${targets.length}개를 전체 강제 오프라인으로 설정할까요?`)) return;
+
+  const btn = document.getElementById("btn-all-offline");
+  btn.disabled = true; btn.textContent = "⏳ 처리중...";
+
+  let ok = 0, fail = 0;
+  await Promise.all(targets.map(async b => {
+    const key = b.owner + '|' + b.ign;
+    try {
+      const res = await fetch("/api/forced-offline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ owner: b.owner, ign: b.ign, token: FORCED_TOKEN })
+      });
+      if (res.ok) { manualOffline.add(key); ok++; }
+      else fail++;
+    } catch { fail++; }
+  }));
+
+  btn.disabled = false; btn.textContent = "🔒 전체 오프라인";
+  renderBotTable();
+  const online = botData.filter(b => b.online && isKnownMap(b.map_id) && !manualOffline.has(b.owner+'|'+b.ign)).length;
+  document.getElementById("s-fc-online").textContent = `${online} | ${botData.length}`;
+  if (fail) alert(`완료: ${ok}개 성공, ${fail}개 실패`);
+}
+
+// ── 전체 강제 오프라인 해제 ──
+async function bulkForceOnline() {
+  const targets = botData.filter(b => manualOffline.has(b.owner+'|'+b.ign));
+  if (!targets.length) return alert("강제 오프라인 상태인 봇이 없습니다.");
+  if (!confirm(`🔓 봇 ${targets.length}개의 강제 오프라인을 전체 해제할까요?`)) return;
+
+  const btn = document.getElementById("btn-all-online");
+  btn.disabled = true; btn.textContent = "⏳ 처리중...";
+
+  let ok = 0, fail = 0;
+  await Promise.all(targets.map(async b => {
+    const key = b.owner + '|' + b.ign;
+    try {
+      const res = await fetch("/api/forced-offline", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ owner: b.owner, ign: b.ign, token: FORCED_TOKEN })
+      });
+      if (res.ok) { manualOffline.delete(key); ok++; }
+      else fail++;
+    } catch { fail++; }
+  }));
+
+  btn.disabled = false; btn.textContent = "🔓 전체 해제";
+  renderBotTable();
+  const online = botData.filter(b => b.online && isKnownMap(b.map_id) && !manualOffline.has(b.owner+'|'+b.ign)).length;
+  document.getElementById("s-fc-online").textContent = `${online} | ${botData.length}`;
+  if (fail) alert(`완료: ${ok}개 성공, ${fail}개 실패`);
+}
 function isKnownMap(mapId) {
   if (mapId === null || mapId === undefined) return false;
   return !!mapNames[String(mapId)];
@@ -879,6 +943,8 @@ function tryAuth(tab) {
 function applyAuth() {
   document.getElementById("main-banner").style.display = "flex";
   document.getElementById("auth-badge").style.display  = "inline-block";
+  const bulkBtns = document.getElementById("bulk-force-btns");
+  if (bulkBtns) bulkBtns.style.display = "flex";
   ["meso","reg","changelog"].forEach(k => {
     const lock = document.getElementById(k+"-lock");
     const cont = document.getElementById(k+"-content");
@@ -1034,17 +1100,12 @@ function buildBotRow(b, mapOff = false) {
     ? `<button class="force-btn${isForced ? ' forced-active' : ''}" onclick="toggleForceOffline('${key}')" title="${isForced ? '강제오프 해제' : '강제 오프라인 설정'}">${isForced ? '🔒 FORCED' : '🔒'}</button>`
     : '';
 
-  // ★ 요구사항 3: forced/map offline인 봇은 외부 서버에서 ONLINE으로 보임을 경고
-  const extOnlineWarn = (isForced || mapOff)
-    ? `<span class="badge-ext-on" title="⚠ 외부 하트비트 API에서는 ONLINE으로 표시됩니다.\n이는 오프라인 처리가 대시보드 표시 전용이기 때문입니다.\n서버 측 수정이 필요합니다.">⚠ EXT:ON</span>`
-    : '';
 
-  // 상태 배지 결정
   let statusBadge;
   if (isForced) {
-    statusBadge = `<span class="badge-offline">OFFLINE</span><span class="badge-forced">FORCED</span>${extOnlineWarn}${forceBtn}`;
+    statusBadge = `<span class="badge-offline">OFFLINE</span><span class="badge-forced">FORCED</span>${forceBtn}`;
   } else if (mapOff) {
-    statusBadge = `<span class="badge-offline">OFFLINE</span><span class="badge-map">MAP</span>${extOnlineWarn}${forceBtn}`;
+    statusBadge = `<span class="badge-offline">OFFLINE</span><span class="badge-map">MAP</span>${forceBtn}`;
   } else if (b.online) {
     statusBadge = `<span class="badge-online">ONLINE</span>${forceBtn}`;
   } else {
