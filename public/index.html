@@ -1791,14 +1791,13 @@ async function init() {
   }
 
   function ovRender(data, logs) {
-    // ★ 오버레이도 forced offline / map offline 반영
     const online  = data.filter(d => {
       const key = (d.owner||'Hyeong') + '|' + d.ign;
-      return d.online && !manualOffline.has(key) && isKnownMap(d.map_id);
+      return d.online && !manualOffline.has(key);
     });
     const offline = data.filter(d => {
       const key = (d.owner||'Hyeong') + '|' + d.ign;
-      return !d.online || manualOffline.has(key) || !isKnownMap(d.map_id);
+      return !d.online || manualOffline.has(key);
     });
     const totalHr = online.reduce((s,d) => s + (d.meso_hr||0), 0);
 
