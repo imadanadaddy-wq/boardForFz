@@ -834,13 +834,17 @@ async function toggleForceOffline(key) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ owner, ign, token: FORCED_TOKEN })
     });
-    if (!res.ok) throw new Error("서버 오류 " + res.status);
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.error("[forced] 서버 응답:", res.status, errBody);
+      throw new Error(`HTTP ${res.status}: ${errBody}`);
+    }
   } catch(e) {
     console.error("[forced] 서버 동기화 실패:", e);
     // 롤백
     if (wasForced) manualOffline.add(key); else manualOffline.delete(key);
     renderBotTable();
-    alert("⚠ 강제오프 서버 저장 실패. 다시 시도해주세요.");
+    alert(`⚠ 강제오프 서버 저장 실패\n\n${e.message}\n\n(F12 콘솔에서 상세 확인 가능)`);
   }
 }
 
