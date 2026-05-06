@@ -20,8 +20,16 @@ router.post("/", (req, res) => {
     return res.status(400).json({ error: "owner, ign, token required" });
   try {
     const client = dbMod.get("SELECT token FROM clients WHERE owner = ?", [owner]);
+    // ★ 디버그 로그
+    console.log("[forced] POST owner:", owner);
+    console.log("[forced] recv  token:", token?.slice(0,12));
+    console.log("[forced] DB    token:", client?.token?.slice(0,12) ?? "NOT FOUND");
     if (!client || client.token !== token)
-      return res.status(403).json({ error: "Invalid token" });
+      return res.status(403).json({
+        error: "Invalid token",
+        recv:  token?.slice(0,8) + "...",
+        db:    client ? client.token?.slice(0,8) + "..." : "owner not found"
+      });
     dbMod.run(
       "INSERT OR REPLACE INTO forced_offline (owner, ign, forced_at) VALUES (?, ?, ?)",
       [owner, ign, Date.now()]
@@ -41,7 +49,11 @@ router.delete("/", (req, res) => {
   try {
     const client = dbMod.get("SELECT token FROM clients WHERE owner = ?", [owner]);
     if (!client || client.token !== token)
-      return res.status(403).json({ error: "Invalid token" });
+      return res.status(403).json({
+        error: "Invalid token",
+        recv:  token?.slice(0,8) + "...",
+        db:    client ? client.token?.slice(0,8) + "..." : "owner not found"
+      });
     dbMod.run(
       "DELETE FROM forced_offline WHERE owner = ? AND ign = ?",
       [owner, ign]
