@@ -788,25 +788,60 @@ let mapNames    = {
 };
 let sellerRecords = [];
 
-// ── 강제 오프라인 목록 (localStorage 영속) ──
-// key 형식: "owner|ign"
-let manualOffline = new Set(JSON.parse(localStorage.getItem('ms_forced_offline') || '[]'));
+// ── 강제 오프라인 목록 (서버 DB 영속) ──
+// key 형식: "owner|ign"  / 서버 GET /api/forced-offline 로 로드
+const FORCED_OWNER = "Hyeong";
+const FORCED_TOKEN = "fd9601cc2d89007ea64825510908023994b55e445d8d930ed582f7a8532afe30";
+let manualOffline = new Set();  // 인메모리 캐시 (서버 응답으로 채움)
 
-function saveManualOffline() {
-  try { localStorage.setItem('ms_forced_offline', JSON.stringify([...manualOffline])); } catch(e) {}
+// 서버에서 강제 오프라인 목록을 불러와 Set을 동기화
+async function loadForcedOffline() {
+  try {
+    const rows = await (await fetch("/api/forced-offline")).json();
+    manualOffline = new Set(rows.map(r => r.owner + "|" + r.ign));
+
+    // ★ localStorage 일회성 마이그레이션: 이전 데이터가 있으면 서버로 올리고 삭제
+    const legacy = JSON.parse(localStorage.getItem('ms_forced_offline') || '[]');
+    if (legacy.length) {
+      await Promise.all(legacy.map(key => {
+        const [owner, ign] = key.split('|');
+        return fetch("/api/forced-offline", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ owner, ign, token: FORCED_TOKEN })
+        }).then(r => r.ok ? manualOffline.add(key) : null).catch(()=>{});
+      }));
+      localStorage.removeItem('ms_forced_offline');
+    }
+  } catch(e) { console.warn("[forced] 서버 로드 실패:", e); }
 }
 
-function toggleForceOffline(key) {
-  if (manualOffline.has(key)) {
-    manualOffline.delete(key);
-  } else {
-    manualOffline.add(key);
-  }
-  saveManualOffline();
+async function toggleForceOffline(key) {
+  const [owner, ign] = key.split('|');
+  const wasForced = manualOffline.has(key);
+
+  // 즉시 반영 (낙관적 업데이트)
+  if (wasForced) manualOffline.delete(key); else manualOffline.add(key);
   renderBotTable();
-  // ★ 온라인 카운트도 즉시 갱신
   const online = botData.filter(b => b.online && isKnownMap(b.map_id) && !manualOffline.has(b.owner+'|'+b.ign)).length;
   if (isAuthed) document.getElementById("s-fc-online").textContent=`${online} | ${botData.length}`;
+
+  // 서버 반영
+  try {
+    const method = wasForced ? "DELETE" : "POST";
+    const res = await fetch("/api/forced-offline", {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ owner, ign, token: FORCED_TOKEN })
+    });
+    if (!res.ok) throw new Error("서버 오류 " + res.status);
+  } catch(e) {
+    console.error("[forced] 서버 동기화 실패:", e);
+    // 롤백
+    if (wasForced) manualOffline.add(key); else manualOffline.delete(key);
+    renderBotTable();
+    alert("⚠ 강제오프 서버 저장 실패. 다시 시도해주세요.");
+  }
 }
 
 // ── 설정된 맵 여부 확인 ──
@@ -1531,10 +1566,13 @@ async function autoRegisterDefault() {
 async function init() {
   checkAuth();
   await loadMapNames();
+  await loadForcedOffline();   // ★ 서버에서 강제오프 목록 로드 (fetchFC보다 먼저)
   autoRegisterDefault();
   fetchFC();
   renderSessions();
   setInterval(()=>{fetchFC();if(isAuthed)fetchMeso();},10000);
+  // ★ 강제오프 목록도 30초마다 서버와 동기화 (다른 브라우저에서 변경 반영)
+  setInterval(()=>loadForcedOffline().then(()=>renderBotTable()), 30000);
 }
 
 // ══════════════════════════════════════
