@@ -1,17 +1,14 @@
 const path = require("path");
 const fs   = require("fs");
 const initSqlJs = require("sql.js");
-
 const DB_PATH = path.join(__dirname, "unified.db");
 let db = null;
-
 async function getDb() {
   if (db) return db;
   const SQL = await initSqlJs();
   db = fs.existsSync(DB_PATH)
     ? new SQL.Database(fs.readFileSync(DB_PATH))
     : new SQL.Database();
-
   db.run(`
     CREATE TABLE IF NOT EXISTS private_data (
       id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,8 +79,13 @@ async function getDb() {
       meso_hr INTEGER NOT NULL,
       ts      INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS forced_offline (
+      owner     TEXT NOT NULL,
+      ign       TEXT NOT NULL,
+      forced_at INTEGER NOT NULL,
+      PRIMARY KEY (owner, ign)
+    );
   `);
-
   // ── 기본 클라이언트 시드 (서버 재시작해도 항상 유지) ──
   // INSERT OR IGNORE 이므로 중복 삽입 없음
   const DEFAULT_CLIENTS = [
@@ -94,11 +96,9 @@ async function getDb() {
     db.run("INSERT OR IGNORE INTO tokens  (owner, token) VALUES (?,?)", [c.owner, c.token_t]);
     db.run("INSERT OR IGNORE INTO clients (owner, token) VALUES (?,?)", [c.owner, c.token_c]);
   }
-
   persist();
   return db;
 }
-
 function persist() {
   if (!db) return;
   fs.writeFileSync(DB_PATH, Buffer.from(db.export()));
@@ -114,5 +114,4 @@ function all(sql, params=[]) {
   while(s.step()) out.push(s.getAsObject());
   s.free(); return out;
 }
-
 module.exports = { getDb, run, get, all, persist };
