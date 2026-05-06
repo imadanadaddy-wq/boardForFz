@@ -3,13 +3,10 @@ const cors    = require("cors");
 const path    = require("path");
 const fs      = require("fs");
 const dbMod   = require("./db");
-
 const app  = express();
 const PORT = process.env.PORT || 3000;
-
 // mapnames.json 경로 — public 폴더 안에 두면 GitHub에 커밋 가능
 const MAPNAMES_PATH = path.join(__dirname, "public", "mapnames.json");
-
 function loadMapNames() {
   try {
     if (fs.existsSync(MAPNAMES_PATH))
@@ -20,18 +17,15 @@ function loadMapNames() {
 function saveMapNames(obj) {
   fs.writeFileSync(MAPNAMES_PATH, JSON.stringify(obj, null, 2), "utf8");
 }
-
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.static(path.join(__dirname, "public")));
-
 dbMod.getDb().then(() => {
   console.log("[DB] Ready");
-
   app.use("/api/tracker",              require("./routes/tracker"));
   app.use("/api/bot-heartbeat/client", require("./routes/heartbeat"));
   app.use("/api/seller",               require("./routes/seller"));
-
+  app.use("/api/forced-offline",       require("./routes/forced"));   // ★ 추가
   // ── Map names (파일 기반 — GitHub에 영구 저장) ──
   app.get("/api/mapnames", (req, res) => {
     const obj = loadMapNames();
@@ -52,7 +46,6 @@ dbMod.getDb().then(() => {
     saveMapNames(obj);
     return res.json({ ok: true });
   });
-
   // ── Change log ──
   app.get("/api/bot-change-log", (req, res) => {
     const limit = parseInt(req.query.limit) || 300;
@@ -63,7 +56,6 @@ dbMod.getDb().then(() => {
     dbMod.run("DELETE FROM bot_change_log");
     return res.json({ ok: true });
   });
-
   app.post("/api/clients", (req, res) => {
     const { owner, token } = req.body;
     if (!owner || !token) return res.status(400).json({ error: "owner and token required" });
@@ -75,11 +67,9 @@ dbMod.getDb().then(() => {
   app.get("/api/clients", (req, res) => {
     return res.json(dbMod.all("SELECT owner FROM clients ORDER BY owner"));
   });
-
   app.get("*", (req, res) => {
     res.sendFile(path.join(__dirname, "public", "index.html"));
   });
-
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
