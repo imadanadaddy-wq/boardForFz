@@ -763,6 +763,62 @@ let botData     = [];
 let prevBotMap  = {};
 let changedCells = {};
 let currentSort = 'default';
+
+// ─── 클라이언트 자체 meso/hr 계산기 ───────────────────────────────
+// 6분 윈도우 안에서 (meso 증가량 / 경과시간)으로 /hr 계산
+// 아이템 거래로 인한 급격한 변동은 무시 (이상치 필터링)
+const HR_WINDOW_MS   = 6 * 60 * 1000;   // 6분 윈도우
+const SPIKE_RATIO    = 5;               // 이전 대비 5배 초과 변화는 이상치로 간주
+const SPIKE_ABS      = 500_000_000;     // 5억 이상 단번 변화도 이상치
+
+// ign → { snapTs, snapMeso, lastValidHr }
+const mesoSnap = {};
+
+/**
+ * 새 meso 값이 들어올 때 호출.
+ * 이상치(아이템 구매/판매) 감지 시 스냅샷 리셋 후 0 반환.
+ * 정상 범위면 (delta / elapsed) * 3600000 으로 /hr 계산.
+ */
+function calcClientHr(ign, nowMeso) {
+  const now  = Date.now();
+  const snap = mesoSnap[ign];
+
+  if (!snap) {
+    // 첫 수신 → 스냅샷 기록
+    mesoSnap[ign] = { snapTs: now, snapMeso: nowMeso, lastValidHr: 0 };
+    return 0;
+  }
+
+  const elapsed = now - snap.snapTs;
+  const delta   = nowMeso - snap.snapMeso;
+
+  // 윈도우 초과 → 리셋
+  if (elapsed >= HR_WINDOW_MS) {
+    mesoSnap[ign] = { snapTs: now, snapMeso: nowMeso, lastValidHr: snap.lastValidHr };
+    return snap.lastValidHr; // 리셋 시 직전 값 유지(한 사이클)
+  }
+
+  // 이상치 감지: 감소가 크거나 증가가 비정상적으로 큼
+  if (delta < 0 || Math.abs(delta) > SPIKE_ABS) {
+    // 스냅샷을 현재 시점으로 땡겨서 재시작
+    mesoSnap[ign] = { snapTs: now, snapMeso: nowMeso, lastValidHr: 0 };
+    return 0;
+  }
+
+  if (elapsed < 5000) return snap.lastValidHr; // 5초 미만이면 직전값 유지
+
+  const hr = Math.round((delta / elapsed) * 3600000);
+
+  // 직전 hr 대비 SPIKE_RATIO 배 초과 → 이상치
+  if (snap.lastValidHr > 0 && hr > snap.lastValidHr * SPIKE_RATIO) {
+    mesoSnap[ign] = { snapTs: now, snapMeso: nowMeso, lastValidHr: 0 };
+    return 0;
+  }
+
+  snap.lastValidHr = hr;
+  return hr;
+}
+// ──────────────────────────────────────────────────────────────────
 let mapNames    = {
   "450002001": "🍎 [Chu Chu] Hill Path",
   "450003320": "🎭 [Lachelein] Chicken Festival 3",
@@ -1301,7 +1357,9 @@ async function fetchMeso() {
     const data=await (await fetch("/api/tracker")).json();
     let tFrag=0,tMeso=0,tHr=0,online=0;
     data.forEach(d=>{
-      tMeso+=(d.meso||0); tHr+=(d.meso_hr||0);
+      // 서버 meso_hr 대신 클라이언트 자체 계산값 사용
+      d._clientHr = calcClientHr(d.ign, d.meso || 0);
+      tMeso+=(d.meso||0); tHr+=d._clientHr;
       if(d.online) online++;
       d.items?.forEach(it=>{ if(it.name.includes("조각")) tFrag+=it.count; });
     });
@@ -1316,12 +1374,12 @@ async function fetchMeso() {
 function renderMesoCards(data) {
   const grid = document.getElementById("meso-cards");
   if (!data.length) { grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:50px;color:#aaa">데이터 없음</div>`; return; }
-  const sorted = [...data].sort((a,b)=>(b.meso_hr||0)-(a.meso_hr||0));
-  const maxHr  = Math.max(...sorted.map(d=>d.meso_hr||0), 1);
+  const sorted = [...data].sort((a,b)=>(b._clientHr||0)-(a._clientHr||0));
+  const maxHr  = Math.max(...sorted.map(d=>d._clientHr||0), 1);
 
   grid.innerHTML = sorted.map(d => {
     const items  = d.items || [];
-    const barW   = Math.min(100, (d.meso_hr/maxHr)*100);
+    const barW   = Math.min(100, ((d._clientHr||0)/maxHr)*100);
 
     const consRow = [
       findItem(items, "재획"),
@@ -1369,7 +1427,7 @@ function renderMesoCards(data) {
       </div>
 
       <div class="efficiency-bar" style="margin:8px 0 6px"><div class="bar-fill" style="width:${barW}%"></div></div>
-      <div class="status-row"><span>MESO/HR</span><span class="v" style="color:#e67e22">${fmt(d.meso_hr)}</span></div>
+      <div class="status-row"><span>MESO/HR</span><span class="v" style="color:#e67e22">${fmt(d._clientHr||0)}</span></div>
       <div class="status-row"><span>TOTAL MESO</span><span class="v">${fmt(d.meso)}</span></div>
       <div class="ccard-bottom-controls"><div class="ccard-money">
         <div class="money-pill"><img src="/images/meso.png" class="money-icon"><span class="money-val">${fmt(d.meso)}</span></div>
@@ -1762,6 +1820,8 @@ async function init() {
       ]);
       const data = await trackerRes.json();
       const logs = logRes.ok ? await logRes.json() : [];
+      // 오버레이도 클라이언트 계산 hr 적용
+      data.forEach(d => { d._clientHr = calcClientHr(d.ign, d.meso || 0); });
       ovRender(data, logs);
       document.getElementById("ov-upd-time").textContent =
         new Date().toLocaleTimeString("ko-KR", {hour12:false});
@@ -1799,7 +1859,7 @@ async function init() {
       const key = (d.owner||'Hyeong') + '|' + d.ign;
       return !d.online || manualOffline.has(key);
     });
-    const totalHr = online.reduce((s,d) => s + (d.meso_hr||0), 0);
+    const totalHr = online.reduce((s,d) => s + (d._clientHr||0), 0);
 
     document.getElementById("ov-total-hr").textContent   = ovFmt(totalHr);
     document.getElementById("ov-online-cnt").textContent  = online.length;
@@ -1809,15 +1869,15 @@ async function init() {
     if (!online.length) {
       bhrEl.innerHTML = '<div class="ov-empty">온라인 봇 없음</div>';
     } else {
-      const sorted = [...online].sort((a,b) => (b.meso_hr||0)-(a.meso_hr||0));
+      const sorted = [...online].sort((a,b) => (b._clientHr||0)-(a._clientHr||0));
       bhrEl.innerHTML = sorted.map((d,i) => {
-        const cls = ovRankClass(d.meso_hr||0);
+        const cls = ovRankClass(d._clientHr||0);
         return `<div class="ov-row" style="animation-delay:${i*25}ms">
           <div class="ov-ign">
             <span class="${cls}" style="font-size:9px;min-width:14px">#${i+1}</span>
             ${d.ign||'Unknown'} <span class="ov-lv">Lv.${d.level||'?'}</span>
           </div>
-          <div class="ov-bhr ${cls}">${ovFmt(d.meso_hr)}<span class="ov-bhr-unit">/hr</span></div>
+          <div class="ov-bhr ${cls}">${ovFmt(d._clientHr||0)}<span class="ov-bhr-unit">/hr</span></div>
         </div>`;
       }).join("");
     }
