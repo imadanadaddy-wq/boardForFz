@@ -392,37 +392,101 @@ input[type=range].ov-slider::-moz-range-thumb{
 
 
 /* ── MOBILE RESPONSIVE ── */
-@media (max-width: 640px) {
-  header{padding:8px 12px;gap:8px}
-  .header-title{font-size:15px}
-  .nav-link{padding:3px 8px;font-size:11px}
-  #last-upd{font-size:10px;display:none}
-  .summary-banner{gap:8px;padding:10px 12px;min-height:unset}
-  .info-pill{min-width:unset;padding:5px 10px}
-  .info-val{font-size:14px}
+@media (max-width: 768px) {
+  /* 헤더 */
+  header{padding:8px 10px;gap:6px;flex-wrap:wrap}
+  .header-title{font-size:14px}
+  .header-nav{gap:5px;flex-wrap:wrap}
+  .nav-link{padding:3px 7px;font-size:10px}
+  #last-upd{display:none}
+  #ov-toggle-btn{font-size:10px;padding:3px 8px}
+  #auth-badge{font-size:10px;padding:2px 6px}
+
+  /* 배너 */
+  .summary-banner{gap:6px;padding:8px 10px;min-height:unset;justify-content:flex-start}
+  .info-pill{min-width:calc(50% - 6px);padding:5px 8px;flex:1 1 calc(50% - 6px)}
+  .info-val{font-size:13px}
   .info-label{font-size:9px}
-  main{padding:10px}
-  .tab-bar{gap:0;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+
+  /* 메인 */
+  main{padding:8px}
+
+  /* 탭바 */
+  .tab-bar{gap:0;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;border-bottom:2px solid var(--ms-border-dark)}
   .tab-bar::-webkit-scrollbar{display:none}
-  .tab-btn{padding:7px 12px;font-size:10px;white-space:nowrap;flex-shrink:0}
-  #tab-bots > div:first-child{flex-direction:column;align-items:flex-start !important;gap:8px}
-  #tab-bots > div:first-child > div{margin-left:0 !important;flex-wrap:wrap}
+  .tab-btn{padding:8px 11px;font-size:10px;white-space:nowrap;flex-shrink:0}
+
+  /* 봇 테이블 */
+  #tab-bots > div:first-child{flex-direction:column;align-items:flex-start !important;gap:6px}
+  #tab-bots > div:first-child > div{margin-left:0 !important;flex-wrap:wrap;gap:4px}
   .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  table{min-width:520px}
-  th{padding:8px 10px;font-size:9px}
-  td{padding:8px 10px;font-size:12px}
+  table{min-width:480px}
+  th{padding:7px 8px;font-size:9px;letter-spacing:1px}
+  td{padding:7px 8px;font-size:11px}
   .td-ign{font-size:11px}
-  .td-owner{font-size:10px}
-  .td-ago{font-size:10px}
-  .badge-online,.badge-offline{font-size:10px;padding:1px 5px}
-  .form-row{flex-direction:column}
-  .btn{font-size:11px;padding:8px 14px}
-  .panel-box{padding:12px}
-  .cards,.seller-grid{grid-template-columns:1fr}
-  .ccard{padding:10px}
+  .td-ago{font-size:9px}
+  .badge-online,.badge-offline,.badge-map,.badge-forced{font-size:9px;padding:1px 4px}
+
+  /* 메소 카드: 모바일에서 1열, 스와이프 가능하게 */
+  .cards{
+    display:flex;
+    flex-direction:row;
+    overflow-x:auto;
+    gap:10px;
+    padding-bottom:10px;
+    scroll-snap-type:x mandatory;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .cards::-webkit-scrollbar{display:none}
+  .ccard{
+    flex:0 0 85vw;
+    max-width:340px;
+    scroll-snap-align:start;
+    padding:10px;
+  }
   .ign{font-size:15px}
-  .session-row{flex-wrap:wrap;gap:6px}
+
+  /* 그래프 탭: 사이드바 숨기고 그래프 풀너비 */
+  #graph-layout{flex-direction:column !important}
+  #graph-sidebar{display:none !important}
+  #graph-all{max-height:260px !important}
+
+  /* 그래프 컨트롤 */
+  #tab-mesoGraph > div:first-child{flex-direction:column;align-items:flex-start;gap:6px}
+  #tab-mesoGraph > div:first-child > div{flex-wrap:wrap;gap:5px}
+  #graph-interval,#graph-sort{font-size:11px;padding:3px 6px}
+
+  /* 구간 필터 */
+  #zone-filter-bar{gap:5px}
+  .zone-btn{padding:4px 9px;font-size:10px}
+
+  /* 그래프 모달 */
+  #graph-modal > div{padding:14px;border-radius:10px}
+  #graph-modal-canvas{height:240px !important}
+  #graph-modal-stats{gap:8px}
+  #graph-modal-stats > div{padding:8px 12px;flex:1 1 calc(50% - 4px)}
+
+  /* 셀러 */
+  .seller-grid{grid-template-columns:1fr}
+  .form-row{flex-direction:column}
+  .btn{font-size:11px;padding:8px 12px}
+  .panel-box{padding:10px}
+  .session-row{flex-wrap:wrap;gap:5px}
   .session-result{min-width:unset;width:100%;align-items:flex-start}
+  .session-dt{min-width:unset;flex:1 1 calc(50% - 30px)}
+
+  /* 오버레이: 모바일에서 전체 하단에 고정 */
+  #overlay-wrap{
+    position:fixed;
+    top:auto !important;
+    bottom:0;
+    left:0 !important;
+    right:0;
+    width:100% !important;
+  }
+  #ov-panel{border-radius:12px 12px 0 0}
+  .ov-scroll{max-height:140px}
 }
 </style>
 </head>
@@ -617,9 +681,12 @@ input[type=range].ov-slider::-moz-range-thumb{
       </div>
     </div>
     <div id="meso-content" style="display:none">
+      <!-- 모바일 스와이프 힌트 -->
+      <div id="meso-swipe-hint" style="display:none;text-align:center;font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1px;margin-bottom:6px">← 스와이프하여 카드 탐색 →</div>
       <div class="cards" id="meso-cards">
         <div style="grid-column:1/-1;text-align:center;padding:50px;color:#aaa">데이터를 불러오는 중...</div>
       </div>
+      <div id="meso-dots" style="display:none;justify-content:center;gap:5px;padding:8px 0;flex-wrap:wrap"></div>
     </div>
   </div>
 
@@ -710,7 +777,7 @@ input[type=range].ov-slider::-moz-range-thumb{
     </div>
 
     <!-- 그래프 + 사이드바 레이아웃 -->
-    <div style="display:flex;gap:16px;align-items:flex-start">
+    <div id="graph-layout" style="display:flex;gap:16px;align-items:flex-start">
 
       <!-- 왼쪽: 메인 그래프 -->
       <div style="flex:1;min-width:0;background:#fff;border-radius:12px;padding:16px;box-shadow:0 2px 12px rgba(0,0,0,.08)">
@@ -1412,6 +1479,37 @@ function renderMesoCards(data) {
       </div></div>
     </div>`;
   }).join("");
+
+  // 모바일 도트 인디케이터
+  const isMobile = window.innerWidth <= 768;
+  const hintEl = document.getElementById('meso-swipe-hint');
+  const dotsEl = document.getElementById('meso-dots');
+  if (isMobile && sorted.length > 1) {
+    if (hintEl) hintEl.style.display = 'block';
+    if (dotsEl) {
+      dotsEl.style.display = 'flex';
+      dotsEl.innerHTML = sorted.map((_,i) =>
+        `<div class="meso-dot" data-idx="${i}" style="width:7px;height:7px;border-radius:50%;background:${i===0?'var(--ms-accent)':'#ccc'};cursor:pointer;transition:background .2s" onclick="scrollMesoCard(${i})"></div>`
+      ).join('');
+      // 스크롤 시 도트 업데이트
+      grid.onscroll = () => {
+        const idx = Math.round(grid.scrollLeft / (grid.offsetWidth * 0.85));
+        dotsEl.querySelectorAll('.meso-dot').forEach((d,i) => {
+          d.style.background = i === idx ? 'var(--ms-accent)' : '#ccc';
+        });
+      };
+    }
+  } else {
+    if (hintEl) hintEl.style.display = 'none';
+    if (dotsEl) dotsEl.style.display = 'none';
+    grid.onscroll = null;
+  }
+}
+
+function scrollMesoCard(idx) {
+  const grid = document.getElementById('meso-cards');
+  if (!grid) return;
+  grid.scrollTo({ left: idx * grid.offsetWidth * 0.85, behavior: 'smooth' });
 }
 
 // ── SELLER CALC ──
