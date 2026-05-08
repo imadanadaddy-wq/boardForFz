@@ -1364,42 +1364,40 @@ function makeEmptySlots(n, small=false) {
   return Array(n).fill(`<div class="${cls}"></div>`).join("");
 }
 
+// ── 공용 meso/hr 계산 (fetchMeso, 오버레이, 그래프 모두 공유) ──
 const _mesoHistory = {};
-const SAMPLE_COUNT = 6; // 최근 몇 개 평균낼지 (6 = 1분)
+const SAMPLE_COUNT = 6; // 최근 6샘플 이동평균 (10초 간격 기준 약 1분)
+
+function calcMesoHr(ign, meso) {
+  const key     = ign;
+  const now     = Date.now();
+  const mesoNum = Number(meso) || 0;
+
+  if (!_mesoHistory[key]) _mesoHistory[key] = { samples: [], lastMeso: null, lastTs: null };
+  const h = _mesoHistory[key];
+
+  if (h.lastMeso != null && h.lastTs != null) {
+    const dt_ms = now - h.lastTs;
+    const diff  = mesoNum - h.lastMeso;
+    if (dt_ms > 0 && diff >= 0 && diff < 10_000_000_000) {
+      h.samples.push(Math.floor((diff / dt_ms) * 3_600_000));
+      if (h.samples.length > SAMPLE_COUNT) h.samples.shift();
+    }
+  }
+
+  h.lastMeso = mesoNum;
+  h.lastTs   = now;
+
+  return h.samples.length > 0
+    ? Math.floor(h.samples.reduce((a, b) => a + b, 0) / h.samples.length)
+    : 0;
+}
 
 async function fetchMeso() {
   if (!isAuthed) return;
   try {
     const data = await (await fetch("/api/tracker")).json();
-
-    data.forEach(d => {
-      const key  = d.ign;
-      const meso = Number(d.meso) || 0;
-      const ts   = Date.now();
-
-      if (!_mesoHistory[key]) _mesoHistory[key] = { samples: [], lastMeso: null, lastTs: null };
-      const h = _mesoHistory[key];
-
-      if (h.lastMeso != null && h.lastTs != null) {
-        const dt_ms = ts - h.lastTs;
-        const diff  = meso - h.lastMeso;
-        if (dt_ms > 0 && diff >= 0 && diff < 10_000_000_000) {
-          const hr = Math.floor((diff / dt_ms) * 3_600_000);
-          h.samples.push(hr);
-          if (h.samples.length > SAMPLE_COUNT) h.samples.shift(); // 오래된 거 제거
-        }
-      }
-
-      h.lastMeso = meso;
-      h.lastTs   = ts;
-
-      // 평균
-      if (h.samples.length > 0) {
-        d.meso_hr = Math.floor(h.samples.reduce((a,b)=>a+b,0) / h.samples.length);
-      } else {
-        d.meso_hr = 0;
-      }
-    });
+    data.forEach(d => { d.meso_hr = calcMesoHr(d.ign, d.meso); });
 
     let tFrag = 0, tMeso = 0, tHr = 0, online = 0;
     data.forEach(d => {
@@ -1896,6 +1894,7 @@ async function init() {
       ]);
       const data = await trackerRes.json();
       const logs = logRes.ok ? await logRes.json() : [];
+      data.forEach(d => { d.meso_hr = calcMesoHr(d.ign, d.meso); }); // ★ 공용 계산
       ovRender(data, logs);
       document.getElementById("ov-upd-time").textContent =
         new Date().toLocaleTimeString("ko-KR", {hour12:false});
