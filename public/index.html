@@ -1298,31 +1298,40 @@ function makeEmptySlots(n, small=false) {
 }
 
 const _mesoHistory = {};
+const SAMPLE_COUNT = 6; // 최근 몇 개 평균낼지 (6 = 1분)
 
 async function fetchMeso() {
   if (!isAuthed) return;
   try {
-    const now  = Date.now();
     const data = await (await fetch("/api/tracker")).json();
 
     data.forEach(d => {
       const key  = d.ign;
-      const prev = _mesoHistory[key];
       const meso = Number(d.meso) || 0;
+      const ts   = Date.now();
 
-      if (prev && prev.ts && prev.meso != null) {
-        const dt_ms = now - prev.ts;
-        const diff  = meso - prev.meso;
+      if (!_mesoHistory[key]) _mesoHistory[key] = { samples: [], lastMeso: null, lastTs: null };
+      const h = _mesoHistory[key];
+
+      if (h.lastMeso != null && h.lastTs != null) {
+        const dt_ms = ts - h.lastTs;
+        const diff  = meso - h.lastMeso;
         if (dt_ms > 0 && diff >= 0 && diff < 10_000_000_000) {
-          d.meso_hr = Math.floor((diff / dt_ms) * 3_600_000);
-        } else {
-          d.meso_hr = 0;
+          const hr = Math.floor((diff / dt_ms) * 3_600_000);
+          h.samples.push(hr);
+          if (h.samples.length > SAMPLE_COUNT) h.samples.shift(); // 오래된 거 제거
         }
+      }
+
+      h.lastMeso = meso;
+      h.lastTs   = ts;
+
+      // 평균
+      if (h.samples.length > 0) {
+        d.meso_hr = Math.floor(h.samples.reduce((a,b)=>a+b,0) / h.samples.length);
       } else {
         d.meso_hr = 0;
       }
-
-      _mesoHistory[key] = { meso, ts: now };
     });
 
     let tFrag = 0, tMeso = 0, tHr = 0, online = 0;
