@@ -1297,22 +1297,47 @@ function makeEmptySlots(n, small=false) {
   return Array(n).fill(`<div class="${cls}"></div>`).join("");
 }
 
+const _mesoHistory = {};
+
 async function fetchMeso() {
   if (!isAuthed) return;
   try {
-    const data=await (await fetch("/api/tracker")).json();
-    let tFrag=0,tMeso=0,tHr=0,online=0;
-    data.forEach(d=>{
-      tMeso+=(d.meso||0); tHr+=(d.meso_hr||0);
-      if(d.online) online++;
-      d.items?.forEach(it=>{ if(it.name.includes("조각")) tFrag+=it.count; });
+    const now  = Date.now();
+    const data = await (await fetch("/api/tracker")).json();
+
+    data.forEach(d => {
+      const key  = d.ign;
+      const prev = _mesoHistory[key];
+      const meso = Number(d.meso) || 0;
+
+      if (prev && prev.ts && prev.meso != null) {
+        const dt_ms = now - prev.ts;
+        const diff  = meso - prev.meso;
+        if (dt_ms > 0 && diff >= 0 && diff < 10_000_000_000) {
+          d.meso_hr = Math.floor((diff / dt_ms) * 3_600_000);
+        } else {
+          d.meso_hr = 0;
+        }
+      } else {
+        d.meso_hr = 0;
+      }
+
+      _mesoHistory[key] = { meso, ts: now };
     });
-    document.getElementById("s-fragments").textContent=tFrag.toLocaleString();
-    document.getElementById("s-meso").textContent=fmt(tMeso);
-    document.getElementById("s-total-hr").textContent=fmt(tHr);
-    document.getElementById("s-meso-online").textContent=`${online} | ${data.length}`;
+
+    let tFrag = 0, tMeso = 0, tHr = 0, online = 0;
+    data.forEach(d => {
+      tMeso += (Number(d.meso) || 0);
+      tHr   += (d.meso_hr || 0);
+      if (d.online) online++;
+      d.items?.forEach(it => { if (it.name.includes("조각")) tFrag += it.count; });
+    });
+    document.getElementById("s-fragments").textContent = tFrag.toLocaleString();
+    document.getElementById("s-meso").textContent      = fmt(tMeso);
+    document.getElementById("s-total-hr").textContent  = fmt(tHr);
+    document.getElementById("s-meso-online").textContent = `${online} | ${data.length}`;
     renderMesoCards(data);
-  } catch(e){}
+  } catch(e) {}
 }
 
 function renderMesoCards(data) {
