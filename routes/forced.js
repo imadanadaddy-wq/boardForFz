@@ -2,6 +2,16 @@ const express = require("express");
 const router  = express.Router();
 const dbMod   = require("../db");
 
+function ensureManualReleasedTable() {
+  dbMod.run(`
+    CREATE TABLE IF NOT EXISTS manual_released (
+      owner TEXT NOT NULL,
+      ign   TEXT NOT NULL,
+      PRIMARY KEY (owner, ign)
+    )
+  `);
+}
+
 // ── GET /api/forced-offline ──────────────────────────────────────────────────
 router.get("/", (req, res) => {
   try {
@@ -20,7 +30,6 @@ router.post("/", (req, res) => {
     return res.status(400).json({ error: "owner, ign, token required" });
   try {
     const client = dbMod.get("SELECT token FROM clients WHERE owner = ?", [owner]);
-    // ★ 디버그 로그
     console.log("[forced] POST owner:", owner);
     console.log("[forced] recv  token:", token?.slice(0,12));
     console.log("[forced] DB    token:", client?.token?.slice(0,12) ?? "NOT FOUND");
@@ -30,6 +39,12 @@ router.post("/", (req, res) => {
         recv:  token?.slice(0,8) + "...",
         db:    client ? client.token?.slice(0,8) + "..." : "owner not found"
       });
+
+    ensureManualReleasedTable();
+
+    // 수동 강제(POST)는 manual_released에서 제거 → 이후 자동강제도 다시 허용
+    dbMod.run("DELETE FROM manual_released WHERE owner=? AND ign=?", [owner, ign]);
+
     dbMod.run(
       "INSERT OR REPLACE INTO forced_offline (owner, ign, forced_at) VALUES (?, ?, ?)",
       [owner, ign, Date.now()]
@@ -42,6 +57,7 @@ router.post("/", (req, res) => {
 });
 
 // ── DELETE /api/forced-offline ───────────────────────────────────────────────
+// 수동 해제 시 manual_released에 기록 → Lv.219 이하여도 재자동강제 방지
 router.delete("/", (req, res) => {
   const { owner, ign, token } = req.body || {};
   if (!owner || !ign || !token)
@@ -54,11 +70,19 @@ router.delete("/", (req, res) => {
         recv:  token?.slice(0,8) + "...",
         db:    client ? client.token?.slice(0,8) + "..." : "owner not found"
       });
+
+    ensureManualReleasedTable();
+
     dbMod.run(
       "DELETE FROM forced_offline WHERE owner = ? AND ign = ?",
       [owner, ign]
     );
-    return res.json({ ok: true, owner, ign, forced: false });
+    // 수동 해제 기록: 이 봇은 자동강제 대상에서 영구 제외
+    dbMod.run(
+      "INSERT OR IGNORE INTO manual_released (owner, ign) VALUES (?, ?)",
+      [owner, ign]
+    );
+    return res.json({ ok: true, owner, ign, forced: false, manuallyReleased: true });
   } catch (e) {
     console.error("[forced] DELETE error:", e);
     return res.status(500).json({ error: "DB error", detail: e.message });
