@@ -769,10 +769,9 @@ input[type=range].ov-slider::-moz-range-thumb{
     <div id="zone-filter-bar" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
       <span style="font-size:10px;color:#888;font-family:'JetBrains Mono',monospace;letter-spacing:1px;white-space:nowrap">구간 필터:</span>
       <button class="zone-btn zone-all active" onclick="setZoneFilter(null)">전체</button>
-      <button class="zone-btn zone-300" onclick="setZoneFilter('300')">🔥 300M+</button>
-      <button class="zone-btn zone-200" onclick="setZoneFilter('200')">💚 200–300M</button>
-      <button class="zone-btn zone-100" onclick="setZoneFilter('100')">🔵 100–200M</button>
-      <button class="zone-btn zone-0"   onclick="setZoneFilter('0')">🔴 0–100M</button>
+      <button class="zone-btn zone-250" onclick="setZoneFilter('250')">🔥 250M+</button>
+      <button class="zone-btn zone-150" onclick="setZoneFilter('150')">💚 150–250M</button>
+      <button class="zone-btn zone-0"   onclick="setZoneFilter('0')">🔵 0–150M</button>
       <span id="zone-filter-label" style="font-size:10px;color:#888;font-family:'JetBrains Mono',monospace;margin-left:4px"></span>
     </div>
 
@@ -1365,17 +1364,38 @@ function makeEmptySlots(n, small=false) {
 }
 
 // ── 공용 meso/hr 계산 (fetchMeso, 오버레이, 그래프 모두 공유) ──
+// 서버가 이미 교차검증한 meso_hr를 반환하므로, 서버값이 있으면 그것을 우선 사용.
+// 서버값이 0이거나 없는 경우에만 클라이언트 슬라이딩 윈도우로 보조 계산.
 const _mesoHistory = {};
-// 30초 간격 기준 10샘플 = 약 5분 이동평균
-// 샘플이 많을수록 순간 스파이크가 평균에 미치는 영향이 줄어듦
 const SAMPLE_COUNT   = 10;
-// 폴링 간 허용 최대 diff: 350m/hr × (90초 / 3600) ≈ 8.75m → 여유있게 15m 상한
-// 이 이상 튀면 재접속·메소 수동 추가 등 비정상으로 간주해서 버림
+// 허용 최대 diff: 400m/hr × (90초 / 3600) ≈ 10m → 여유있게 15m 상한
 const MAX_DIFF_MESO  = 15_000_000;
-// 두 샘플 사이 허용 최대 dt: 120초 초과 시 봇이 꺼졌다 켜진 것으로 간주해서 버림
 const MAX_DT_MS      = 120_000;
 
-function calcMesoHr(ign, meso) {
+function calcMesoHr(ign, meso, serverMesoHr) {
+  // 서버가 검증한 값이 있으면 그대로 사용 (클라이언트 계산 불필요)
+  if (serverMesoHr && serverMesoHr > 0) {
+    // 히스토리는 계속 업데이트 (서버 연결 끊길 때 대비)
+    const key = ign;
+    const now = Date.now();
+    const mesoNum = Number(meso) || 0;
+    if (!_mesoHistory[key]) _mesoHistory[key] = { samples: [], lastMeso: null, lastTs: null };
+    const h = _mesoHistory[key];
+    if (h.lastMeso != null && h.lastTs != null) {
+      const dt_ms = now - h.lastTs;
+      const diff  = mesoNum - h.lastMeso;
+      if (dt_ms > MAX_DT_MS) { h.samples = []; }
+      else if (dt_ms > 0 && diff >= 0 && diff < MAX_DIFF_MESO) {
+        h.samples.push(Math.floor((diff / dt_ms) * 3_600_000));
+        if (h.samples.length > SAMPLE_COUNT) h.samples.shift();
+      }
+    }
+    h.lastMeso = mesoNum;
+    h.lastTs   = now;
+    return serverMesoHr;
+  }
+
+  // 서버값 없으면 클라이언트 계산으로 fallback
   const key     = ign;
   const now     = Date.now();
   const mesoNum = Number(meso) || 0;
@@ -1386,14 +1406,12 @@ function calcMesoHr(ign, meso) {
   if (h.lastMeso != null && h.lastTs != null) {
     const dt_ms = now - h.lastTs;
     const diff  = mesoNum - h.lastMeso;
-    // dt가 너무 크면(봇 재시작·탭 백그라운드) 샘플 버리고 히스토리 리셋
     if (dt_ms > MAX_DT_MS) {
       h.samples = [];
     } else if (dt_ms > 0 && diff >= 0 && diff < MAX_DIFF_MESO) {
       h.samples.push(Math.floor((diff / dt_ms) * 3_600_000));
       if (h.samples.length > SAMPLE_COUNT) h.samples.shift();
     }
-    // diff < 0 이거나 MAX_DIFF_MESO 초과이면 현재 샘플만 스킵 (히스토리 유지)
   }
 
   h.lastMeso = mesoNum;
@@ -1408,7 +1426,7 @@ async function fetchMeso() {
   if (!isAuthed) return;
   try {
     const data = await (await fetch("/api/tracker")).json();
-    data.forEach(d => { d.meso_hr = calcMesoHr(d.ign, d.meso); });
+    data.forEach(d => { d.meso_hr = calcMesoHr(d.ign, d.meso, d.meso_hr); });
 
     let tFrag = 0, tMeso = 0, tHr = 0, online = 0;
     data.forEach(d => {
@@ -1905,7 +1923,7 @@ async function init() {
       ]);
       const data = await trackerRes.json();
       const logs = logRes.ok ? await logRes.json() : [];
-      data.forEach(d => { d.meso_hr = calcMesoHr(d.ign, d.meso); }); // ★ 공용 계산
+      data.forEach(d => { d.meso_hr = calcMesoHr(d.ign, d.meso, d.meso_hr); }); // ★ 공용 계산
       ovRender(data, logs);
       document.getElementById("ov-upd-time").textContent =
         new Date().toLocaleTimeString("ko-KR", {hour12:false});
@@ -2041,27 +2059,24 @@ const GRAPH_COLORS = [
 
 // ── 구간 정의 ──
 const ZONE_DEFS = [
-  { id: '300', label: '300M+',     color: '#f59e0b', min: 300e6, max: Infinity },
-  { id: '200', label: '200M–300M', color: '#2ecc71', min: 200e6, max: 300e6   },
-  { id: '100', label: '100M–200M', color: '#3498db', min: 100e6, max: 200e6   },
-  { id: '0',   label: '0–100M',    color: '#e74c3c', min: 0,     max: 100e6   },
+  { id: '250', label: '250M+',     color: '#f59e0b', min: 250e6, max: Infinity },
+  { id: '150', label: '150M-250M', color: '#2ecc71', min: 150e6, max: 250e6   },
+  { id: '0',   label: '0-150M',    color: '#3498db', min: 0,     max: 150e6   },
 ];
-let activeZone = null; // null = 전체, '300'|'200'|'100'|'0' = 구간 필터
+let activeZone = null; // null = 전체, '250'|'150'|'0' = 구간 필터
 
 function setZoneFilter(zone) {
   activeZone = zone;
   document.querySelectorAll('.zone-btn').forEach(btn => {
     const cls = btn.className;
     const isAll  = cls.includes('zone-all');
-    const is300  = cls.includes('zone-300');
-    const is200  = cls.includes('zone-200');
-    const is100  = cls.includes('zone-100');
+    const is250  = cls.includes('zone-250');
+    const is150  = cls.includes('zone-150');
     const is0    = cls.includes('zone-0');
     btn.classList.toggle('active',
-      (zone === null && isAll)   ||
-      (zone === '300' && is300)  ||
-      (zone === '200' && is200)  ||
-      (zone === '100' && is100)  ||
+      (zone === null  && isAll)  ||
+      (zone === '250' && is250)  ||
+      (zone === '150' && is150)  ||
       (zone === '0'   && is0));
   });
   const lbl = document.getElementById('zone-filter-label');
@@ -2149,8 +2164,31 @@ function fmtMeso(v) {
 
 async function fetchAllGraphs() {
   try {
-    const res = await fetch('/api/tracker/history');
-    allGraphData = await res.json();
+    // 현재 tracker 데이터 (meso_hr 즉시 표시용)
+    const [histRes, curRes] = await Promise.all([
+      fetch('/api/tracker/history'),
+      fetch('/api/tracker')
+    ]);
+    allGraphData = await histRes.json();
+
+    // 히스토리가 없거나 부족한 봇에 대해 현재값 즉시 주입
+    if (curRes.ok) {
+      const curData = await curRes.json();
+      const nowTs = Date.now();
+      for (const d of curData) {
+        if (!d.ign) continue;
+        if (!allGraphData[d.ign]) allGraphData[d.ign] = [];
+        // 마지막 히스토리 포인트가 없거나 30분 이상 이전이면 현재값 추가
+        const existing = allGraphData[d.ign];
+        const last = existing.length ? existing[existing.length - 1] : null;
+        if (!last || (nowTs - last.ts) >= 30 * 60 * 1000) {
+          if (d.meso_hr && d.meso_hr > 0) {
+            existing.push({ meso: d.meso, meso_hr: d.meso_hr, ts: nowTs });
+          }
+        }
+      }
+    }
+
     renderAllGraphs();
   } catch(e) { console.error('graph fetch error', e); }
 }
@@ -2312,8 +2350,8 @@ function renderGraphSidebar(igns, avgMap, latestMap, colorMap) {
   const tiers = [
     { id: 'tier-all',  label: 'TOTAL',         color: '#555',    accent: '#888',    min: 0,        max: Infinity, open: true  },
     { id: 'tier-250',  label: '250M+',          color: '#f59e0b', accent: '#f59e0b', min: 250e6,    max: Infinity, open: false },
-    { id: 'tier-150',  label: '150M – 250M',    color: '#2ecc71', accent: '#2ecc71', min: 150e6,    max: 250e6,    open: false },
-    { id: 'tier-0',    label: '0 – 150M',       color: '#3498db', accent: '#3498db', min: 0,        max: 150e6,    open: false },
+    { id: 'tier-150',  label: '150M - 250M',    color: '#2ecc71', accent: '#2ecc71', min: 150e6,    max: 250e6,    open: false },
+    { id: 'tier-0',    label: '0 - 150M',       color: '#3498db', accent: '#3498db', min: 0,        max: 150e6,    open: false },
   ];
 
   function botCard(ign) {
