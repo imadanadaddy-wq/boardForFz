@@ -902,10 +902,7 @@ input[type=range].ov-slider::-moz-range-thumb{
 
     <!-- 아이템 패널 -->
     <div id="mgmt-panel-item">
-      <div style="font-size:11px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:.8px;margin-bottom:14px">
-        ONLINE 봇 중 <span style="color:#e74c3c;font-weight:800">연료 ≤ 100</span> · <span style="color:#e74c3c;font-weight:800">펫먹이 ≤ 1,000</span> · <span style="color:#e74c3c;font-weight:800">WAP ≤ 100</span> 인 봇
-      </div>
-      <div id="mgmt-item-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
+      <div id="mgmt-item-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px">
         <div class="mgmt-empty">데이터 로딩 중...</div>
       </div>
     </div>
@@ -1297,79 +1294,56 @@ function renderMgmtItems(data) {
   const grid = document.getElementById('mgmt-item-grid');
 
   // ── 설정 ──────────────────────────────────────────────────
-  const MIN_LEVEL       = 221;
-  const CHARM_IGNS      = new Set(['KIHAO2','scan2gaa','nggaCoFFE','peruCOFFEEJ','J2WCOFFEE']);
-  const CHARM_THR       = 2;   // charm 임계치
+  const MIN_LEVEL  = 221;
+  const CHARM_IGNS = new Set(['KIHAO2','scan2gaa','nggaCoFFE','peruCOFFEEJ','J2WCOFFEE']);
+  const CHARM_THR  = 2;
 
-  // 공통 슬롯 정의 (연료/펫먹이/재획·WAP)
-  const COMMON_SLOTS = [
-    { icon: ICON_MAP['연료'],   label: 'FUEL', thr: 100,  finder: (it) => findItem(it, '연료', '에센스') },
-    { icon: ICON_MAP['펫먹이'], label: 'PET',  thr: 1000, finder: (it) => findItem(it, '펫먹이') },
-    // 재획 = WAP (id 2003611, Lua에서 name="재획"으로 전송)
-    { icon: ICON_MAP['재획'],   label: 'WAP',  thr: 100,  finder: (it) => findItem(it, '재획') },
+  // 고정 순서: FUEL → PET → WAP → CHARM
+  const SLOT_DEFS = [
+    { label:'FUEL',  icon:ICON_MAP['연료'],          thr:100,  forAll:true,  finder:(it)=>findItem(it,'연료','에센스') },
+    { label:'PET',   icon:ICON_MAP['펫먹이'],        thr:1000, forAll:true,  finder:(it)=>findItem(it,'펫먹이') },
+    { label:'WAP',   icon:ICON_MAP['재획'],          thr:100,  forAll:true,  finder:(it)=>findItem(it,'재획') },
+    { label:'CHARM', icon:ICON_MAP['safety_charm'],  thr:CHARM_THR, forAll:false, finder:(it)=>findItem(it,'safety_charm')||findItem(it,'charm') },
   ];
-  const CHARM_SLOT =
-    { icon: ICON_MAP['safety_charm'] || '', label: 'CHARM', thr: CHARM_THR,
-      finder: (it) => findItem(it, 'safety_charm') || findItem(it, 'charm') };
   // ──────────────────────────────────────────────────────────
 
   const online = data.filter(d => d.online);
-  if (!online.length) {
-    grid.innerHTML = `<div class="mgmt-empty">온라인 봇 없음</div>`;
-    return;
-  }
+  if (!online.length) { grid.innerHTML=`<div class="mgmt-empty">온라인 봇 없음</div>`; return; }
 
   const cards = [];
   for (const d of online) {
-    const items  = d.items || [];
-    const ign    = d.ign || '';
-    const level  = d.level || 0;
-    const slots  = [];
+    const items = d.items || [];
+    const ign   = d.ign  || '';
+    const level = d.level || 0;
 
-    // 연료/펫먹이/WAP: 221+ 봇만
-    if (level >= MIN_LEVEL) {
-      for (const s of COMMON_SLOTS) {
-        const found = s.finder(items);
-        const cnt   = found ? found.count : 0;
-        slots.push({ ...s, cnt, warn: cnt <= s.thr });
-      }
-    }
-
-    // charm: 지정 5명만
-    if (CHARM_IGNS.has(ign)) {
-      const found = CHARM_SLOT.finder(items);
+    // 해당 봇에 적용되는 슬롯 중 경고인 것만 추출 (고정 순서 유지)
+    const warnSlots = SLOT_DEFS.filter(s => {
+      if (s.forAll  && level < MIN_LEVEL)   return false;
+      if (!s.forAll && !CHARM_IGNS.has(ign)) return false;
+      const found = s.finder(items);
       const cnt   = found ? found.count : 0;
-      slots.push({ ...CHARM_SLOT, cnt, warn: cnt <= CHARM_THR });
-    }
+      return cnt <= s.thr; // 임계치 이하만
+    }).map(s => {
+      const found = s.finder(items);
+      return { ...s, cnt: found ? found.count : 0 };
+    });
 
-    if (slots.length && slots.some(s => s.warn)) {
-      cards.push({ d, slots });
-    }
+    if (warnSlots.length) cards.push({ d, warnSlots });
   }
 
-  if (!cards.length) {
-    grid.innerHTML = `<div class="mgmt-empty">아이템 부족 봇 없음 ✅</div>`;
-    return;
-  }
+  if (!cards.length) { grid.innerHTML=`<div class="mgmt-empty">아이템 부족 봇 없음 ✅</div>`; return; }
 
-  grid.innerHTML = cards.map(({ d, slots }) => {
-    const warnCount = slots.filter(s => s.warn).length;
-    const isCharmOnly = !slots.some(s => s.label !== 'CHARM' && s.warn);
-
-    const slotHtml = slots.map(s => {
-      const cStr = s.cnt >= 1000 ? (s.cnt / 1000).toFixed(1) + 'K' : String(s.cnt);
-      return `<div class="mgmt-slot${s.warn ? ' warn' : ''}">
+  grid.innerHTML = cards.map(({ d, warnSlots }) => {
+    const slotHtml = warnSlots.map(s => {
+      const cStr = s.cnt >= 1000 ? (s.cnt/1000).toFixed(1)+'K' : String(s.cnt);
+      return `<div class="mgmt-slot warn">
         ${s.icon
           ? `<img src="${s.icon}" alt="${s.label}" onerror="this.style.display='none'">`
-          : `<div style="width:32px;height:32px;background:#555;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:16px">${s.label === 'CHARM' ? '🧿' : '?'}</div>`}
+          : `<div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:18px">${s.label==='CHARM'?'🧿':'📦'}</div>`}
         <span class="ws-label">${s.label}</span>
         <span class="ws-count">${cStr}</span>
       </div>`;
     }).join('');
-
-    const tagHtml = isCharmOnly
-      ? `<span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#9b59b6;font-weight:800;border:1px solid #9b59b6;padding:1px 6px">CHARM ONLY</span>`
-      : `<span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:#e74c3c;font-weight:800">⚠️ ${warnCount}종 부족</span>`;
 
     return `<div class="mgmt-item-card">
       <div class="mgmt-item-card-head">
@@ -1377,9 +1351,9 @@ function renderMgmtItems(data) {
           <div class="mgmt-item-ign">${d.ign}</div>
           <div class="mgmt-item-lv">Lv.${d.level} · ${formatAgo(d.ago_sec)}</div>
         </div>
-        ${tagHtml}
+        <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:#e74c3c;font-weight:800">⚠️ ${warnSlots.length}종 부족</span>
       </div>
-      <div class="mgmt-item-slots">${slotHtml}</div>
+      <div class="mgmt-item-slots" style="display:flex;gap:10px;flex-wrap:nowrap">${slotHtml}</div>
     </div>`;
   }).join('');
 }
