@@ -90,7 +90,7 @@ async function getDb() {
   // INSERT OR IGNORE 이므로 중복 삽입 없음
   const DEFAULT_CLIENTS = [
     { owner: "Hyeong", token_t: "fd9601cc2d89007ea64825510908023994b55e445d8d930ed582f7a8532afe30",
-                       token_c: "b5e3720c6f67aed053c977b9a70f1587c746f09410b24dac02cca866e6d2deda" },
+                       token_c: "fd9601cc2d89007ea64825510908023994b55e445d8d930ed582f7a8532afe30" },
   ];
   for (const c of DEFAULT_CLIENTS) {
     db.run("INSERT OR IGNORE INTO tokens  (owner, token) VALUES (?,?)", [c.owner, c.token_t]);
