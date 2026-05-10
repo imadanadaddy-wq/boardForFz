@@ -143,4 +143,29 @@ router.get("/history", requireAuth, (req, res) => {
   return res.json(grouped);
 });
 
+// ── 로컬 비밀번호 우회 로그인 (Discord 차단 환경용) ──
+// POST /api/tracker/bypass-login
+const BYPASS_PASSWORD = "7678";
+ 
+router.post("/bypass-login", (req, res) => {
+  const { password } = req.body;
+  if (password !== BYPASS_PASSWORD)
+    return res.status(401).json({ error: "Invalid password" });
+ 
+  // 정식 JWT 쿠키를 발급 → 이후 모든 requireAuth API 정상 작동
+  const token = jwt.sign(
+    { id: "bypass", username: "Local Access", avatar: null, bypass: true },
+    JWT_SECRET,
+    { expiresIn: "12h" }
+  );
+ 
+  res.cookie("ms_token", token, {
+    httpOnly: true,
+    maxAge: 12 * 60 * 60 * 1000,   // 12시간
+    sameSite: "Lax",
+  });
+  return res.json({ ok: true, username: "Local Access" });
+});
+ 
+
 module.exports = router;
