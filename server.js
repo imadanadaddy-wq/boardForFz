@@ -179,7 +179,7 @@ dbMod.getDb().then(() => {
   app.use("/api/bot-heartbeat/client", require("./routes/heartbeat"));
 
   // ── 인증 필요 라우트 ──
-  app.use("/api/tracker",        requireAuth, require("./routes/tracker"));
+  app.use("/api/tracker",        require("./routes/tracker"));
   app.use("/api/seller",         requireAuth, require("./routes/seller"));
   app.use("/api/forced-offline", requireAuth, require("./routes/forced"));
 
