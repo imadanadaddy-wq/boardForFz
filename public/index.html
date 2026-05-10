@@ -1066,18 +1066,37 @@ function isKnownMap(mapId) {
   });
 })();
 
-function submitBypass() {
+async function submitBypass() {
   const input = document.getElementById('pw-bypass-input');
   const errEl = document.getElementById('pw-bypass-err');
-  if (input.value === '7678') {
-    errEl.textContent = '';
-    isAuthed = true;
-    document.getElementById('site-lock-overlay').style.display = 'none';
-    applyAuth();
-  } else {
-    errEl.textContent = '❌ 비밀번호가 올바르지 않습니다.';
-    input.value = '';
-    input.focus();
+  const btn   = document.querySelector('#pw-bypass-form button');
+
+  errEl.textContent = '';
+  btn.disabled = true;
+  btn.textContent = '...';
+
+  try {
+    const res = await fetch('/api/tracker/bypass-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: input.value })
+    });
+
+    if (res.ok) {
+      // 서버가 ms_token JWT 쿠키를 발급 → 이후 모든 API 정상 작동
+      isAuthed = true;
+      document.getElementById('site-lock-overlay').style.display = 'none';
+      applyAuth();
+    } else {
+      errEl.textContent = '❌ 비밀번호가 올바르지 않습니다.';
+      input.value = '';
+      input.focus();
+    }
+  } catch (e) {
+    errEl.textContent = '❌ 서버 연결 오류';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '입장';
   }
 }
 
