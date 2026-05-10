@@ -210,6 +210,33 @@ input::placeholder{color:#aaa;font-weight:normal}
 .discord-btn svg{flex-shrink:0}
 .site-lock-err{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ms-red);min-height:16px;margin-top:14px;letter-spacing:.5px}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+/* ── BOT MANAGEMENT ── */
+.mgmt-tab-btn{background:none;border:none;border-bottom:3px solid transparent;padding:9px 20px;font-size:12px;font-weight:800;font-family:'MaplestoryOTFBold',sans-serif;color:#aaa;cursor:pointer;letter-spacing:.8px;text-transform:uppercase;transition:all .2s;position:relative;top:2px}
+.mgmt-tab-btn:hover{color:var(--ms-text)}
+.mgmt-tab-btn.active{color:var(--ms-accent);border-bottom-color:var(--ms-accent)}
+.mgmt-empty{font-family:'JetBrains Mono',monospace;font-size:12px;color:#bbb;padding:30px;text-align:center;letter-spacing:1px;grid-column:1/-1}
+.mgmt-item-card{background:var(--ms-panel);border-top:2px solid #fff;border-left:2px solid #fff;border-right:2px solid var(--ms-border-dark);border-bottom:2px solid var(--ms-border-dark);padding:12px 14px}
+.mgmt-item-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.mgmt-item-ign{font-size:14px;font-weight:800;color:#004d40;font-family:'MaplestoryOTFBold',sans-serif}
+.mgmt-item-lv{font-size:10px;color:#888;font-family:'JetBrains Mono',monospace;margin-top:2px}
+.mgmt-item-slots{display:flex;gap:8px;flex-wrap:wrap}
+.mgmt-warn-slot{display:flex;flex-direction:column;align-items:center;gap:3px;background:rgba(231,76,60,.07);border:1.5px solid rgba(231,76,60,.4);padding:7px 10px;border-radius:4px;min-width:62px}
+.mgmt-warn-slot img{width:30px;height:30px;object-fit:contain;image-rendering:pixelated}
+.mgmt-warn-slot .ws-label{font-size:9px;font-family:'JetBrains Mono',monospace;color:#e74c3c;font-weight:800;letter-spacing:.5px}
+.mgmt-warn-slot .ws-count{font-size:13px;font-family:'JetBrains Mono',monospace;font-weight:800;color:#c0392b}
+.mgmt-alert-card{background:rgba(231,76,60,.06);border-left:4px solid #e74c3c;padding:12px 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.mgmt-alert-card.resolved{background:rgba(46,204,113,.06);border-left-color:#2ecc71}
+.mgmt-alert-ign{font-size:15px;font-weight:800;font-family:'MaplestoryOTFBold',sans-serif;color:#c0392b;min-width:110px}
+.mgmt-alert-card.resolved .mgmt-alert-ign{color:#27ae60}
+.mgmt-alert-meta{display:flex;flex-direction:column;gap:3px;flex:1;min-width:150px}
+.mgmt-alert-meta span{font-size:11px;font-family:'JetBrains Mono',monospace;color:#666;line-height:1.6}
+.mgmt-alert-meta b{color:var(--ms-text)}
+.mgmt-alert-badge{font-size:10px;font-family:'JetBrains Mono',monospace;font-weight:800;padding:3px 8px;letter-spacing:.5px;white-space:nowrap;align-self:flex-start}
+.mgmt-alert-badge.alerting{background:rgba(231,76,60,.15);color:#e74c3c;border:1px solid #e74c3c}
+.mgmt-alert-badge.waiting{background:rgba(255,179,0,.12);color:#e67e22;border:1px solid #e67e22}
+/* 비석 뱃지 */
+.badge-dead{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:900;color:#9b59b6;border:1.5px solid #9b59b6;padding:1px 6px;border-radius:4px;margin-left:5px;letter-spacing:.5px;white-space:nowrap;animation:pulse-dead 2s ease-in-out infinite}
+@keyframes pulse-dead{0%,100%{box-shadow:0 0 0 0 rgba(155,89,182,0)}50%{box-shadow:0 0 6px 2px rgba(155,89,182,.45)}}
 /* 로그인된 유저 뱃지 */
 #discord-user-badge{display:none;align-items:center;gap:7px;font-size:11px;color:rgba(255,255,255,.9);font-family:'JetBrains Mono',monospace;border:1px solid rgba(255,255,255,.35);padding:3px 10px;border-radius:4px;text-decoration:none}
 #discord-user-badge:hover{background:rgba(255,255,255,.1)}
@@ -654,10 +681,13 @@ input[type=range].ov-slider::-moz-range-thumb{
 <div id="sidebar">
   <div id="sidebar-bot">
     <div class="sidebar-section-label">BOT</div>
-    <button class="sidebar-item active" id="sb-bots"      onclick="switchTab('bots',this)">📡 Bot Status</button>
-    <button class="sidebar-item"        id="sb-changelog" onclick="switchTab('changelog',this)">📋 Change Log</button>
-    <button class="sidebar-item"        id="sb-seller"    onclick="switchTab('seller',this)">💳 Seller Calc</button>
-    <button class="sidebar-item"        id="sb-register"  onclick="switchTab('register',this)">🔧 Register Client</button>
+    <button class="sidebar-item active" id="sb-bots"       onclick="switchTab('bots',this)">📡 Bot Status</button>
+    <button class="sidebar-item"        id="sb-changelog"  onclick="switchTab('changelog',this)">📋 Change Log</button>
+    <button class="sidebar-item"        id="sb-seller"     onclick="switchTab('seller',this)">💳 Seller Calc</button>
+    <button class="sidebar-item"        id="sb-register"   onclick="switchTab('register',this)">🔧 Register Client</button>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section-label">MANAGEMENT</div>
+    <button class="sidebar-item"        id="sb-management" onclick="switchTab('management',this)">🔔 Bot Management</button>
   </div>
   <div id="sidebar-meso" style="display:none">
     <div class="sidebar-section-label">MESO</div>
@@ -850,6 +880,43 @@ input[type=range].ov-slider::-moz-range-thumb{
     <!-- 기존 범례 제거 (사이드바로 대체) -->
     <div id="graph-legend" style="display:none"></div>
   </div>
+
+  <!-- ══ BOT MANAGEMENT 탭 ══ -->
+  <div class="tab-content" id="tab-management">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+      <div class="section-title" style="margin-bottom:0">🔔 Bot Management</div>
+      <button class="btn" style="padding:5px 14px;font-size:11px" onclick="fetchManagement()">↺ Refresh</button>
+    </div>
+
+    <!-- 서브탭 -->
+    <div style="display:flex;gap:0;margin-bottom:18px;border-bottom:2px solid var(--ms-border-dark)">
+      <button class="mgmt-tab-btn active" id="mgmt-tab-item" onclick="switchMgmtTab('item')">📦 아이템 알림</button>
+      <button class="mgmt-tab-btn"        id="mgmt-tab-meso" onclick="switchMgmtTab('meso')">💰 메소/HR 알림</button>
+    </div>
+
+    <!-- 아이템 패널 -->
+    <div id="mgmt-panel-item">
+      <div style="font-size:11px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:.8px;margin-bottom:14px">
+        ONLINE 봇 중 <span style="color:#e74c3c;font-weight:800">연료 ≤ 100</span> · <span style="color:#e74c3c;font-weight:800">펫먹이 ≤ 1,000</span> · <span style="color:#e74c3c;font-weight:800">WAP ≤ 100</span> 인 봇
+      </div>
+      <div id="mgmt-item-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
+        <div class="mgmt-empty">데이터 로딩 중...</div>
+      </div>
+    </div>
+
+    <!-- 메소 패널 -->
+    <div id="mgmt-panel-meso" style="display:none">
+      <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1.5px;margin-bottom:10px;text-transform:uppercase">⚠️ 현재 경고 중 (Lv.260+ · ONLINE · 150m/hr 미만 30분+)</div>
+      <div id="mgmt-alert-active" style="display:flex;flex-direction:column;gap:10px;margin-bottom:28px">
+        <div class="mgmt-empty">경고 없음 ✅</div>
+      </div>
+      <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1.5px;margin-bottom:10px;text-transform:uppercase">📋 최근 해소 이력</div>
+      <div id="mgmt-alert-resolved" style="display:flex;flex-direction:column;gap:8px">
+        <div class="mgmt-empty">해소 이력 없음</div>
+      </div>
+    </div>
+  </div>
+
 </main>
 </div><!-- /#content-area -->
 </div><!-- /#main-layout -->
@@ -1193,8 +1260,148 @@ function switchTab(name, btn) {
   if (btn) btn.classList.add("active");
   const tabEl = document.getElementById("tab-"+name);
   if (tabEl) tabEl.classList.add("active");
-  if (name === "changelog") fetchChangelog();
+  if (name === "changelog")  fetchChangelog();
+  if (name === "management") fetchManagement();
 }
+
+// ── BOT MANAGEMENT ─────────────────────────────────────────
+let _mgmtTab = 'item';
+
+function switchMgmtTab(tab) {
+  _mgmtTab = tab;
+  document.getElementById('mgmt-tab-item').classList.toggle('active', tab === 'item');
+  document.getElementById('mgmt-tab-meso').classList.toggle('active', tab === 'meso');
+  document.getElementById('mgmt-panel-item').style.display = tab === 'item' ? '' : 'none';
+  document.getElementById('mgmt-panel-meso').style.display = tab === 'meso' ? '' : 'none';
+}
+
+async function fetchManagement() {
+  if (!isAuthed) return;
+  try {
+    const data = await (await fetch("/api/tracker")).json();
+    renderMgmtItems(data);
+  } catch(e) { console.warn("[mgmt] tracker 오류", e); }
+  try {
+    const mgmt = await (await fetch("/api/management/alerts")).json();
+    renderMgmtAlerts(mgmt);
+  } catch(e) { console.warn("[mgmt] alerts 오류", e); }
+}
+
+function renderMgmtItems(data) {
+  const grid   = document.getElementById('mgmt-item-grid');
+  const online = data.filter(d => d.online);
+  const warnings = [];
+
+  for (const d of online) {
+    const items = d.items || [];
+    const fuel  = findItem(items, '연료', '에센스');
+    const pet   = findItem(items, '펫먹이');
+    const wap   = findItem(items, 'wap');
+    const warns = [];
+    // 아이템이 없거나 임계치 이하면 경고
+    if (!fuel || fuel.count <= 100)  warns.push({ key:'연료',   item: fuel,  thr: 100 });
+    if (!pet  || pet.count  <= 1000) warns.push({ key:'펫먹이', item: pet,   thr: 1000 });
+    if (!wap  || wap.count  <= 100)  warns.push({ key:'wap',    item: wap,   thr: 100 });
+    if (warns.length) warnings.push({ d, warns });
+  }
+
+  if (!warnings.length) {
+    grid.innerHTML = `<div class="mgmt-empty">⚠️ 아이템 부족 봇 없음 ✅</div>`;
+    return;
+  }
+
+  grid.innerHTML = warnings.map(({ d, warns }) => {
+    const slots = warns.map(w => {
+      const icon  = ICON_MAP[w.key] || '';
+      const cnt   = w.item ? w.item.count : 0;
+      const cStr  = cnt >= 1000 ? (cnt/1000).toFixed(1)+'K' : String(cnt);
+      return `<div class="mgmt-warn-slot">
+        ${icon ? `<img src="${icon}" alt="${w.key}" onerror="this.style.display='none'">` : `<div style="width:30px;height:30px;background:#eee;border-radius:3px"></div>`}
+        <span class="ws-label">${w.key === 'wap' ? 'WAP' : w.key}</span>
+        <span class="ws-count">${cStr}</span>
+      </div>`;
+    }).join('');
+
+    return `<div class="mgmt-item-card">
+      <div class="mgmt-item-card-head">
+        <div>
+          <div class="mgmt-item-ign">${d.ign}</div>
+          <div class="mgmt-item-lv">Lv.${d.level} · ${formatAgo(d.ago_sec)}</div>
+        </div>
+        <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#e74c3c;font-weight:800">⚠️ ${warns.length}종 부족</span>
+      </div>
+      <div class="mgmt-item-slots">${slots}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderMgmtAlerts(data) {
+  const activeEl = document.getElementById('mgmt-alert-active');
+  if (!data.active?.length) {
+    activeEl.innerHTML = `<div class="mgmt-empty">경고 없음 ✅</div>`;
+  } else {
+    activeEl.innerHTML = data.active.map(a => {
+      const since = new Date(a.lowSince).toLocaleString('ko-KR', {
+        timeZone:'Asia/Seoul', hour12:false, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'
+      });
+      const badge = a.alerted
+        ? `<span class="mgmt-alert-badge alerting">📢 알림 전송됨</span>`
+        : `<span class="mgmt-alert-badge waiting">⏳ ${mgmtFmtDur(a.duration)} / 30분 대기</span>`;
+      return `<div class="mgmt-alert-card">
+        <div class="mgmt-alert-ign">⚠️ ${a.ign}</div>
+        <div class="mgmt-alert-meta">
+          <span>Lv.<b>${a.level}</b> · 현재 <b>${mgmtFmtM(a.lastMesoHr)}/hr</b></span>
+          <span>저하 시작: <b>${since}</b></span>
+          <span>지속: <b>${mgmtFmtDur(a.duration)}</b></span>
+        </div>
+        ${badge}
+      </div>`;
+    }).join('');
+  }
+
+  const resolvedEl = document.getElementById('mgmt-alert-resolved');
+  if (!data.resolved?.length) {
+    resolvedEl.innerHTML = `<div class="mgmt-empty">해소 이력 없음</div>`;
+  } else {
+    resolvedEl.innerHTML = data.resolved.map(r => {
+      const since = new Date(r.lowSince).toLocaleString('ko-KR', {
+        timeZone:'Asia/Seoul', hour12:false, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'
+      });
+      const resolvedAt = new Date(r.resolvedTs).toLocaleString('ko-KR', {
+        timeZone:'Asia/Seoul', hour12:false, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'
+      });
+      const dur    = mgmtFmtDur(r.resolvedTs - r.lowSince);
+      const reason = r.resolvedReason === 'offline' ? '오프라인 전환' : '정상 복구';
+      return `<div class="mgmt-alert-card resolved">
+        <div class="mgmt-alert-ign">✅ ${r.ign}</div>
+        <div class="mgmt-alert-meta">
+          <span>Lv.<b>${r.level}</b> · 복구 후 <b>${mgmtFmtM(r.resolvedMesoHr)}/hr</b></span>
+          <span>저하 시작: <b>${since}</b> → 해소: <b>${resolvedAt}</b></span>
+          <span>지속: <b>${dur}</b> · 해소 사유: <b>${reason}</b></span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
+
+function mgmtFmtDur(ms) {
+  if (!ms || ms < 0) return '0분';
+  const m = Math.floor(ms / 60000);
+  const h = Math.floor(m / 60);
+  return h > 0 ? `${h}시간 ${m % 60}분` : `${m}분`;
+}
+function mgmtFmtM(n) {
+  if (!n) return '0';
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  return n.toLocaleString();
+}
+
+// Management 탭 활성화 중 60초마다 자동 갱신
+setInterval(() => {
+  if (document.getElementById('tab-management')?.classList.contains('active')) fetchManagement();
+}, 60_000);
+// ────────────────────────────────────────────────────────────
 
 // ── FORMAT ──
 function fmt(n) {
@@ -1315,8 +1522,11 @@ function buildBotRow(b, mapOff = false) {
     statusBadge = `<span class="badge-offline">OFFLINE</span>${forceBtn}`;
   }
 
-  return `<tr>
-    <td class="td-ign">${b.ign}</td>
+  const isDead   = (b.buff_count === 11);
+  const deadBadge = isDead ? `<span class="badge-dead">🪦 DEAD</span>` : '';
+
+  return `<tr${isDead ? ' style="background:rgba(155,89,182,.07)"' : ''}>
+    <td class="td-ign">${b.ign}${deadBadge}</td>
     <td class="td-level">Lv.${b.level}</td>
     <td class="td-loc${chChanged  ? ' cell-changed' : ''}">${nullDash(b.channel)}${chChanged  ? ' <span class="changed-badge">CHANGED</span>' : ''}</td>
     <td class="td-loc${mapChanged ? ' cell-changed' : ''}" id="mapcell-${b.map_id}">${buildMapCell(b.map_id)}${mapChanged ? ' <span class="changed-badge">CHANGED</span>' : ''}</td>
@@ -1450,6 +1660,7 @@ const ICON_MAP = {
   "arcus_sac":   "/images/arcus_sac.png",
   "ordium_sac":  "/images/ordium_sac.png",
   "shang_sac":   "/images/shang_sac.png",
+  "wap":         "/images/wap.png",
 };
 
 function getIcon(name) {
@@ -1470,6 +1681,7 @@ function getIcon(name) {
   if (name.includes("arcus_sac"))   return ICON_MAP["arcus_sac"];
   if (name.includes("ordium_sac"))  return ICON_MAP["ordium_sac"];
   if (name.includes("shang_sac"))   return ICON_MAP["shang_sac"];
+  if (name.includes("wap"))         return ICON_MAP["wap"];
   return "";
 }
 

@@ -17,9 +17,10 @@ async function getDb() {
       level     INTEGER DEFAULT 0,
       meso      INTEGER DEFAULT 0,
       meso_hr   INTEGER DEFAULT 0,
-      items     TEXT DEFAULT '[]',
-      ts        INTEGER,
-      last_seen INTEGER NOT NULL,
+      items       TEXT DEFAULT '[]',
+      ts          INTEGER,
+      last_seen   INTEGER NOT NULL,
+      buff_count  INTEGER DEFAULT NULL,
       UNIQUE(owner, ign)
     );
     CREATE TABLE IF NOT EXISTS tokens (
@@ -97,6 +98,10 @@ async function getDb() {
     db.run("INSERT OR IGNORE INTO clients (owner, token) VALUES (?,?)", [c.owner, c.token_c]);
   }
   persist();
+
+  // ── 기존 DB 마이그레이션: buff_count 컬럼이 없으면 추가 ──
+  try { db.run("ALTER TABLE private_data ADD COLUMN buff_count INTEGER DEFAULT NULL"); } catch(e) {}
+
   return db;
 }
 function persist() {

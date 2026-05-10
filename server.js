@@ -182,6 +182,7 @@ dbMod.getDb().then(() => {
   app.use("/api/tracker",        require("./routes/tracker"));
   app.use("/api/seller",         requireAuth, require("./routes/seller"));
   app.use("/api/forced-offline", requireAuth, require("./routes/forced"));
+  app.use("/api/management",     require("./routes/management").router);
 
   // Map names
   app.get("/api/mapnames", requireAuth, (req, res) => {
