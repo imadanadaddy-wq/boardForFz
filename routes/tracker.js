@@ -1,6 +1,20 @@
 const express = require("express");
 const router  = express.Router();
 const db      = require("../db");
+const jwt     = require("jsonwebtoken");
+
+const JWT_SECRET = process.env.JWT_SECRET || "change-this-secret-in-production";
+
+function requireAuth(req, res, next) {
+  const token = req.cookies?.ms_token;
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch {
+    res.status(401).json({ error: "Session expired" });
+  }
+}
 
 const HISTORY_INTERVAL = 30 * 60 * 1000; // 30분
 
@@ -94,7 +108,7 @@ router.post("/", (req, res) => {
   return res.json({ ok: true, verified_meso_hr, svr_hr: svrHr, lua_hr: luaHr });
 });
 
-router.get("/", (req, res) => {
+router.get("/", requireAuth, (req, res) => {
   const now  = Date.now();
   const rows = db.all("SELECT * FROM private_data ORDER BY meso_hr DESC");
   return res.json(rows.map(r => ({
@@ -105,7 +119,7 @@ router.get("/", (req, res) => {
 });
 
 // 개별 캐릭터 meso 히스토리 (최근 48시간)
-router.get("/history/:ign", (req, res) => {
+router.get("/history/:ign", requireAuth, (req, res) => {
   const since = Date.now() - 48 * 60 * 60 * 1000;
   const rows  = db.all(
     "SELECT meso, meso_hr, ts FROM meso_history WHERE ign=? AND ts>=? ORDER BY ts ASC",
@@ -115,7 +129,7 @@ router.get("/history/:ign", (req, res) => {
 });
 
 // 전체 캐릭터 최근 히스토리 (그래프 탭용)
-router.get("/history", (req, res) => {
+router.get("/history", requireAuth, (req, res) => {
   const since = Date.now() - 48 * 60 * 60 * 1000;
   const rows  = db.all(
     "SELECT owner,ign,meso,meso_hr,ts FROM meso_history WHERE ts>=? ORDER BY ts ASC",
