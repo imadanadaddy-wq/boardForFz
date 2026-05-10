@@ -232,14 +232,24 @@ input::placeholder{color:#aaa;font-weight:normal}
 /* 메소 알림 카드 */
 .mgmt-alert-card{background:rgba(231,76,60,.06);border-left:4px solid #e74c3c;padding:14px 18px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
 .mgmt-alert-card.resolved{background:rgba(46,204,113,.06);border-left-color:#2ecc71}
-.mgmt-alert-ign{font-size:16px;font-weight:800;font-family:'MaplestoryOTFBold',sans-serif;color:#c0392b;min-width:110px}
-.mgmt-alert-card.resolved .mgmt-alert-ign{color:#27ae60}
-.mgmt-alert-meta{display:flex;flex-direction:column;gap:4px;flex:1;min-width:150px}
-.mgmt-alert-meta span{font-size:13px;font-family:'JetBrains Mono',monospace;color:#666;line-height:1.6}
-.mgmt-alert-meta b{color:var(--ms-text)}
-.mgmt-alert-badge{font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:800;padding:4px 10px;letter-spacing:.5px;white-space:nowrap;align-self:flex-start}
-.mgmt-alert-badge.alerting{background:rgba(231,76,60,.15);color:#e74c3c;border:1px solid #e74c3c}
-.mgmt-alert-badge.waiting{background:rgba(255,179,0,.12);color:#e67e22;border:1px solid #e67e22}
+/* 로그 형식 알림 카드 */
+.mgmt-log-card{padding:12px 16px;border-radius:6px;border-left:4px solid;font-family:'JetBrains Mono',monospace;display:flex;flex-direction:column;gap:6px;transition:all .3s}
+.mgmt-log-card.log-active-short{background:rgba(145,214,80,.08);border-left-color:#91d650;} /* 연두: 5분~30분, 현재 문제중 */
+.mgmt-log-card.log-active-long{background:rgba(231,76,60,.09);border-left-color:#e74c3c;}  /* 빨강: 30분 이상, 현재 문제중 */
+.mgmt-log-card.log-resolved{background:rgba(52,152,219,.07);border-left-color:#3498db;}    /* 파랑: 해소됨 */
+.mgmt-log-header{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mgmt-log-ign{font-size:15px;font-weight:800;font-family:'MaplestoryOTFBold',sans-serif}
+.mgmt-log-card.log-active-short .mgmt-log-ign{color:#91d650}
+.mgmt-log-card.log-active-long  .mgmt-log-ign{color:#e74c3c}
+.mgmt-log-card.log-resolved     .mgmt-log-ign{color:#3498db}
+.mgmt-log-badge{font-size:10px;font-weight:800;padding:3px 8px;border-radius:3px;letter-spacing:.5px;white-space:nowrap}
+.mgmt-log-card.log-active-short .mgmt-log-badge{background:rgba(145,214,80,.18);color:#91d650;border:1px solid #91d650}
+.mgmt-log-card.log-active-long  .mgmt-log-badge{background:rgba(231,76,60,.18);color:#e74c3c;border:1px solid #e74c3c;animation:pulse-red 2s ease-in-out infinite}
+.mgmt-log-card.log-resolved     .mgmt-log-badge{background:rgba(52,152,219,.15);color:#3498db;border:1px solid #3498db}
+@keyframes pulse-red{0%,100%{box-shadow:0 0 0 0 rgba(231,76,60,0)}50%{box-shadow:0 0 8px 2px rgba(231,76,60,.35)}}
+.mgmt-log-meta{font-size:12px;color:#888;line-height:1.7}
+.mgmt-log-meta b{color:var(--ms-text)}
+.mgmt-log-time{font-size:11px;color:#666;margin-top:2px}
 /* 비석 뱃지 */
 .badge-dead{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:900;color:#9b59b6;border:1.5px solid #9b59b6;padding:2px 8px;border-radius:4px;margin-left:5px;letter-spacing:.5px;white-space:nowrap;animation:pulse-dead 2s ease-in-out infinite}
 @keyframes pulse-dead{0%,100%{box-shadow:0 0 0 0 rgba(155,89,182,0)}50%{box-shadow:0 0 6px 2px rgba(155,89,182,.45)}}
@@ -896,8 +906,8 @@ input[type=range].ov-slider::-moz-range-thumb{
 
     <!-- 서브탭 -->
     <div style="display:flex;gap:0;margin-bottom:18px;border-bottom:2px solid var(--ms-border-dark)">
-      <button class="mgmt-tab-btn active" id="mgmt-tab-item" onclick="switchMgmtTab('item')">📦 아이템 알림</button>
-      <button class="mgmt-tab-btn"        id="mgmt-tab-meso" onclick="switchMgmtTab('meso')">💰 메소/HR 알림</button>
+      <button class="mgmt-tab-btn active" id="mgmt-tab-item" onclick="switchMgmtTab('item')">📦 아이템</button>
+      <button class="mgmt-tab-btn"        id="mgmt-tab-meso" onclick="switchMgmtTab('meso')">💰 시간당 메소</button>
     </div>
 
     <!-- 아이템 패널 -->
@@ -907,15 +917,11 @@ input[type=range].ov-slider::-moz-range-thumb{
       </div>
     </div>
 
-    <!-- 메소 패널 -->
+    <!-- 시간당 메소 패널 -->
     <div id="mgmt-panel-meso" style="display:none">
-      <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1.5px;margin-bottom:10px;text-transform:uppercase">⚠️ 현재 경고 중 (Lv.260+ · ONLINE · 150m/hr 미만 30분+)</div>
-      <div id="mgmt-alert-active" style="display:flex;flex-direction:column;gap:10px;margin-bottom:28px">
-        <div class="mgmt-empty">경고 없음 ✅</div>
-      </div>
-      <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1.5px;margin-bottom:10px;text-transform:uppercase">📋 최근 해소 이력</div>
-      <div id="mgmt-alert-resolved" style="display:flex;flex-direction:column;gap:8px">
-        <div class="mgmt-empty">해소 이력 없음</div>
+      <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1.5px;margin-bottom:14px;text-transform:uppercase">📋 시간당 메소 알림 로그 (Lv.260+ · ONLINE · 150M/hr 기준)</div>
+      <div id="mgmt-alert-log" style="display:flex;flex-direction:column;gap:8px">
+        <div class="mgmt-empty">데이터 로딩 중...</div>
       </div>
     </div>
   </div>
@@ -1322,7 +1328,7 @@ function renderMgmtItems(data) {
       if (!s.forAll && !CHARM_IGNS.has(ign)) return false;
       const found = s.finder(items);
       const cnt   = found ? found.count : 0;
-      return cnt <= s.thr; // 임계치 이하만
+      return cnt < s.thr; // 임계치 미만만 (thr 수량 보유 시 정상으로 처리)
     }).map(s => {
       const found = s.finder(items);
       return { ...s, cnt: found ? found.count : 0 };
@@ -1359,52 +1365,68 @@ function renderMgmtItems(data) {
 }
 
 function renderMgmtAlerts(data) {
-  const activeEl = document.getElementById('mgmt-alert-active');
-  if (!data.active?.length) {
-    activeEl.innerHTML = `<div class="mgmt-empty">경고 없음 ✅</div>`;
-  } else {
-    activeEl.innerHTML = data.active.map(a => {
+  const logEl = document.getElementById('mgmt-alert-log');
+
+  // 활성 경고 + 해소 이력을 하나의 로그 스트림으로 합쳐서 시간 역순 정렬
+  const activeLogs = (data.active || []).map(a => ({ ...a, _type: 'active' }));
+  const resolvedLogs = (data.resolved || []).map(r => ({ ...r, _type: 'resolved' }));
+
+  // 활성은 상단(최신), 해소는 시간 역순
+  const allLogs = [
+    ...activeLogs.sort((a, b) => (b.duration || 0) - (a.duration || 0)),
+    ...resolvedLogs.sort((a, b) => (b.resolvedTs || 0) - (a.resolvedTs || 0)),
+  ];
+
+  if (!allLogs.length) {
+    logEl.innerHTML = `<div class="mgmt-empty">경고 없음 ✅</div>`;
+    return;
+  }
+
+  logEl.innerHTML = allLogs.map(entry => {
+    if (entry._type === 'active') {
+      const a = entry;
+      const durMs = a.duration || 0;
+      const isLong = durMs >= 30 * 60 * 1000; // 30분 이상
+      const cls = isLong ? 'log-active-long' : 'log-active-short';
+      const icon = isLong ? '🔴' : '🟡';
       const since = new Date(a.lowSince).toLocaleString('ko-KR', {
         timeZone:'Asia/Seoul', hour12:false, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'
       });
-      const badge = a.alerted
-        ? `<span class="mgmt-alert-badge alerting">📢 알림 전송됨</span>`
-        : `<span class="mgmt-alert-badge waiting">⏳ ${mgmtFmtDur(a.duration)} / 30분 대기</span>`;
-      return `<div class="mgmt-alert-card">
-        <div class="mgmt-alert-ign">⚠️ ${a.ign}</div>
-        <div class="mgmt-alert-meta">
-          <span>Lv.<b>${a.level}</b> · 현재 <b>${mgmtFmtM(a.lastMesoHr)}/hr</b></span>
-          <span>저하 시작: <b>${since}</b></span>
-          <span>지속: <b>${mgmtFmtDur(a.duration)}</b></span>
+      const badgeText = a.alerted
+        ? `📢 디스코드 알림 전송됨`
+        : isLong ? `🚨 30분 초과 · 알림 전송 중` : `⏳ ${mgmtFmtDur(durMs)} 경과`;
+      return `<div class="mgmt-log-card ${cls}">
+        <div class="mgmt-log-header">
+          <span class="mgmt-log-ign">${icon} ${a.ign}</span>
+          <span class="mgmt-log-badge">${badgeText}</span>
         </div>
-        ${badge}
+        <div class="mgmt-log-meta">
+          Lv.<b>${a.level}</b> · 현재 <b>${mgmtFmtM(a.lastMesoHr)}/hr</b> · 기준 미달 지속 <b>${mgmtFmtDur(durMs)}</b>
+        </div>
+        <div class="mgmt-log-time">⏱ 저하 시작: <b>${since}</b> ~ 현재 진행중</div>
       </div>`;
-    }).join('');
-  }
-
-  const resolvedEl = document.getElementById('mgmt-alert-resolved');
-  if (!data.resolved?.length) {
-    resolvedEl.innerHTML = `<div class="mgmt-empty">해소 이력 없음</div>`;
-  } else {
-    resolvedEl.innerHTML = data.resolved.map(r => {
+    } else {
+      const r = entry;
       const since = new Date(r.lowSince).toLocaleString('ko-KR', {
         timeZone:'Asia/Seoul', hour12:false, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'
       });
       const resolvedAt = new Date(r.resolvedTs).toLocaleString('ko-KR', {
         timeZone:'Asia/Seoul', hour12:false, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'
       });
-      const dur    = mgmtFmtDur(r.resolvedTs - r.lowSince);
+      const dur = mgmtFmtDur(r.resolvedTs - r.lowSince);
       const reason = r.resolvedReason === 'offline' ? '오프라인 전환' : '정상 복구';
-      return `<div class="mgmt-alert-card resolved">
-        <div class="mgmt-alert-ign">✅ ${r.ign}</div>
-        <div class="mgmt-alert-meta">
-          <span>Lv.<b>${r.level}</b> · 복구 후 <b>${mgmtFmtM(r.resolvedMesoHr)}/hr</b></span>
-          <span>저하 시작: <b>${since}</b> → 해소: <b>${resolvedAt}</b></span>
-          <span>지속: <b>${dur}</b> · 해소 사유: <b>${reason}</b></span>
+      return `<div class="mgmt-log-card log-resolved">
+        <div class="mgmt-log-header">
+          <span class="mgmt-log-ign">🔵 ${r.ign}</span>
+          <span class="mgmt-log-badge">✅ 해소됨 · ${reason}</span>
         </div>
+        <div class="mgmt-log-meta">
+          Lv.<b>${r.level}</b> · 복구 후 <b>${mgmtFmtM(r.resolvedMesoHr)}/hr</b> · 총 지속 <b>${dur}</b>
+        </div>
+        <div class="mgmt-log-time">⏱ ${since} ~ ${resolvedAt}</div>
       </div>`;
-    }).join('');
-  }
+    }
+  }).join('');
 }
 
 function mgmtFmtDur(ms) {
@@ -1684,7 +1706,7 @@ const ICON_MAP = {
   "ordium_sac":  "/images/ordium_sac.png",
   "shang_sac":   "/images/shang_sac.png",
   "wap":         "/images/wap.png",
-  "safety_charm":"/images/safety_charm.png",
+  "safety_charm":"/images/elixir.png",
 };
 
 function getIcon(name) {
