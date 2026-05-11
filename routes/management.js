@@ -1,21 +1,16 @@
 const express    = require("express");
 const router     = express.Router();
 const jwt        = require("jsonwebtoken");
+const db         = require("../db");
 const JWT_SECRET = process.env.JWT_SECRET || "change-this-secret-in-production";
 
 const DISCORD_WEBHOOK    = "https://discord.com/api/webhooks/1503065555022774273/BtJoqbrGR1ym4ZgYKf5usuuqSbTfnSggzfTO2M9b0wSGuTdMUBBhLI1cEi2xZKCU7ad8";
-const LOW_MESO_THRESHOLD  = 150_000_000;   // 150m/hr
-const ALERT_DURATION_MS   = 30 * 60 * 1000; // 30분
+const LOW_MESO_THRESHOLD  = 150_000_000;
+const ALERT_DURATION_MS   = 30 * 60 * 1000;
 const MIN_LEVEL_FOR_ALERT = 260;
 
-// ── 메소 알림 상태 (서버 메모리) ──
-// { "owner|ign": { ign, owner, level, lowSince, alerted, alertTs, lastMesoHr } }
 const alertStates = new Map();
 
-// 해소 히스토리 (최대 50건)
-const resolvedHistory = [];
-
-// ─────────────────────────────────────────────
 function requireAuth(req, res, next) {
   const token = req.cookies?.ms_token;
   if (!token) return res.status(401).json({ error: "Unauthorized" });
@@ -23,9 +18,6 @@ function requireAuth(req, res, next) {
   catch { res.status(401).json({ error: "Session expired" }); }
 }
 
-// ─────────────────────────────────────────────
-// 유틸
-// ─────────────────────────────────────────────
 function formatTs(ts) {
   return new Date(ts).toLocaleString("ko-KR", {
     timeZone: "Asia/Seoul", hour12: false,
@@ -45,9 +37,25 @@ function fmtM(n) {
   return n.toLocaleString();
 }
 
-// ─────────────────────────────────────────────
-// Discord 웹훅 전송
-// ─────────────────────────────────────────────
+function saveResolvedLog(state, resolvedTs, resolvedReason, resolvedMesoHr) {
+  try {
+    db.run(
+      `INSERT INTO meso_alert_log
+        (owner, ign, level, low_since, resolved_ts, resolved_reason, resolved_meso_hr, alerted)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [state.owner, state.ign, state.level, state.lowSince,
+       resolvedTs, resolvedReason, resolvedMesoHr || 0, state.alerted ? 1 : 0]
+    );
+    db.run(
+      `DELETE FROM meso_alert_log WHERE id NOT IN (
+        SELECT id FROM meso_alert_log ORDER BY resolved_ts DESC LIMIT 100
+      )`
+    );
+  } catch (e) {
+    console.error("[management] DB 저장 오류:", e.message);
+  }
+}
+
 async function sendDiscord(embeds) {
   try {
     const res = await fetch(DISCORD_WEBHOOK, {
@@ -61,27 +69,22 @@ async function sendDiscord(embeds) {
   }
 }
 
-// ─────────────────────────────────────────────
-// 핵심 로직: tracker POST마다 호출
-// ─────────────────────────────────────────────
 function checkMesoAlert(owner, ign, level, meso_hr, isOnline, isForcedOffline) {
   const key = `${owner}|${ign}`;
   const now = Date.now();
 
-  // 오프라인 / 강제오프 → 모니터링 제외
   if (!isOnline || isForcedOffline) {
     const state = alertStates.get(key);
     if (state?.alerted) {
       const dur = now - state.lowSince;
-      resolvedHistory.unshift({ ...state, resolvedTs: now, resolvedReason: "offline", resolvedMesoHr: meso_hr });
-      if (resolvedHistory.length > 50) resolvedHistory.pop();
+      saveResolvedLog(state, now, "offline", meso_hr);
       sendDiscord([{
         color: 0x2ecc71,
         title: "✅ 저메소 알림 해소 (오프라인 전환)",
         description: `**${ign}** (Lv.${level}) — 봇이 오프라인으로 전환되어 모니터링을 종료합니다`,
         fields: [
-          { name: "저하 시작",  value: formatTs(state.lowSince), inline: true },
-          { name: "지속 시간",  value: formatDur(dur),           inline: true },
+          { name: "저하 시작", value: formatTs(state.lowSince), inline: true },
+          { name: "지속 시간", value: formatDur(dur),           inline: true },
         ],
         footer: { text: "Maple Dash · Bot Management" },
         timestamp: new Date().toISOString()
@@ -91,10 +94,7 @@ function checkMesoAlert(owner, ign, level, meso_hr, isOnline, isForcedOffline) {
     return;
   }
 
-  // 레벨 기준 미달 → 스킵
   if (!level || level < MIN_LEVEL_FOR_ALERT) return;
-
-  // 샘플 미확정 → 스킵
   if (meso_hr === null || meso_hr === undefined || meso_hr === 0) return;
 
   if (meso_hr < LOW_MESO_THRESHOLD) {
@@ -109,7 +109,6 @@ function checkMesoAlert(owner, ign, level, meso_hr, isOnline, isForcedOffline) {
     const state    = alertStates.get(key);
     const duration = now - state.lowSince;
 
-    // 30분 경과 & 미발송 → 1회 전송
     if (duration >= ALERT_DURATION_MS && !state.alerted) {
       state.alerted = true;
       state.alertTs = now;
@@ -118,10 +117,10 @@ function checkMesoAlert(owner, ign, level, meso_hr, isOnline, isForcedOffline) {
         title: "⚠️ 저메소 경고",
         description: `**${ign}** (Lv.${level}) 의 메소/hr 이 30분 이상 저하 상태입니다`,
         fields: [
-          { name: "현재 메소/hr", value: `**${fmtM(meso_hr)}/hr**`,    inline: true },
-          { name: "기준치",       value: "150m/hr 미만",                inline: true },
-          { name: "저하 시작",    value: formatTs(state.lowSince),      inline: false },
-          { name: "지속 시간",    value: `**${formatDur(duration)}**`,  inline: true },
+          { name: "현재 메소/hr", value: `**${fmtM(meso_hr)}/hr**`,   inline: true },
+          { name: "기준치",       value: "150m/hr 미만",               inline: true },
+          { name: "저하 시작",    value: formatTs(state.lowSince),     inline: false },
+          { name: "지속 시간",    value: `**${formatDur(duration)}**`, inline: true },
         ],
         footer: { text: "Maple Dash · Bot Management" },
         timestamp: new Date().toISOString()
@@ -129,13 +128,11 @@ function checkMesoAlert(owner, ign, level, meso_hr, isOnline, isForcedOffline) {
     }
 
   } else {
-    // 정상 복구
     const state = alertStates.get(key);
     if (state) {
       if (state.alerted) {
         const dur = now - state.lowSince;
-        resolvedHistory.unshift({ ...state, resolvedTs: now, resolvedReason: "recovered", resolvedMesoHr: meso_hr });
-        if (resolvedHistory.length > 50) resolvedHistory.pop();
+        saveResolvedLog(state, now, "recovered", meso_hr);
         sendDiscord([{
           color: 0x2ecc71,
           title: "✅ 저메소 해소",
@@ -155,11 +152,9 @@ function checkMesoAlert(owner, ign, level, meso_hr, isOnline, isForcedOffline) {
   }
 }
 
-// ─────────────────────────────────────────────
-// GET /api/management/alerts
-// ─────────────────────────────────────────────
 router.get("/alerts", requireAuth, (req, res) => {
-  const now    = Date.now();
+  const now = Date.now();
+
   const active = [];
   for (const [, state] of alertStates.entries()) {
     active.push({
@@ -174,7 +169,20 @@ router.get("/alerts", requireAuth, (req, res) => {
     });
   }
   active.sort((a, b) => b.duration - a.duration);
-  res.json({ active, resolved: resolvedHistory.slice(0, 20) });
+
+  const rows = db.all(`SELECT * FROM meso_alert_log ORDER BY resolved_ts DESC LIMIT 50`);
+  const resolved = rows.map(r => ({
+    ign:            r.ign,
+    owner:          r.owner,
+    level:          r.level,
+    lowSince:       r.low_since,
+    resolvedTs:     r.resolved_ts,
+    resolvedReason: r.resolved_reason,
+    resolvedMesoHr: r.resolved_meso_hr,
+    alerted:        r.alerted === 1,
+  }));
+
+  res.json({ active, resolved });
 });
 
 module.exports = { router, checkMesoAlert };
