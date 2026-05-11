@@ -1717,6 +1717,7 @@ function getIcon(name) {
   if (name.includes("조각"))        return ICON_MAP["조각"];
   if (name.includes("주흔"))        return ICON_MAP["주흔"];
   if (name.includes("elixir"))      return ICON_MAP["elixir"];
+  if (name.includes("safety_charm"))return ICON_MAP["safety_charm"];
   if (name.includes("chest"))       return ICON_MAP["chest"];
   if (name.includes("box"))         return ICON_MAP["box"];
   if (name.includes("black_flame")) return ICON_MAP["black_flame"];
@@ -1850,7 +1851,7 @@ function renderMesoCards(data) {
       findItem(items, "재획"),
       findItem(items, "연료", "에센스"),
       findItem(items, "펫먹이"),
-      findItem(items, "elixir"),
+      findItem(items, "safety_charm"),
       findItem(items, "chest"),
     ].map(it => makeSlot(it, true)).join("");
 
