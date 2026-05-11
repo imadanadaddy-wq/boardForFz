@@ -86,6 +86,17 @@ async function getDb() {
       forced_at INTEGER NOT NULL,
       PRIMARY KEY (owner, ign)
     );
+    CREATE TABLE IF NOT EXISTS meso_alert_log (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      owner           TEXT NOT NULL,
+      ign             TEXT NOT NULL,
+      level           INTEGER,
+      low_since       INTEGER NOT NULL,
+      resolved_ts     INTEGER NOT NULL,
+      resolved_reason TEXT NOT NULL,
+      resolved_meso_hr INTEGER,
+      alerted         INTEGER DEFAULT 0
+    );
   `);
   // ── 기본 클라이언트 시드 (서버 재시작해도 항상 유지) ──
   // INSERT OR IGNORE 이므로 중복 삽입 없음
