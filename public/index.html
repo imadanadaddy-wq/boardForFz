@@ -541,6 +541,7 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
     <div class="sidebar-section-label">MESO</div>
     <button class="sidebar-item" id="sb-meso"       onclick="switchTab('meso',this)">💰 Meso Tracker</button>
     <button class="sidebar-item" id="sb-mesoGraph"  onclick="switchTab('mesoGraph',this)">📈 Meso Graph</button>
+    <button class="sidebar-item" id="sb-totalGraph" onclick="switchTab('totalGraph',this)">🔢 Total Meso/HR</button>
     <div class="sidebar-divider"></div>
     <div class="sidebar-section-label">MANAGEMENT</div>
     <button class="sidebar-item" id="sb-management" onclick="switchTab('management',this)">🔔 Bot Management</button>
@@ -742,6 +743,29 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
     <div id="graph-legend" style="display:none"></div>
   </div>
 
+  <!-- TAB: TOTAL MESO/HR GRAPH -->
+  <div class="tab-content" id="tab-totalGraph">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+      <div class="section-title" style="margin-bottom:0">🔢 Total Meso/HR — 전체 봇 합산 (순수 ONLINE 기준)</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <label style="font-size:12px;color:#888">단위:</label>
+        <select id="total-graph-interval" style="padding:4px 10px;font-size:12px;width:auto;background:var(--ms-slot);border:1px solid var(--ms-border-dark);color:var(--ms-text);font-family:'JetBrains Mono',monospace;font-weight:800;outline:none" onchange="renderTotalGraph()">
+          <option value="30">30분</option>
+          <option value="60" selected>1시간</option>
+          <option value="120">2시간</option>
+        </select>
+        <button class="btn" style="padding:5px 14px;font-size:11px" onclick="fetchTotalGraph()">↺ Refresh</button>
+      </div>
+    </div>
+    <div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 2px 12px rgba(0,0,0,.08);margin-bottom:20px">
+      <div id="total-graph-stats" style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap"></div>
+      <canvas id="total-graph-canvas" style="width:100%;max-height:460px"></canvas>
+    </div>
+    <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1px;text-align:center">
+      ※ forced offline · map offline 봇은 제외. 순수 ONLINE 봇의 meso/hr 합산만 표시.
+    </div>
+  </div>
+
   <!-- TAB: BOT MANAGEMENT (이제 MESO 카테고리) -->
   <div class="tab-content" id="tab-management">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
@@ -764,7 +788,7 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 
     <!-- 시간당 메소 패널 -->
     <div id="mgmt-panel-meso" style="display:none">
-      <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1.5px;margin-bottom:14px;text-transform:uppercase">📋 시간당 메소 알림 로그 (Lv.260+ · ONLINE · 150M/hr 기준)</div>
+      <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1.5px;margin-bottom:14px;text-transform:uppercase">📋 시간당 메소 알림 로그 (Lv.260+ · ONLINE · 150M/hr 기준 · 15분 초과 시 디스코드 알림)</div>
       <div id="mgmt-alert-log" style="display:flex;flex-direction:column;gap:8px">
         <div class="mgmt-empty">데이터 로딩 중...</div>
       </div>
@@ -1152,15 +1176,12 @@ function renderMgmtItems(data) {
       return (found ? found.count : 0) < s.thr;
     }).map(s => { const found = s.finder(items); return { ...s, cnt: found ? found.count : 0 }; });
 
-    // ★ recent events (change log 연동)
-    const recentEvents = getBotRecentEvents(ign, 2); // 최근 2시간
-
-    if (warnSlots.length || recentEvents.length) cards.push({ d, warnSlots, recentEvents });
+    if (warnSlots.length) cards.push({ d, warnSlots });
   }
 
   if (!cards.length) { grid.innerHTML=`<div class="mgmt-empty">아이템 부족 봇 없음 ✅</div>`; return; }
 
-  grid.innerHTML = cards.map(({ d, warnSlots, recentEvents }) => {
+  grid.innerHTML = cards.map(({ d, warnSlots }) => {
     const slotHtml = warnSlots.map(s => {
       const cStr = s.cnt >= 1000 ? (s.cnt/1000).toFixed(1)+'K' : String(s.cnt);
       return `<div class="mgmt-slot warn">
@@ -1168,11 +1189,6 @@ function renderMgmtItems(data) {
         <span class="ws-label">${s.label}</span><span class="ws-count">${cStr}</span>
       </div>`;
     }).join('');
-
-    // ★ event chips
-    const eventHtml = recentEvents.length
-      ? `<div class="mgmt-bot-recent-events">${recentEvents.map(r => buildEventChip(r, nowMs)).join('')}</div>`
-      : '';
 
     return `<div class="mgmt-item-card">
       <div class="mgmt-item-card-head">
@@ -1182,8 +1198,7 @@ function renderMgmtItems(data) {
         </div>
         <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:#e74c3c;font-weight:800">⚠️ ${warnSlots.length}종 부족</span>
       </div>
-      ${warnSlots.length ? `<div class="mgmt-item-slots" style="display:flex;gap:10px;flex-wrap:nowrap">${slotHtml}</div>` : ''}
-      ${eventHtml}
+      <div class="mgmt-item-slots" style="display:flex;gap:10px;flex-wrap:nowrap">${slotHtml}</div>
     </div>`;
   }).join('');
 }
@@ -1210,11 +1225,11 @@ function renderMgmtAlerts(data) {
     if (entry._type === 'active') {
       const a = entry;
       const durMs = a.duration || 0;
-      const isLong = durMs >= 30 * 60 * 1000;
+      const isLong = durMs >= 15 * 60 * 1000;
       const cls = isLong ? 'log-active-long' : 'log-active-short';
       const icon = isLong ? '🔴' : '🟡';
       const since = new Date(a.lowSince).toLocaleString('ko-KR', { timeZone:'Asia/Seoul', hour12:false, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
-      const badgeText = a.alerted ? `📢 디스코드 알림 전송됨` : isLong ? `🚨 30분 초과 · 알림 전송 중` : `⏳ ${mgmtFmtDur(durMs)} 경과`;
+      const badgeText = a.alerted ? `📢 디스코드 알림 전송됨` : isLong ? `🚨 15분 초과 · 알림 전송 중` : `⏳ ${mgmtFmtDur(durMs)} 경과`;
       return `<div class="mgmt-log-card ${cls}">
         <div class="mgmt-log-header">
           <span class="mgmt-log-ign">${icon} ${a.ign}</span>
@@ -2223,7 +2238,113 @@ function closeGraphModal() {
 document.getElementById('graph-modal').addEventListener('click',function(e){if(e.target===this)closeGraphModal();});
 
 const _origSwitchTab=window.switchTab;
-window.switchTab=function(tab,btn){_origSwitchTab&&_origSwitchTab(tab,btn);if(tab==='mesoGraph')fetchAllGraphs();};
+window.switchTab=function(tab,btn){_origSwitchTab&&_origSwitchTab(tab,btn);if(tab==='mesoGraph')fetchAllGraphs();if(tab==='totalGraph')fetchTotalGraph();};
+
+// ══════════════════════════════════════
+// TOTAL MESO/HR GRAPH
+// ══════════════════════════════════════
+let totalChartInst = null;
+let totalGraphData = {}; // { ts: totalMesoHr }
+
+async function fetchTotalGraph() {
+  try {
+    const [histRes, curRes] = await Promise.all([
+      fetch('/api/tracker/history'),
+      fetch('/api/tracker')
+    ]);
+    const histData = await histRes.json(); // { ign: [{ts, meso_hr, ...}] }
+    const curData  = curRes.ok ? await curRes.json() : [];
+
+    // forced offline / map offline 제외 기준: botData 기반
+    const forcedKeys = manualOffline;
+    const isOnlineBot = (ign) => {
+      const b = botData.find(x => x.ign === ign);
+      if (!b) return true; // 히스토리엔 있지만 현재 데이터 없으면 포함
+      const key = (b.owner||'Hyeong') + '|' + b.ign;
+      if (forcedKeys.has(key)) return false;
+      if (b.online && !isKnownMap(b.map_id)) return false; // map offline
+      return true;
+    };
+
+    // 현재 데이터도 히스토리에 추가
+    const nowTs = Date.now();
+    for (const d of curData) {
+      if (!d.ign) continue;
+      if (!histData[d.ign]) histData[d.ign] = [];
+      const existing = histData[d.ign];
+      const last = existing.length ? existing[existing.length-1] : null;
+      if (!last || (nowTs - last.ts) >= 30*60*1000) {
+        if (d.meso_hr && d.meso_hr > 0) existing.push({ meso_hr: d.meso_hr, ts: nowTs });
+      }
+    }
+
+    // 전체 타임스탬프 수집 후 구간별 합산
+    const intervalMs = parseInt(document.getElementById('total-graph-interval')?.value || 60) * 60 * 1000;
+    const buckets = {};
+    for (const [ign, points] of Object.entries(histData)) {
+      if (!isOnlineBot(ign)) continue;
+      for (const p of points) {
+        if (!p.meso_hr || p.meso_hr <= 0) continue;
+        const key = Math.floor(p.ts / intervalMs) * intervalMs;
+        if (!buckets[key]) buckets[key] = { sum: 0, count: 0 };
+        buckets[key].sum   += p.meso_hr;
+        buckets[key].count += 1;
+      }
+    }
+
+    totalGraphData = buckets;
+    renderTotalGraphFromBuckets(buckets);
+  } catch(e) { console.error('totalGraph fetch', e); }
+}
+
+// renderTotalGraph는 fetchTotalGraph를 재실행 (단위 변경 대응)
+window.renderTotalGraph = function() { fetchTotalGraph(); };
+
+function renderTotalGraphFromBuckets(buckets) {
+  const points = Object.entries(buckets)
+    .map(([k, v]) => ({ x: new Date(parseInt(k)), y: Math.round(v.sum) }))
+    .sort((a,b) => a.x - b.x);
+
+  const vals = points.map(p => p.y);
+  const avg  = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
+  const maxV = vals.length ? Math.max(...vals) : 0;
+  const minV = vals.length ? Math.min(...vals) : 0;
+
+  const statsEl = document.getElementById('total-graph-stats');
+  if (statsEl) statsEl.innerHTML = `
+    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px 20px;text-align:center"><div style="font-size:10px;color:#888;letter-spacing:1px">AVG</div><div style="font-size:20px;font-weight:800;color:#0097a7;font-family:'JetBrains Mono',monospace">${fmtMeso(avg)}/hr</div></div>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 20px;text-align:center"><div style="font-size:10px;color:#888;letter-spacing:1px">MAX</div><div style="font-size:20px;font-weight:800;color:#16a34a;font-family:'JetBrains Mono',monospace">${fmtMeso(maxV)}/hr</div></div>
+    <div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:10px;padding:12px 20px;text-align:center"><div style="font-size:10px;color:#888;letter-spacing:1px">MIN</div><div style="font-size:20px;font-weight:800;color:#e74c3c;font-family:'JetBrains Mono',monospace">${fmtMeso(minV)}/hr</div></div>
+    <div style="background:#fafafa;border:1px solid #e5e7eb;border-radius:10px;padding:12px 20px;text-align:center"><div style="font-size:10px;color:#888;letter-spacing:1px">RECORDS</div><div style="font-size:20px;font-weight:800;color:#555;font-family:'JetBrains Mono',monospace">${points.length}</div></div>`;
+
+  const canvas = document.getElementById('total-graph-canvas');
+  if (!canvas) return;
+  if (totalChartInst) { totalChartInst.destroy(); totalChartInst = null; }
+  totalChartInst = new Chart(canvas, {
+    type: 'line',
+    data: { datasets: [{
+      label: 'Total Meso/HR',
+      data: points,
+      borderColor: '#f59e0b',
+      backgroundColor: '#f59e0b22',
+      borderWidth: 2.5,
+      pointRadius: 4,
+      tension: 0.3,
+      fill: true,
+    }]},
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` Total: ${fmtMeso(ctx.parsed.y)}/hr` } }
+      },
+      scales: {
+        x: { type:'time', time:{tooltipFormat:'MM/dd HH:mm',displayFormats:{hour:'HH:mm'}}, ticks:{color:'#555',maxTicksLimit:12}, grid:{color:'rgba(0,0,0,.07)'} },
+        y: { ticks:{color:'#555',callback:v=>fmtMeso(v)}, grid:{color:'rgba(0,0,0,.07)'} }
+      }
+    }
+  });
+}
 </script>
 </body>
 </html>
