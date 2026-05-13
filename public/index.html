@@ -232,6 +232,7 @@ input::placeholder{color:#aaa;font-weight:normal}
 .mgmt-event-chip.ev-cc{background:rgba(0,151,167,.1);border-color:rgba(0,151,167,.4);color:#0097a7}
 .mgmt-event-chip.ev-map{background:rgba(230,126,34,.1);border-color:rgba(230,126,34,.4);color:#e67e22}
 .mgmt-event-chip.ev-death{background:rgba(155,89,182,.12);border-color:rgba(155,89,182,.5);color:#9b59b6;animation:pulse-dead 2.5s ease-in-out infinite}
+.mgmt-event-chip.ev-forced{background:rgba(155,89,182,.15);border-color:rgba(155,89,182,.6);color:#c39bd3}
 
 /* Logged-in user badge */
 #discord-user-badge{display:none;align-items:center;gap:7px;font-size:11px;color:rgba(255,255,255,.9);font-family:'JetBrains Mono',monospace;border:1px solid rgba(255,255,255,.35);padding:3px 10px;border-radius:4px;text-decoration:none}
@@ -1128,7 +1129,7 @@ function getEventType(row) {
   return 'other';
 }
 
-// Event → chip HTML
+// Event → chip HTML (simplified: map. cc. death. forced)
 function buildEventChip(row, nowMs) {
   const type = getEventType(row);
   const diffMs = nowMs - new Date(row.ts).getTime();
@@ -1136,16 +1137,20 @@ function buildEventChip(row, nowMs) {
   const agoStr = diffMin < 1 ? 'just now' : diffMin < 60 ? `${diffMin}min ago` : `${Math.round(diffMin/60)}hr ago`;
 
   if (type === 'cc') {
-    return `<span class="mgmt-event-chip ev-cc" title="${row.old_val} → ${row.new_val}">📡 CC ${row.new_val} · ${agoStr}</span>`;
+    return `<span class="mgmt-event-chip ev-cc" title="CC ${row.old_val} → ${row.new_val}">cc · ${agoStr}</span>`;
   }
   if (type === 'map') {
-    const newMap = mapNames[row.new_val] ? mapNames[row.new_val].replace(/^[^\]]+\] /, '') : row.new_val;
-    return `<span class="mgmt-event-chip ev-map" title="${row.old_val} → ${row.new_val}">🗺 ${newMap.length > 18 ? newMap.slice(0,18)+'…' : newMap} · ${agoStr}</span>`;
+    return `<span class="mgmt-event-chip ev-map" title="${mapNames[row.new_val]||row.new_val}">map · ${agoStr}</span>`;
   }
   if (type === 'death') {
-    return `<span class="mgmt-event-chip ev-death" title="buff_count=11 detected">🪦 DEATH · ${agoStr}</span>`;
+    return `<span class="mgmt-event-chip ev-death" title="Death detected">death · ${agoStr}</span>`;
   }
   return '';
+}
+
+// Forced chip (no timestamp — shows current forced state)
+function buildForcedChip() {
+  return `<span class="mgmt-event-chip ev-forced">forced · now</span>`;
 }
 
 function renderMgmtItems(data) {
@@ -1218,8 +1223,10 @@ function renderMgmtAlerts(data) {
   logEl.innerHTML = allLogs.map(entry => {
     // ★ recent events per bot
     const recentEvents = getBotRecentEvents(entry.ign, 2);
-    const eventChips = recentEvents.length
-      ? `<div class="mgmt-bot-recent-events" style="margin-top:6px">${recentEvents.map(r => buildEventChip(r, nowMs)).join('')}</div>`
+    const isBotForced = [...manualOffline].some(k => k.endsWith('|' + entry.ign));
+    const forcedChipHtml = isBotForced ? buildForcedChip() : '';
+    const eventChips = (recentEvents.length || isBotForced)
+      ? `<div class="mgmt-bot-recent-events" style="margin-top:6px">${forcedChipHtml}${recentEvents.map(r => buildEventChip(r, nowMs)).join('')}</div>`
       : '';
 
     if (entry._type === 'active') {
@@ -1819,6 +1826,20 @@ const changeLogMarkersPlugin = {
     const { ctx, chartArea: ca, scales } = chart;
     if (!ca) return;
 
+    // ── Forced offline shading ──
+    const isForced = [...manualOffline].some(k => k.endsWith('|' + highlightedIgn));
+    if (isForced) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(155,89,182,0.07)';
+      ctx.fillRect(ca.left, ca.top, ca.right - ca.left, ca.bottom - ca.top);
+      ctx.font = 'bold 11px "JetBrains Mono", monospace';
+      ctx.fillStyle = '#c39bd3';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText('forced', ca.left + 6, ca.top + 4);
+      ctx.restore();
+    }
+
     const events = _changeLogCache
       .filter(r => r.ign === highlightedIgn)
       .slice(0, 50); // max 50
@@ -2055,9 +2076,11 @@ function updateGraphChangelogBanner(ign) {
     .filter(r => r.ign === ign && nowMs - new Date(r.ts).getTime() <= 48 * 3600 * 1000)
     .slice(0, 15);
 
-  if (!events.length) { banner.style.display = 'none'; return; }
+  const isForced = [...manualOffline].some(k => k.endsWith('|' + ign));
+  if (!events.length && !isForced) { banner.style.display = 'none'; return; }
 
-  chips.innerHTML = events.map(r => buildEventChip(r, nowMs)).join('');
+  const forcedChip = isForced ? buildForcedChip() : '';
+  chips.innerHTML = forcedChip + events.map(r => buildEventChip(r, nowMs)).join('');
   banner.style.display = 'flex';
 }
 
