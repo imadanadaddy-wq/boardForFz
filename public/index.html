@@ -233,7 +233,7 @@ input::placeholder{color:#aaa;font-weight:normal}
 .mgmt-event-chip.ev-map{background:rgba(230,126,34,.1);border-color:rgba(230,126,34,.4);color:#e67e22}
 .mgmt-event-chip.ev-death{background:rgba(155,89,182,.12);border-color:rgba(155,89,182,.5);color:#9b59b6;animation:pulse-dead 2.5s ease-in-out infinite}
 
-/* 로그인된 유저 뱃지 */
+/* Logged-in user badge */
 #discord-user-badge{display:none;align-items:center;gap:7px;font-size:11px;color:rgba(255,255,255,.9);font-family:'JetBrains Mono',monospace;border:1px solid rgba(255,255,255,.35);padding:3px 10px;border-radius:4px;text-decoration:none}
 #discord-user-badge:hover{background:rgba(255,255,255,.1)}
 #discord-user-badge img{width:20px;height:20px;border-radius:50%}
@@ -327,7 +327,7 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 .zone-0.active{background:#3498db}
 
 /* ── GRAPH CHANGELOG MARKERS (NEW) ── */
-/* Annotation 플러그인 없이 순수 CSS overlay 방식으로 처리 */
+/* Pure CSS overlay approach without Annotation plugin */
 .graph-event-tooltip {
   position: absolute;
   pointer-events: none;
@@ -423,7 +423,7 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
   <div class="header-nav">
     <button class="cat-btn active" id="cat-btn-bot" onclick="switchCategory('bot')">🤖 BOT</button>
     <button class="cat-btn" id="cat-btn-meso" onclick="switchCategory('meso')">💰 MESO</button>
-    <a id="discord-user-badge" href="/auth/logout" title="로그아웃"></a>
+    <a id="discord-user-badge" href="/auth/logout" title="Logout"></a>
     <span id="auth-badge">OWNER</span>
     <button id="ov-toggle-btn" onclick="toggleOverlay()">📊 OVERLAY</button>
     <div id="last-upd">READY</div>
@@ -436,8 +436,8 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
     <div class="ov-hdr" id="ov-drag">
       <div class="ov-hdr-title">MAPLE OVERLAY</div>
       <div class="ov-hdr-btns">
-        <button class="ov-mini-btn" id="ov-min-btn" onclick="ovToggleMin()" title="최소화">—</button>
-        <button class="ov-mini-btn" onclick="ovRefresh()" title="새로고침">↺</button>
+        <button class="ov-mini-btn" id="ov-min-btn" onclick="ovToggleMin()" title="Minimize">—</button>
+        <button class="ov-mini-btn" onclick="ovRefresh()" title="Refresh">↺</button>
       </div>
     </div>
     <div class="ov-opacity-row">
@@ -455,19 +455,19 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
         <span class="ov-sec-dot" style="background:#f59e0b;box-shadow:0 0 4px #f59e0b"></span>B/HR RANKING
         <span class="ov-sec-arrow">▼</span>
       </div>
-      <div class="ov-scroll" id="ov-bhr-list"><div class="ov-empty">데이터 대기 중...</div></div>
+      <div class="ov-scroll" id="ov-bhr-list"><div class="ov-empty">Waiting for data...</div></div>
       <div class="ov-divider"></div>
       <div class="ov-sec-lbl" id="ov-sec-log" onclick="ovToggleSec('log')">
         <span class="ov-sec-dot" style="background:#0097a7;box-shadow:0 0 4px #0097a7"></span>CHANGE LOG
         <span class="ov-sec-arrow">▼</span>
       </div>
-      <div class="ov-scroll" id="ov-log-list"><div class="ov-empty">데이터 대기 중...</div></div>
+      <div class="ov-scroll" id="ov-log-list"><div class="ov-empty">Waiting for data...</div></div>
       <div class="ov-divider" id="ov-div-offline"></div>
       <div class="ov-sec-lbl" id="ov-sec-offline" onclick="ovToggleSec('offline')">
         <span class="ov-sec-dot" style="background:#e74c3c"></span>OFFLINE BOTS
         <span class="ov-sec-arrow">▼</span>
       </div>
-      <div class="ov-scroll" id="ov-offline-list"><div class="ov-empty">데이터 대기 중...</div></div>
+      <div class="ov-scroll" id="ov-offline-list"><div class="ov-empty">Waiting for data...</div></div>
     </div>
     <div class="ov-footer">
       <span id="ov-upd-time">—</span>
@@ -481,23 +481,23 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
   <div class="site-lock-box">
     <div id="cat-logo-click" style="width:72px;height:72px;border-radius:50%;border:3px solid var(--ms-accent);background:#0d0d0d url('/images/cat-logo.png') no-repeat center/contain;margin:0 auto 18px;cursor:pointer;user-select:none" title=""></div>
     <div style="font-size:20px;font-weight:800;color:var(--ms-text);margin-bottom:6px">Hyeong Maple Dash</div>
-    <div style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace;letter-spacing:1px;margin-bottom:28px">Discord 계정으로 로그인하세요</div>
+    <div style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace;letter-spacing:1px;margin-bottom:28px">Sign in with your Discord account</div>
     <a href="/auth/discord" class="discord-btn">
       <svg width="20" height="20" viewBox="0 0 71 55" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M60.1 4.9A58.6 58.6 0 0 0 45.5.8a40.7 40.7 0 0 0-1.8 3.7 54.2 54.2 0 0 0-16.3 0A39.7 39.7 0 0 0 25.5.8 58.5 58.5 0 0 0 10.9 4.9C1.6 18.8-1 32.3.3 45.6a59 59 0 0 0 18 9.1 44.6 44.6 0 0 0 3.8-6.2 38.4 38.4 0 0 1-6-2.9l1.5-1.1a42 42 0 0 0 36 0l1.5 1.1a38.4 38.4 0 0 1-6 2.9 44.4 44.4 0 0 0 3.8 6.2 58.7 58.7 0 0 0 18-9.1C72 30.3 68.3 16.9 60.1 4.9ZM23.8 37.7c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2c3.5 0 6.5 3.2 6.4 7.2 0 4-2.9 7.2-6.4 7.2Zm23.5 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2c3.5 0 6.5 3.2 6.4 7.2 0 4-2.9 7.2-6.4 7.2Z" fill="white"/>
       </svg>
-      Discord로 로그인
+      Login with Discord
     </a>
     <div id="site-lock-err" class="site-lock-err"></div>
     <div id="pw-bypass-form" style="display:none;margin-top:18px;animation:fadeIn .25s ease">
-      <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1px;margin-bottom:8px">🔑 비밀번호 입력</div>
+      <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1px;margin-bottom:8px">🔑 Enter Password</div>
       <div style="display:flex;gap:6px">
         <input id="pw-bypass-input" type="password" placeholder="••••"
           style="flex:1;background:#f0f8ff;border:1.5px solid var(--ms-accent);color:var(--ms-text);padding:8px 11px;font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:800;outline:none;letter-spacing:4px;width:auto"
           onkeydown="if(event.key==='Enter')submitBypass()"/>
         <button onclick="submitBypass()"
           style="padding:8px 16px;background:linear-gradient(180deg,#00acc1,#0097a7);border:2px solid var(--ms-accent);color:#fff;font-family:'MaplestoryOTFBold',sans-serif;font-size:12px;font-weight:800;cursor:pointer">
-          입장
+          Enter
         </button>
       </div>
       <div id="pw-bypass-err" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#e74c3c;min-height:16px;margin-top:6px;letter-spacing:.5px"></div>
@@ -560,10 +560,10 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
         <div id="bulk-force-btns" style="display:none;gap:6px;align-items:center">
           <button class="btn" id="btn-all-offline"
             style="padding:5px 14px;font-size:11px;background:linear-gradient(180deg,#9b59b6,#7d3c98);border-color:#9b59b6;color:#fff;font-weight:800"
-            onclick="bulkForceOffline()">🔒 전체 오프라인</button>
+            onclick="bulkForceOffline()">🔒 Force All Offline</button>
           <button class="btn" id="btn-all-online"
             style="padding:5px 14px;font-size:11px;background:linear-gradient(180deg,#2ecc71,#27ae60);border-color:#2ecc71;color:#fff;font-weight:800"
-            onclick="bulkForceOnline()">🔓 전체 해제</button>
+            onclick="bulkForceOnline()">🔓 Release All</button>
           <div style="width:1px;height:18px;background:#ddd;margin:0 2px"></div>
         </div>
         <span style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace">SORT:</span>
@@ -626,9 +626,9 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
   <!-- TAB: MESO TRACKER -->
   <div class="tab-content" id="tab-meso">
     <div id="meso-content">
-      <div id="meso-swipe-hint" style="display:none;text-align:center;font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1px;margin-bottom:6px">← 스와이프하여 카드 탐색 →</div>
+      <div id="meso-swipe-hint" style="display:none;text-align:center;font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1px;margin-bottom:6px">← Swipe to browse cards →</div>
       <div class="cards" id="meso-cards">
-        <div style="grid-column:1/-1;text-align:center;padding:50px;color:#aaa">데이터를 불러오는 중...</div>
+        <div style="grid-column:1/-1;text-align:center;padding:50px;color:#aaa">Loading data...</div>
       </div>
       <div id="meso-dots" style="display:none;justify-content:center;gap:5px;padding:8px 0;flex-wrap:wrap"></div>
     </div>
@@ -678,43 +678,43 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
       <div class="section-title" style="margin-bottom:0">📈 Meso/HR History (48h)</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <label style="font-size:12px;color:#888">단위:</label>
+        <label style="font-size:12px;color:#888">Interval:</label>
         <select id="graph-interval" class="inp" style="padding:4px 10px;font-size:12px;width:auto" onchange="renderAllGraphs()">
-          <option value="30">30분</option>
-          <option value="60" selected>1시간</option>
-          <option value="120">2시간</option>
+          <option value="30">30min</option>
+          <option value="60" selected>1 hour</option>
+          <option value="120">2 hours</option>
         </select>
-        <label style="font-size:12px;color:#888">정렬:</label>
+        <label style="font-size:12px;color:#888">Sort:</label>
         <select id="graph-sort" class="inp" style="padding:4px 10px;font-size:12px;width:auto" onchange="renderAllGraphs()">
-          <option value="name">이름순</option>
-          <option value="avg-desc" selected>평균 높은순</option>
-          <option value="avg-asc">평균 낮은순</option>
+          <option value="name">By Name</option>
+          <option value="avg-desc" selected>Avg High → Low</option>
+          <option value="avg-asc">Avg Low → High</option>
         </select>
         <button class="btn" style="padding:5px 14px;font-size:11px" onclick="fetchAllGraphs()">↺ Refresh</button>
       </div>
     </div>
 
-    <!-- 구간 필터 -->
+    <!-- Zone filter -->
     <div id="zone-filter-bar" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-      <span style="font-size:10px;color:#888;font-family:'JetBrains Mono',monospace;letter-spacing:1px;white-space:nowrap">구간 필터:</span>
-      <button class="zone-btn zone-all active" onclick="setZoneFilter(null)">전체</button>
+      <span style="font-size:10px;color:#888;font-family:'JetBrains Mono',monospace;letter-spacing:1px;white-space:nowrap">Zone Filter:</span>
+      <button class="zone-btn zone-all active" onclick="setZoneFilter(null)">All</button>
       <button class="zone-btn zone-250" onclick="setZoneFilter('250')">🔥 250M+</button>
       <button class="zone-btn zone-150" onclick="setZoneFilter('150')">💚 150–250M</button>
       <button class="zone-btn zone-0"   onclick="setZoneFilter('0')">🔵 0–150M</button>
       <span id="zone-filter-label" style="font-size:10px;color:#888;font-family:'JetBrains Mono',monospace;margin-left:4px"></span>
     </div>
 
-    <!-- 잠금 시 change log 배너 (NEW) -->
+    <!-- Change log banner when locked (NEW) -->
     <div id="graph-changelog-banner" style="display:none;margin-bottom:10px;padding:8px 14px;background:rgba(0,151,167,.07);border:1px solid rgba(0,151,167,.25);border-radius:8px;display:none;align-items:center;gap:8px;flex-wrap:wrap">
       <span style="font-size:10px;font-weight:800;color:#0097a7;font-family:'JetBrains Mono',monospace;letter-spacing:1px;white-space:nowrap">📋 CHANGE LOG →</span>
       <div id="graph-changelog-chips" style="display:flex;gap:5px;flex-wrap:wrap"></div>
     </div>
 
-    <!-- 그래프 + 사이드바 -->
+    <!-- Graph + Sidebar -->
     <div id="graph-layout" style="display:flex;gap:16px;align-items:flex-start">
       <div style="flex:1;min-width:0;background:#fff;border-radius:12px;padding:16px;box-shadow:0 2px 12px rgba(0,0,0,.08);position:relative">
         <canvas id="graph-all" style="width:100%;max-height:460px"></canvas>
-        <!-- 호버 레이블 -->
+        <!-- Hover label -->
         <div id="graph-hover-label" style="
           position:absolute;pointer-events:none;display:none;
           background:rgba(15,15,15,0.88);color:#fff;
@@ -722,21 +722,21 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
           padding:5px 14px;border-radius:7px;border:2px solid rgba(255,255,255,0.45);
           z-index:100;white-space:nowrap;backdrop-filter:blur(4px);
           box-shadow:0 4px 16px rgba(0,0,0,.35);transition:border-color .15s;"></div>
-        <!-- 잠금 힌트 -->
+        <!-- Lock hint -->
         <div id="graph-lock-hint" style="
           position:absolute;bottom:6px;left:50%;transform:translateX(-50%);
           display:none;pointer-events:none;
           font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:800;
           color:#f59e0b;letter-spacing:.5px;
           background:rgba(245,158,11,.12);border:1.5px solid rgba(245,158,11,.35);
-          border-radius:5px;padding:3px 12px;">📌 클릭하면 잠금 해제</div>
+          border-radius:5px;padding:3px 12px;">📌 Click to unlock</div>
       </div>
 
-      <!-- 사이드바 -->
+      <!-- Sidebar -->
       <div id="graph-sidebar" style="width:220px;flex-shrink:0;background:#fff;border-radius:12px;padding:12px;box-shadow:0 2px 12px rgba(0,0,0,.08);max-height:500px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
         <div style="font-size:10px;letter-spacing:1.5px;color:#aaa;font-family:'JetBrains Mono',monospace;text-transform:uppercase;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #eee;">BOT RANKINGS</div>
         <div id="graph-sidebar-list" style="display:flex;flex-direction:column;gap:4px">
-          <div style="font-size:11px;color:#bbb;font-family:'JetBrains Mono',monospace;text-align:center;padding:20px 0">데이터 없음</div>
+          <div style="font-size:11px;color:#bbb;font-family:'JetBrains Mono',monospace;text-align:center;padding:20px 0">No data</div>
         </div>
       </div>
     </div>
@@ -746,13 +746,13 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
   <!-- TAB: TOTAL MESO/HR GRAPH -->
   <div class="tab-content" id="tab-totalGraph">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
-      <div class="section-title" style="margin-bottom:0">🔢 Total Meso/HR — 전체 봇 합산 (순수 ONLINE 기준)</div>
+      <div class="section-title" style="margin-bottom:0">🔢 Total Meso/HR — All Bots Combined (Pure ONLINE only)</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <label style="font-size:12px;color:#888">단위:</label>
+        <label style="font-size:12px;color:#888">Interval:</label>
         <select id="total-graph-interval" style="padding:4px 10px;font-size:12px;width:auto;background:var(--ms-slot);border:1px solid var(--ms-border-dark);color:var(--ms-text);font-family:'JetBrains Mono',monospace;font-weight:800;outline:none" onchange="renderTotalGraph()">
-          <option value="30">30분</option>
-          <option value="60" selected>1시간</option>
-          <option value="120">2시간</option>
+          <option value="30">30min</option>
+          <option value="60" selected>1 hour</option>
+          <option value="120">2 hours</option>
         </select>
         <button class="btn" style="padding:5px 14px;font-size:11px" onclick="fetchTotalGraph()">↺ Refresh</button>
       </div>
@@ -762,35 +762,35 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
       <canvas id="total-graph-canvas" style="width:100%;max-height:460px"></canvas>
     </div>
     <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1px;text-align:center">
-      ※ forced offline · map offline 봇은 제외. 순수 ONLINE 봇의 meso/hr 합산만 표시.
+      ※ Excludes forced offline & map offline bots. Shows sum of pure ONLINE bots only.
     </div>
   </div>
 
-  <!-- TAB: BOT MANAGEMENT (이제 MESO 카테고리) -->
+  <!-- TAB: BOT MANAGEMENT (MESO category) -->
   <div class="tab-content" id="tab-management">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
       <div class="section-title" style="margin-bottom:0">🔔 Bot Management</div>
       <button class="btn" style="padding:5px 14px;font-size:11px" onclick="fetchManagement()">↺ Refresh</button>
     </div>
 
-    <!-- 서브탭 -->
+    <!-- Sub-tabs -->
     <div style="display:flex;gap:0;margin-bottom:18px;border-bottom:2px solid var(--ms-border-dark)">
-      <button class="mgmt-tab-btn active" id="mgmt-tab-item" onclick="switchMgmtTab('item')">📦 아이템</button>
-      <button class="mgmt-tab-btn"        id="mgmt-tab-meso" onclick="switchMgmtTab('meso')">💰 시간당 메소</button>
+      <button class="mgmt-tab-btn active" id="mgmt-tab-item" onclick="switchMgmtTab('item')">📦 Items</button>
+      <button class="mgmt-tab-btn"        id="mgmt-tab-meso" onclick="switchMgmtTab('meso')">💰 Meso/HR Alerts</button>
     </div>
 
-    <!-- 아이템 패널 -->
+    <!-- Item panel -->
     <div id="mgmt-panel-item">
       <div id="mgmt-item-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px">
-        <div class="mgmt-empty">데이터 로딩 중...</div>
+        <div class="mgmt-empty">Loading...</div>
       </div>
     </div>
 
-    <!-- 시간당 메소 패널 -->
+    <!-- Meso/HR panel -->
     <div id="mgmt-panel-meso" style="display:none">
-      <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1.5px;margin-bottom:14px;text-transform:uppercase">📋 시간당 메소 알림 로그 (Lv.260+ · ONLINE · 150M/hr 기준 · 15분 초과 시 디스코드 알림)</div>
+      <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1.5px;margin-bottom:14px;text-transform:uppercase">📋 Meso/HR Alert Log (Lv.260+ · ONLINE · below 150M/hr · Discord alert after 15min)</div>
       <div id="mgmt-alert-log" style="display:flex;flex-direction:column;gap:8px">
-        <div class="mgmt-empty">데이터 로딩 중...</div>
+        <div class="mgmt-empty">Loading...</div>
       </div>
     </div>
   </div>
@@ -799,23 +799,23 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 </div>
 </div>
 
-<!-- ══ 개별 그래프 모달 ══ -->
+<!-- ══ Individual Graph Modal ══ -->
 <div id="graph-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center">
   <div style="background:#fff;border-radius:14px;padding:28px;width:min(860px,96vw);max-height:92vh;overflow:auto">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div id="graph-modal-title" class="section-title" style="margin-bottom:0;color:#006064"></div>
       <div style="display:flex;align-items:center;gap:10px">
-        <label style="font-size:12px;color:#888">정렬 기준:</label>
+        <label style="font-size:12px;color:#888">Sort by:</label>
         <select id="modal-sort" class="inp" style="padding:4px 10px;font-size:12px;width:auto" onchange="resortModalGraph()">
-          <option value="time">시간순</option>
-          <option value="meso-desc">메소 높은순</option>
-          <option value="meso-asc">메소 낮은순</option>
+          <option value="time">By Time</option>
+          <option value="meso-desc">Meso High → Low</option>
+          <option value="meso-asc">Meso Low → High</option>
         </select>
         <button onclick="closeGraphModal()" style="background:none;border:none;color:#aaa;font-size:24px;cursor:pointer;line-height:1">✕</button>
       </div>
     </div>
 
-    <!-- ★ 모달 내 Change Log 타임라인 (NEW) -->
+    <!-- ★ Modal Change Log Timeline (NEW) -->
     <div id="modal-changelog-section" style="display:none;margin-bottom:16px;padding:12px 16px;background:#f8f9fa;border-radius:10px;border-left:3px solid #0097a7">
       <div style="font-size:10px;font-weight:800;color:#0097a7;font-family:'JetBrains Mono',monospace;letter-spacing:1.5px;margin-bottom:8px;text-transform:uppercase">📋 RECENT EVENTS (48h)</div>
       <div id="modal-changelog-list" style="display:flex;flex-direction:column;gap:5px"></div>
@@ -836,8 +836,8 @@ let prevBotMap  = {};
 let changedCells = {};
 let currentSort = 'default';
 
-// ── 전역 change log 캐시 ──
-let _changeLogCache = [];  // 최근 300개, fetchChangelog() 시 갱신
+// ── Global change log cache ──
+let _changeLogCache = [];  // Latest 300 entries, updated on fetchChangelog()
 
 let mapNames = {
   "450002001": "🍎 [Chu Chu] Hill Path",
@@ -890,7 +890,7 @@ async function loadForcedOffline() {
       }));
       localStorage.removeItem('ms_forced_offline');
     }
-  } catch(e) { console.warn("[forced] 서버 로드 실패:", e); }
+  } catch(e) { console.warn("[forced] Server load failed:", e); }
 }
 
 async function toggleForceOffline(key) {
@@ -911,16 +911,16 @@ async function toggleForceOffline(key) {
     console.error("[forced]", e);
     if (wasForced) manualOffline.add(key); else manualOffline.delete(key);
     renderBotTable();
-    alert(`⚠ 강제오프 서버 저장 실패\n\n${e.message}`);
+    alert(`⚠ Failed to save forced offline\n\n${e.message}`);
   }
 }
 
 async function bulkForceOffline() {
   const targets = botData.filter(b => !manualOffline.has(b.owner+'|'+b.ign));
-  if (!targets.length) return alert("이미 모든 봇이 강제 오프라인 상태입니다.");
-  if (!confirm(`⚠ 봇 ${targets.length}개를 전체 강제 오프라인으로 설정할까요?`)) return;
+  if (!targets.length) return alert("All bots are already forced offline.");
+  if (!confirm(`⚠ ${targets.length} bot(s) to forced offline?`)) return;
   const btn = document.getElementById("btn-all-offline");
-  btn.disabled = true; btn.textContent = "⏳ 처리중...";
+  btn.disabled = true; btn.textContent = "⏳ Processing...";
   let ok = 0, fail = 0;
   await Promise.all(targets.map(async b => {
     const key = b.owner + '|' + b.ign;
@@ -929,19 +929,19 @@ async function bulkForceOffline() {
       if (res.ok) { manualOffline.add(key); ok++; } else fail++;
     } catch { fail++; }
   }));
-  btn.disabled = false; btn.textContent = "🔒 전체 오프라인";
+  btn.disabled = false; btn.textContent = "🔒 Force All Offline";
   renderBotTable();
   const online = botData.filter(b => b.online && isKnownMap(b.map_id) && !manualOffline.has(b.owner+'|'+b.ign)).length;
   document.getElementById("s-fc-online").textContent = `${online} | ${botData.length}`;
-  if (fail) alert(`완료: ${ok}개 성공, ${fail}개 실패`);
+  if (fail) alert(`Done: ${ok} ok, ${fail} failed`);
 }
 
 async function bulkForceOnline() {
   const targets = botData.filter(b => manualOffline.has(b.owner+'|'+b.ign));
-  if (!targets.length) return alert("강제 오프라인 상태인 봇이 없습니다.");
-  if (!confirm(`🔓 봇 ${targets.length}개의 강제 오프라인을 전체 해제할까요?`)) return;
+  if (!targets.length) return alert("No bots are forced offline.");
+  if (!confirm(`🔓 ${targets.length} bot(s) from forced offline?`)) return;
   const btn = document.getElementById("btn-all-online");
-  btn.disabled = true; btn.textContent = "⏳ 처리중...";
+  btn.disabled = true; btn.textContent = "⏳ Processing...";
   let ok = 0, fail = 0;
   await Promise.all(targets.map(async b => {
     const key = b.owner + '|' + b.ign;
@@ -950,11 +950,11 @@ async function bulkForceOnline() {
       if (res.ok) { manualOffline.delete(key); ok++; } else fail++;
     } catch { fail++; }
   }));
-  btn.disabled = false; btn.textContent = "🔓 전체 해제";
+  btn.disabled = false; btn.textContent = "🔓 Release All";
   renderBotTable();
   const online = botData.filter(b => b.online && isKnownMap(b.map_id) && !manualOffline.has(b.owner+'|'+b.ign)).length;
   document.getElementById("s-fc-online").textContent = `${online} | ${botData.length}`;
-  if (fail) alert(`완료: ${ok}개 성공, ${fail}개 실패`);
+  if (fail) alert(`Done: ${ok} ok, ${fail} failed`);
 }
 
 function isKnownMap(mapId) {
@@ -962,7 +962,7 @@ function isKnownMap(mapId) {
   return !!mapNames[String(mapId)];
 }
 
-// ── 고양이 클릭 ──
+// ── Cat logo click ──
 (function() {
   let clickCount = 0, resetTimer = null;
   document.addEventListener('DOMContentLoaded', function() {
@@ -998,9 +998,9 @@ async function submitBypass() {
       isAuthed = true;
       document.getElementById('site-lock-overlay').style.display = 'none';
       applyAuth();
-    } else { errEl.textContent = '❌ 비밀번호가 올바르지 않습니다.'; input.value = ''; input.focus(); }
-  } catch (e) { errEl.textContent = '❌ 서버 연결 오류'; }
-  finally { btn.disabled = false; btn.textContent = '입장'; }
+    } else { errEl.textContent = '❌ Incorrect password.'; input.value = ''; input.focus(); }
+  } catch (e) { errEl.textContent = '❌ Server connection error'; }
+  finally { btn.disabled = false; btn.textContent = 'Enter'; }
 }
 
 async function checkAuth() {
@@ -1015,7 +1015,7 @@ async function checkAuth() {
         const avatarUrl = data.user.avatar
           ? `https://cdn.discordapp.com/avatars/${data.user.id}/${data.user.avatar}.png?size=64`
           : `https://cdn.discordapp.com/embed/avatars/0.png`;
-        badge.innerHTML = `<img src="${avatarUrl}" alt=""/>${data.user.username} · 로그아웃`;
+        badge.innerHTML = `<img src="${avatarUrl}" alt=""/>${data.user.username} · Logout`;
         badge.style.display = "flex";
       }
       applyAuth();
@@ -1024,8 +1024,8 @@ async function checkAuth() {
       const err = params.get("error");
       const errEl = document.getElementById("site-lock-err");
       if (err && errEl) {
-        const msgs = { unauthorized: "⛔ 접근 권한이 없습니다.", discord_denied: "❌ Discord 로그인이 취소되었습니다.", token_failed: "❌ Discord 인증에 실패했습니다.", server_error: "❌ 서버 오류가 발생했습니다." };
-        errEl.textContent = msgs[err] || "❌ 로그인 오류가 발생했습니다.";
+        const msgs = { unauthorized: "⛔ Access denied.", discord_denied: "❌ Discord login cancelled.", token_failed: "❌ Discord authentication failed.", server_error: "❌ Server error." };
+        errEl.textContent = msgs[err] || "❌ Login error.";
         history.replaceState({}, "", "/");
       }
     }
@@ -1062,16 +1062,16 @@ function injectOwnerSellerPanel() {
   panel.id = "owner-seller-panel";
   panel.innerHTML = `
     <hr style="border:none;border-top:2px dashed var(--ms-border-dark);margin:24px 0"/>
-    <div class="section-title" style="color:#e67e22">🔧 오너 관리</div>
+    <div class="section-title" style="color:#e67e22">🔧 Owner Panel</div>
     <div class="panel-box">
-      <div class="section-title">정산 내역 추가</div>
+      <div class="section-title">Add Payment Record</div>
       <div class="form-row">
-        <div class="form-group"><label>셀러 이름</label><input type="text" id="s-name" placeholder="예: Rudy"/></div>
-        <div class="form-group"><label>시작일시</label><input type="datetime-local" id="s-start"/></div>
-        <div class="form-group"><label>종료일시</label><input type="datetime-local" id="s-end"/></div>
-        <div class="form-group"><label>시간당 가격 (메소)</label><input type="number" id="s-price" placeholder="예: 50000000"/></div>
-        <div class="form-group"><label>메모 (선택)</label><input type="text" id="s-note" placeholder="선택사항"/></div>
-        <button class="btn" onclick="addSellerRecord()" style="align-self:flex-end">추가</button>
+        <div class="form-group"><label>Seller Name</label><input type="text" id="s-name" placeholder="e.g. Rudy"/></div>
+        <div class="form-group"><label>Start Date</label><input type="datetime-local" id="s-start"/></div>
+        <div class="form-group"><label>End Date</label><input type="datetime-local" id="s-end"/></div>
+        <div class="form-group"><label>Price per Hour (Meso)</label><input type="number" id="s-price" placeholder="e.g. 50000000"/></div>
+        <div class="form-group"><label>Note (optional)</label><input type="text" id="s-note" placeholder="optional"/></div>
+        <button class="btn" onclick="addSellerRecord()" style="align-self:flex-end">Add</button>
       </div>
       <div class="notify" id="seller-notify"></div>
     </div>`;
@@ -1111,8 +1111,8 @@ async function fetchManagement() {
   } catch(e) { console.warn("[mgmt] alerts", e); }
 }
 
-// ── 봇별 recent events (change log 연동) ──
-// 지정된 IGN의 최근 N시간 이내 change log 이벤트를 반환
+// ── Per-bot recent events (change log linked) ──
+// Returns change log events within the last N hours for given IGN
 function getBotRecentEvents(ign, withinHours = 2) {
   const cutoff = Date.now() - withinHours * 3600 * 1000;
   return _changeLogCache
@@ -1120,7 +1120,7 @@ function getBotRecentEvents(ign, withinHours = 2) {
     .sort((a, b) => new Date(b.ts) - new Date(a.ts));
 }
 
-// 이벤트 타입 판단 (field 기반)
+// Determine event type (based on field)
 function getEventType(row) {
   if (row.field === 'channel') return 'cc';
   if (row.field === 'map_id')  return 'map';
@@ -1128,12 +1128,12 @@ function getEventType(row) {
   return 'other';
 }
 
-// 이벤트 → 칩 HTML
+// Event → chip HTML
 function buildEventChip(row, nowMs) {
   const type = getEventType(row);
   const diffMs = nowMs - new Date(row.ts).getTime();
   const diffMin = Math.round(diffMs / 60000);
-  const agoStr = diffMin < 1 ? '방금' : diffMin < 60 ? `${diffMin}분 전` : `${Math.round(diffMin/60)}시간 전`;
+  const agoStr = diffMin < 1 ? 'just now' : diffMin < 60 ? `${diffMin}min ago` : `${Math.round(diffMin/60)}hr ago`;
 
   if (type === 'cc') {
     return `<span class="mgmt-event-chip ev-cc" title="${row.old_val} → ${row.new_val}">📡 CC ${row.new_val} · ${agoStr}</span>`;
@@ -1143,7 +1143,7 @@ function buildEventChip(row, nowMs) {
     return `<span class="mgmt-event-chip ev-map" title="${row.old_val} → ${row.new_val}">🗺 ${newMap.length > 18 ? newMap.slice(0,18)+'…' : newMap} · ${agoStr}</span>`;
   }
   if (type === 'death') {
-    return `<span class="mgmt-event-chip ev-death" title="buff_count=11 감지">🪦 DEATH · ${agoStr}</span>`;
+    return `<span class="mgmt-event-chip ev-death" title="buff_count=11 detected">🪦 DEATH · ${agoStr}</span>`;
   }
   return '';
 }
@@ -1161,7 +1161,7 @@ function renderMgmtItems(data) {
   ];
 
   const online = data.filter(d => d.online);
-  if (!online.length) { grid.innerHTML=`<div class="mgmt-empty">온라인 봇 없음</div>`; return; }
+  if (!online.length) { grid.innerHTML=`<div class="mgmt-empty">No bots online</div>`; return; }
 
   const nowMs = Date.now();
   const cards = [];
@@ -1179,7 +1179,7 @@ function renderMgmtItems(data) {
     if (warnSlots.length) cards.push({ d, warnSlots });
   }
 
-  if (!cards.length) { grid.innerHTML=`<div class="mgmt-empty">아이템 부족 봇 없음 ✅</div>`; return; }
+  if (!cards.length) { grid.innerHTML=`<div class="mgmt-empty">All items stocked ✅</div>`; return; }
 
   grid.innerHTML = cards.map(({ d, warnSlots }) => {
     const slotHtml = warnSlots.map(s => {
@@ -1196,7 +1196,7 @@ function renderMgmtItems(data) {
           <div class="mgmt-item-ign">${d.ign}</div>
           <div class="mgmt-item-lv">Lv.${d.level} · ${formatAgo(d.ago_sec)}</div>
         </div>
-        <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:#e74c3c;font-weight:800">⚠️ ${warnSlots.length}종 부족</span>
+        <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:#e74c3c;font-weight:800">⚠️ ${warnSlots.length} item(s) low</span>
       </div>
       <div class="mgmt-item-slots" style="display:flex;gap:10px;flex-wrap:nowrap">${slotHtml}</div>
     </div>`;
@@ -1213,7 +1213,7 @@ function renderMgmtAlerts(data) {
     ...resolvedLogs.sort((a, b) => (b.resolvedTs || 0) - (a.resolvedTs || 0)),
   ];
 
-  if (!allLogs.length) { logEl.innerHTML = `<div class="mgmt-empty">경고 없음 ✅</div>`; return; }
+  if (!allLogs.length) { logEl.innerHTML = `<div class="mgmt-empty">No alerts ✅</div>`; return; }
 
   logEl.innerHTML = allLogs.map(entry => {
     // ★ recent events per bot
@@ -1229,14 +1229,14 @@ function renderMgmtAlerts(data) {
       const cls = isLong ? 'log-active-long' : 'log-active-short';
       const icon = isLong ? '🔴' : '🟡';
       const since = new Date(a.lowSince).toLocaleString('ko-KR', { timeZone:'Asia/Seoul', hour12:false, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
-      const badgeText = a.alerted ? `📢 디스코드 알림 전송됨` : isLong ? `🚨 15분 초과 · 알림 전송 중` : `⏳ ${mgmtFmtDur(durMs)} 경과`;
+      const badgeText = a.alerted ? `📢 Discord alert sent` : isLong ? `🚨 15min exceeded · Sending alert` : `⏳ ${mgmtFmtDur(durMs)} elapsed`;
       return `<div class="mgmt-log-card ${cls}">
         <div class="mgmt-log-header">
           <span class="mgmt-log-ign">${icon} ${a.ign}</span>
           <span class="mgmt-log-badge">${badgeText}</span>
         </div>
-        <div class="mgmt-log-meta">Lv.<b>${a.level}</b> · 현재 <b>${mgmtFmtM(a.lastMesoHr)}/hr</b> · 기준 미달 지속 <b>${mgmtFmtDur(durMs)}</b></div>
-        <div class="mgmt-log-time">⏱ 저하 시작: <b>${since}</b> ~ 현재 진행중</div>
+        <div class="mgmt-log-meta">Lv.<b>${a.level}</b> · current <b>${mgmtFmtM(a.lastMesoHr)}/hr</b> · below threshold for <b>${mgmtFmtDur(durMs)}</b></div>
+        <div class="mgmt-log-time">⏱ Low since: <b>${since}</b> ~ ongoing</div>
         ${eventChips}
       </div>`;
     } else {
@@ -1244,13 +1244,13 @@ function renderMgmtAlerts(data) {
       const since = new Date(r.lowSince).toLocaleString('ko-KR', { timeZone:'Asia/Seoul', hour12:false, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
       const resolvedAt = new Date(r.resolvedTs).toLocaleString('ko-KR', { timeZone:'Asia/Seoul', hour12:false, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
       const dur = mgmtFmtDur(r.resolvedTs - r.lowSince);
-      const reason = r.resolvedReason === 'offline' ? '오프라인 전환' : '정상 복구';
+      const reason = r.resolvedReason === 'offline' ? 'went offline' : 'recovered';
       return `<div class="mgmt-log-card log-resolved">
         <div class="mgmt-log-header">
           <span class="mgmt-log-ign">🔵 ${r.ign}</span>
-          <span class="mgmt-log-badge">✅ 해소됨 · ${reason}</span>
+          <span class="mgmt-log-badge">✅ Resolved · ${reason}</span>
         </div>
-        <div class="mgmt-log-meta">Lv.<b>${r.level}</b> · 복구 후 <b>${mgmtFmtM(r.resolvedMesoHr)}/hr</b> · 총 지속 <b>${dur}</b></div>
+        <div class="mgmt-log-meta">Lv.<b>${r.level}</b> · after recovery <b>${mgmtFmtM(r.resolvedMesoHr)}/hr</b> · total duration <b>${dur}</b></div>
         <div class="mgmt-log-time">⏱ ${since} ~ ${resolvedAt}</div>
         ${eventChips}
       </div>`;
@@ -1259,10 +1259,10 @@ function renderMgmtAlerts(data) {
 }
 
 function mgmtFmtDur(ms) {
-  if (!ms || ms < 0) return '0분';
+  if (!ms || ms < 0) return '0min';
   const m = Math.floor(ms / 60000);
   const h = Math.floor(m / 60);
-  return h > 0 ? `${h}시간 ${m % 60}분` : `${m}분`;
+  return h > 0 ? `${h}h ${m % 60}min` : `${m}min`;
 }
 function mgmtFmtM(n) {
   if (!n) return '0';
@@ -1349,7 +1349,7 @@ function buildBotRow(b, mapOff = false) {
   const mapChanged = !!changedCells[key + '|map_id'];
   const isForced   = manualOffline.has(key);
   const forceBtn   = isAuthed
-    ? `<button class="force-btn${isForced ? ' forced-active' : ''}" onclick="toggleForceOffline('${key}')" title="${isForced ? '강제오프 해제' : '강제 오프라인 설정'}">${isForced ? '🔒 FORCED' : '🔒'}</button>`
+    ? `<button class="force-btn${isForced ? ' forced-active' : ''}" onclick="toggleForceOffline('${key}')" title="${isForced ? 'Release forced offline' : 'Force offline'}">${isForced ? '🔒 FORCED' : '🔒'}</button>`
     : '';
   let statusBadge;
   if (isForced)     statusBadge = `<span class="badge-offline">OFFLINE</span><span class="badge-forced">FORCED</span>${forceBtn}`;
@@ -1365,7 +1365,7 @@ function buildBotRow(b, mapOff = false) {
     <td class="td-loc${mapChanged ? ' cell-changed' : ''}" id="mapcell-${b.map_id}">${buildMapCell(b.map_id)}${mapChanged ? ' <span class="changed-badge">CHANGED</span>' : ''}</td>
     <td>${statusBadge}</td>
     <td class="td-ago">${formatAgo(b.ago_sec)}</td>
-    <td><button onclick="isAuthed ? openGraphModal('${b.ign}') : alert('🔒 인증이 필요합니다')" style="background:none;border:1px solid rgba(255,255,255,.15);border-radius:6px;color:#aaa;cursor:pointer;padding:3px 9px;font-size:13px;transition:all .15s" title="Meso 그래프 보기">📈</button></td>
+    <td><button onclick="isAuthed ? openGraphModal('${b.ign}') : alert('🔒 Authentication required')" style="background:none;border:1px solid rgba(255,255,255,.15);border-radius:6px;color:#aaa;cursor:pointer;padding:3px 9px;font-size:13px;transition:all .15s" title="View Meso Graph">📈</button></td>
   </tr>`;
 }
 
@@ -1401,14 +1401,14 @@ function buildMapCell(mapId) {
   if (mapId===null||mapId===undefined) return '<span style="color:#bbb">—</span>';
   const name = mapNames[String(mapId)];
   const label = name ? `<span class="map-label">${name}</span><span class="map-id">(${mapId})</span>` : `<span class="map-id">${mapId}</span>`;
-  return `<div class="map-cell">${label}<button class="map-edit-btn" onclick="startMapEdit(${mapId}, this)">${name ? '✏️' : '+ 이름'}</button></div>`;
+  return `<div class="map-cell">${label}<button class="map-edit-btn" onclick="startMapEdit(${mapId}, this)">${name ? '✏️' : '+ Name'}</button></div>`;
 }
 
 function startMapEdit(mapId, btn) {
   const cell = document.getElementById('mapcell-'+mapId);
   if (!cell) return;
   const current = mapNames[String(mapId)] || '';
-  cell.innerHTML = `<div class="map-inline-form"><input class="map-inline-input" id="map-input-${mapId}" value="${current}" placeholder="맵 이름 입력" autofocus/><button class="map-inline-save" onclick="saveMapName(${mapId})">저장</button><button class="map-inline-cancel" onclick="cancelMapEdit(${mapId})">취소</button></div>`;
+  cell.innerHTML = `<div class="map-inline-form"><input class="map-inline-input" id="map-input-${mapId}" value="${current}" placeholder="Enter map name" autofocus/><button class="map-inline-save" onclick="saveMapName(${mapId})">Save</button><button class="map-inline-cancel" onclick="cancelMapEdit(${mapId})">Cancel</button></div>`;
   const inp = document.getElementById('map-input-'+mapId);
   inp.focus();
   inp.addEventListener('keydown', e => { if (e.key==='Enter') saveMapName(mapId); if (e.key==='Escape') cancelMapEdit(mapId); });
@@ -1535,7 +1535,7 @@ async function fetchMeso() {
 
 function renderMesoCards(data) {
   const grid = document.getElementById("meso-cards");
-  if (!data.length) { grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:50px;color:#aaa">데이터 없음</div>`; return; }
+  if (!data.length) { grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:50px;color:#aaa">No data</div>`; return; }
   const sorted = [...data].sort((a,b)=>(b.meso_hr||0)-(a.meso_hr||0));
   const maxHr  = Math.max(...sorted.map(d=>d.meso_hr||0), 1);
   grid.innerHTML = sorted.map(d => {
@@ -1644,7 +1644,7 @@ async function addSellerRecord() {
 async function fetchChangelog() {
   try {
     const rows = await (await fetch("/api/bot-change-log?limit=300")).json();
-    _changeLogCache = rows;  // ★ 전역 캐시 업데이트
+    _changeLogCache = rows;  // ★ Update global cache
     renderChangelog(rows);
   } catch(e) {}
 }
@@ -1667,7 +1667,7 @@ function renderChangelog(rows) {
 }
 
 async function clearChangelog() {
-  if (!confirm("모든 로그를 삭제할까요?")) return;
+  if (!confirm("Delete all logs?")) return;
   await fetch("/api/bot-change-log", { method: "DELETE" });
   _changeLogCache = [];
   renderChangelog([]);
@@ -1741,13 +1741,13 @@ async function init() {
     document.getElementById("ov-online-cnt").textContent=online.length;
     document.getElementById("ov-offline-cnt").textContent=offline.length;
     const bhrEl=document.getElementById("ov-bhr-list");
-    if(!online.length){bhrEl.innerHTML='<div class="ov-empty">온라인 봇 없음</div>';}
+    if(!online.length){bhrEl.innerHTML='<div class="ov-empty">No bots online</div>';}
     else{const sorted=[...online].sort((a,b)=>(b.meso_hr||0)-(a.meso_hr||0));bhrEl.innerHTML=sorted.map((d,i)=>{const cls=ovRankClass(d.meso_hr||0);return`<div class="ov-row" style="animation-delay:${i*25}ms"><div class="ov-ign"><span class="${cls}" style="font-size:9px;min-width:14px">#${i+1}</span>${d.ign||'Unknown'} <span class="ov-lv">Lv.${d.level||'?'}</span></div><div class="ov-bhr ${cls}">${ovFmt(d.meso_hr||0)}<span class="ov-bhr-unit">/hr</span></div></div>`;}).join("");}
     const offEl=document.getElementById("ov-offline-list");
-    if(!offline.length){offEl.innerHTML='<div class="ov-empty">— 모든 봇 온라인 ✓ —</div>';}
+    if(!offline.length){offEl.innerHTML='<div class="ov-empty">— All bots online ✓ —</div>';}
     else{offEl.innerHTML=offline.map((d,i)=>{const key=(d.owner||'Hyeong')+'|'+d.ign;const isForced=manualOffline.has(key);const isMapOff=d.online&&!isKnownMap(d.map_id);const reasonBadge=isForced?`<span style="font-size:9px;color:#9b59b6;border:1px solid #9b59b6;padding:0 4px;border-radius:2px;margin-left:3px">FORCED</span>`:isMapOff?`<span style="font-size:9px;color:#ff9800;border:1px solid #ff9800;padding:0 4px;border-radius:2px;margin-left:3px">MAP</span>`:'';return`<div class="ov-row" style="opacity:.75;animation-delay:${i*25}ms"><div class="ov-ign">${d.ign||'Unknown'} <span class="ov-lv">Lv.${d.level||'?'}</span>${reasonBadge}<span class="ov-ago">${ovFmtAgo(d.ago_sec)}</span></div><span class="ov-badge-off">OFFLINE</span></div>`;}).join("");}
     const logEl=document.getElementById("ov-log-list");
-    if(!logs||!logs.length){logEl.innerHTML='<div class="ov-empty">변경 기록 없음</div>';}
+    if(!logs||!logs.length){logEl.innerHTML='<div class="ov-empty">No change records</div>';}
     else{logEl.innerHTML=logs.slice(0,20).map((l,i)=>{const t=new Date(l.ts).toLocaleTimeString("ko-KR",{hour12:false,hour:"2-digit",minute:"2-digit"});const fieldCls=l.field==="channel"?"color:#0097a7":"color:#e67e22";const fieldLabel=l.field==="channel"?"CH":"MAP";return`<div class="ov-row" style="animation-delay:${i*15}ms"><div class="ov-ign" style="gap:4px;flex-wrap:wrap;max-width:170px"><span style="font-size:10px;color:rgba(255,255,255,.25)">${t}</span><span style="font-size:12px">${l.ign||'?'}</span><span style="font-size:10px;font-weight:900;border:1px solid;padding:0 4px;border-radius:2px;${fieldCls}">${fieldLabel}</span></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px"><span style="font-size:10px;color:#888;text-decoration:line-through">${l.old_val??'—'}</span><span style="font-size:11px;font-weight:800;color:#e0f7fa">${l.new_val??'—'}</span></div></div>`;}).join("");}
   }
   try{const saved=localStorage.getItem("ov_opacity");if(saved){document.getElementById("ov-opacity").value=saved;window.ovSetOpacity(saved);}}catch(e){}
@@ -1783,7 +1783,7 @@ function setZoneFilter(zone) {
       (zone===null&&cls.includes('zone-all'))||(zone==='250'&&cls.includes('zone-250'))||(zone==='150'&&cls.includes('zone-150'))||(zone==='0'&&cls.includes('zone-0')));
   });
   const lbl=document.getElementById('zone-filter-label');
-  if(lbl){if(zone===null){lbl.textContent='';}else{const z=ZONE_DEFS.find(d=>d.id===zone);lbl.innerHTML=z?`<span style="color:${z.color};font-weight:800">▶ ${z.label} 구간만 표시</span>`:'';}};
+  if(lbl){if(zone===null){lbl.textContent='';}else{const z=ZONE_DEFS.find(d=>d.id===zone);lbl.innerHTML=z?`<span style="color:${z.color};font-weight:800">▶ ${z.label} zone only</span>`:'';}};
   renderAllGraphs();
 }
 
@@ -1811,7 +1811,7 @@ const zoneBandsPlugin = {
 };
 
 // ★★★ CHANGE LOG MARKERS PLUGIN (NEW) ★★★
-// 잠금(highlightLocked) 상태에서만 해당 봇의 change log 이벤트를 수직선으로 표시
+// Shows change log events as vertical lines only when a bot is locked (highlightLocked)
 const changeLogMarkersPlugin = {
   id: 'changeLogMarkers',
   afterDraw(chart) {
@@ -1821,7 +1821,7 @@ const changeLogMarkersPlugin = {
 
     const events = _changeLogCache
       .filter(r => r.ign === highlightedIgn)
-      .slice(0, 50); // 최대 50개
+      .slice(0, 50); // max 50
 
     if (!events.length) return;
 
@@ -1836,13 +1836,13 @@ const changeLogMarkersPlugin = {
       const px = xScale.getPixelForValue(evTs);
       const type = getEventType(ev);
 
-      // 이벤트 타입별 색상
+      // Color per event type
       const color = type === 'cc' ? '#0097a7'
                   : type === 'map' ? '#e67e22'
                   : type === 'death' ? '#9b59b6'
                   : '#888';
 
-      // 수직 점선
+      // Vertical dashed line
       ctx.strokeStyle = color + 'bb';
       ctx.lineWidth = type === 'death' ? 2.5 : 1.8;
       ctx.setLineDash(type === 'death' ? [3,3] : [4,4]);
@@ -1852,12 +1852,12 @@ const changeLogMarkersPlugin = {
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // 상단 아이콘 원
+      // Icon circle at top
       const icon = type === 'cc' ? '📡' : type === 'map' ? '🗺' : type === 'death' ? '🪦' : '•';
       const diffMin = Math.round((nowMs - evTs) / 60000);
-      const agoStr  = diffMin < 1 ? '방금' : diffMin < 60 ? `${diffMin}분 전` : `${Math.round(diffMin/60)}시간 전`;
+      const agoStr  = diffMin < 1 ? 'just now' : diffMin < 60 ? `${diffMin}min ago` : `${Math.round(diffMin/60)}hr ago`;
 
-      // 원형 배경
+      // Circle background
       ctx.fillStyle = color + '28';
       ctx.strokeStyle = color + 'cc';
       ctx.lineWidth = 1.5;
@@ -1867,14 +1867,14 @@ const changeLogMarkersPlugin = {
       ctx.fill();
       ctx.stroke();
 
-      // 이모지 텍스트
+      // Emoji text
       ctx.font = '10px serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#fff';
       ctx.fillText(icon, px, ca.top + 10);
 
-      // 하단 "N분 전" 텍스트
+      // Bottom "Nmin ago" text
       ctx.font = 'bold 9px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
@@ -1973,11 +1973,11 @@ function renderAllGraphs() {
   allChartInst = new Chart(canvas, {
     type: 'line',
     data: { datasets },
-    plugins: [zoneBandsPlugin, changeLogMarkersPlugin],  // ★ markers plugin 추가
+    plugins: [zoneBandsPlugin, changeLogMarkersPlugin],  // ★ markers plugin Add
     options: {
       responsive: true,
       interaction: { mode: 'index', intersect: false },
-      layout: { padding: { bottom: 18 } },  // 하단 "N분 전" 텍스트 공간
+      layout: { padding: { bottom: 18 } },  // Bottom "Nmin ago" text padding
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtMeso(ctx.parsed.y)}/hr` } }
@@ -2031,7 +2031,7 @@ function renderAllGraphs() {
           highlightLocked=true; highlightedIgn=ign; applyHighlight(ign);
           updateHoverLabelPos(e, ign, true);
           document.getElementById('graph-lock-hint').style.display='block';
-          updateGraphChangelogBanner(ign);  // ★ 잠금 시 배너 표시
+          updateGraphChangelogBanner(ign);  // ★ Show banner when locked
         }
       } else {
         highlightLocked=false; highlightedIgn=null; applyHighlight(null);
@@ -2043,14 +2043,14 @@ function renderAllGraphs() {
   }
 }
 
-// ★ 잠금 시 그래프 상단 changelog 배너 업데이트
+// ★ Update changelog banner at top of graph when locked
 function updateGraphChangelogBanner(ign) {
   const banner = document.getElementById('graph-changelog-banner');
   const chips  = document.getElementById('graph-changelog-chips');
   if (!banner || !chips) return;
 
   const nowMs = Date.now();
-  // 48시간 이내 이벤트
+  // Events within 48h
   const events = _changeLogCache
     .filter(r => r.ign === ign && nowMs - new Date(r.ts).getTime() <= 48 * 3600 * 1000)
     .slice(0, 15);
@@ -2110,8 +2110,8 @@ function renderGraphSidebar(igns, avgMap, latestMap, colorMap) {
   if (activeZone !== null) {
     const zoneDef=ZONE_DEFS.find(z=>z.id===activeZone);
     const zoneIgns=igns.filter(ign=>{const avg=avgMap[ign];return avg>=zoneDef.min&&(zoneDef.max===Infinity||avg<zoneDef.max);});
-    if(!zoneIgns.length){list.innerHTML=`<div style="text-align:center;padding:24px 8px;font-size:11px;color:#bbb;font-family:'JetBrains Mono',monospace;letter-spacing:1px">이 구간에 봇 없음</div>`;return;}
-    list.innerHTML=`<div style="text-align:center;font-size:10px;font-weight:800;color:${zoneDef.color};font-family:'JetBrains Mono',monospace;letter-spacing:1px;border:1.5px solid ${zoneDef.color}55;border-radius:8px;padding:5px 8px;margin-bottom:8px;background:${zoneDef.color}0f">${zoneDef.label} — ${zoneIgns.length}개 봇</div>${zoneIgns.map(ign=>{const color=colorMap[ign];const avg=avgMap[ign];const latest=latestMap[ign];const pct=Math.round((avg/maxAvg)*100);return`<div onclick="highlightFromSidebar('${ign}')" style="display:flex;flex-direction:column;gap:6px;padding:12px 13px;border-radius:10px;cursor:pointer;border:2px solid ${color}55;background:${color}12;transition:background .15s;margin-bottom:6px" onmouseover="this.style.background='${color}28'" onmouseout="this.style.background='${color}12'"><div style="display:flex;align-items:center;gap:7px;min-width:0"><span style="width:13px;height:13px;border-radius:50%;background:${color};flex-shrink:0;box-shadow:0 0 7px ${color}bb"></span><span style="font-size:13px;font-weight:800;color:#004d40;font-family:'JetBrains Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1" title="${ign}">${ign}</span><span style="font-size:11px;color:#aaa;flex-shrink:0">📈</span></div><div style="display:flex;align-items:baseline;gap:5px"><span style="font-size:20px;font-weight:800;color:${color};font-family:'JetBrains Mono',monospace">${fmtMeso(avg)}</span><span style="font-size:11px;color:#aaa;font-family:'JetBrains Mono',monospace">/hr avg</span></div><div style="height:5px;background:#eee;border-radius:3px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width .4s ease"></div></div><div style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace">latest: <span style="color:${color};font-weight:800">${fmtMeso(latest)}/hr</span></div></div>`;}).join('')}`;
+    if(!zoneIgns.length){list.innerHTML=`<div style="text-align:center;padding:24px 8px;font-size:11px;color:#bbb;font-family:'JetBrains Mono',monospace;letter-spacing:1px">No bots in this zone</div>`;return;}
+    list.innerHTML=`<div style="text-align:center;font-size:10px;font-weight:800;color:${zoneDef.color};font-family:'JetBrains Mono',monospace;letter-spacing:1px;border:1.5px solid ${zoneDef.color}55;border-radius:8px;padding:5px 8px;margin-bottom:8px;background:${zoneDef.color}0f">${zoneDef.label} — ${zoneIgns.length} bots</div>${zoneIgns.map(ign=>{const color=colorMap[ign];const avg=avgMap[ign];const latest=latestMap[ign];const pct=Math.round((avg/maxAvg)*100);return`<div onclick="highlightFromSidebar('${ign}')" style="display:flex;flex-direction:column;gap:6px;padding:12px 13px;border-radius:10px;cursor:pointer;border:2px solid ${color}55;background:${color}12;transition:background .15s;margin-bottom:6px" onmouseover="this.style.background='${color}28'" onmouseout="this.style.background='${color}12'"><div style="display:flex;align-items:center;gap:7px;min-width:0"><span style="width:13px;height:13px;border-radius:50%;background:${color};flex-shrink:0;box-shadow:0 0 7px ${color}bb"></span><span style="font-size:13px;font-weight:800;color:#004d40;font-family:'JetBrains Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1" title="${ign}">${ign}</span><span style="font-size:11px;color:#aaa;flex-shrink:0">📈</span></div><div style="display:flex;align-items:baseline;gap:5px"><span style="font-size:20px;font-weight:800;color:${color};font-family:'JetBrains Mono',monospace">${fmtMeso(avg)}</span><span style="font-size:11px;color:#aaa;font-family:'JetBrains Mono',monospace">/hr avg</span></div><div style="height:5px;background:#eee;border-radius:3px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width .4s ease"></div></div><div style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace">latest: <span style="color:${color};font-weight:800">${fmtMeso(latest)}/hr</span></div></div>`;}).join('')}`;
     return;
   }
 
@@ -2154,11 +2154,11 @@ async function openGraphModal(ign) {
 
   const titleEl=document.getElementById('graph-modal-title');
   titleEl.innerHTML=`<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${botColor};margin-right:8px;vertical-align:middle;flex-shrink:0"></span>📈 ${ign} — Meso/HR (48h)`;
-  document.getElementById('graph-modal-stats').innerHTML='<span style="color:#888;font-size:12px">불러오는 중...</span>';
+  document.getElementById('graph-modal-stats').innerHTML='<span style="color:#888;font-size:12px">Loading...</span>';
   document.getElementById('modal-sort').value='time';
   modalIgnName=ign; modalBotColor=botColor;
 
-  // ★ 모달 change log 섹션 렌더링
+  // ★ Render modal change log section
   renderModalChangelog(ign);
 
   try {
@@ -2173,10 +2173,10 @@ async function openGraphModal(ign) {
       <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 20px;text-align:center"><div style="font-size:10px;color:#888;letter-spacing:1px">MAX</div><div style="font-size:20px;font-weight:800;color:#16a34a;font-family:'JetBrains Mono',monospace">${fmtMeso(maxVal)}/hr</div></div>
       <div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:10px;padding:12px 20px;text-align:center"><div style="font-size:10px;color:#888;letter-spacing:1px">MIN</div><div style="font-size:20px;font-weight:800;color:#e74c3c;font-family:'JetBrains Mono',monospace">${fmtMeso(minVal)}/hr</div></div>
       <div style="background:#fafafa;border:1px solid #e5e7eb;border-radius:10px;padding:12px 20px;text-align:center"><div style="font-size:10px;color:#888;letter-spacing:1px">RECORDS</div><div style="font-size:20px;font-weight:800;color:#555;font-family:'JetBrains Mono',monospace">${modalRawData.length}</div></div>`;
-  } catch(e){ document.getElementById('graph-modal-stats').innerHTML='<span style="color:#e74c3c">데이터 로드 실패</span>'; }
+  } catch(e){ document.getElementById('graph-modal-stats').innerHTML='<span style="color:#e74c3c">Failed to load data</span>'; }
 }
 
-// ★ 모달 내 change log 타임라인 렌더링
+// ★ Render modal change log timeline
 function renderModalChangelog(ign) {
   const section = document.getElementById('modal-changelog-section');
   const listEl  = document.getElementById('modal-changelog-list');
@@ -2195,13 +2195,13 @@ function renderModalChangelog(ign) {
     const type    = getEventType(r);
     const diffMs  = nowMs - new Date(r.ts).getTime();
     const diffMin = Math.round(diffMs / 60000);
-    const agoStr  = diffMin < 1 ? '방금' : diffMin < 60 ? `${diffMin}분 전` : `${Math.round(diffMin/60)}시간 전`;
+    const agoStr  = diffMin < 1 ? 'just now' : diffMin < 60 ? `${diffMin}min ago` : `${Math.round(diffMin/60)}hr ago`;
     const d       = new Date(r.ts);
     const timeStr = d.toLocaleTimeString('ko-KR', { hour12:false, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
 
     const color   = type==='cc' ? '#0097a7' : type==='map' ? '#e67e22' : type==='death' ? '#9b59b6' : '#888';
     const icon    = type==='cc' ? '📡' : type==='map' ? '🗺' : type==='death' ? '🪦' : '•';
-    const label   = type==='cc' ? `CC ${r.new_val} (이전: ${r.old_val})` : type==='map' ? `MAP → ${mapNames[r.new_val]||r.new_val}` : type==='death' ? `사망 감지` : `${r.field}: ${r.new_val}`;
+    const label   = type==='cc' ? `CC ${r.new_val} (prev: ${r.old_val})` : type==='map' ? `MAP → ${mapNames[r.new_val]||r.new_val}` : type==='death' ? `Death detected` : `${r.field}: ${r.new_val}`;
 
     return `<div style="display:flex;align-items:flex-start;gap:8px;padding:4px 0;border-bottom:1px solid rgba(0,0,0,.04)">
       <span style="font-size:13px;flex-shrink:0;margin-top:1px">${icon}</span>
@@ -2255,18 +2255,18 @@ async function fetchTotalGraph() {
     const histData = await histRes.json(); // { ign: [{ts, meso_hr, ...}] }
     const curData  = curRes.ok ? await curRes.json() : [];
 
-    // forced offline / map offline 제외 기준: botData 기반
+    // Exclusion criteria (forced/map offline): based on botData
     const forcedKeys = manualOffline;
     const isOnlineBot = (ign) => {
       const b = botData.find(x => x.ign === ign);
-      if (!b) return true; // 히스토리엔 있지만 현재 데이터 없으면 포함
+      if (!b) return true; // Include if in history but not in current data
       const key = (b.owner||'Hyeong') + '|' + b.ign;
       if (forcedKeys.has(key)) return false;
       if (b.online && !isKnownMap(b.map_id)) return false; // map offline
       return true;
     };
 
-    // 현재 데이터도 히스토리에 추가
+    // Append current data to history
     const nowTs = Date.now();
     for (const d of curData) {
       if (!d.ign) continue;
@@ -2278,7 +2278,7 @@ async function fetchTotalGraph() {
       }
     }
 
-    // 전체 타임스탬프 수집 후 구간별 합산
+    // Collect all timestamps and sum by interval bucket
     const intervalMs = parseInt(document.getElementById('total-graph-interval')?.value || 60) * 60 * 1000;
     const buckets = {};
     for (const [ign, points] of Object.entries(histData)) {
@@ -2297,7 +2297,7 @@ async function fetchTotalGraph() {
   } catch(e) { console.error('totalGraph fetch', e); }
 }
 
-// renderTotalGraph는 fetchTotalGraph를 재실행 (단위 변경 대응)
+// renderTotalGraph re-runs fetchTotalGraph (handles interval changes)
 window.renderTotalGraph = function() { fetchTotalGraph(); };
 
 function renderTotalGraphFromBuckets(buckets) {
