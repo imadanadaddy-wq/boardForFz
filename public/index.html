@@ -2301,6 +2301,10 @@ async function fetchTotalGraph() {
 window.renderTotalGraph = function() { fetchTotalGraph(); };
 
 function renderTotalGraphFromBuckets(buckets) {
+  function fmtB(v) {
+    if (!v || isNaN(v)) return '0B';
+    return (v / 1e9).toFixed(2) + 'B';
+  }
   const points = Object.entries(buckets)
     .map(([k, v]) => ({ x: new Date(parseInt(k)), y: Math.round(v.sum) }))
     .sort((a,b) => a.x - b.x);
@@ -2312,9 +2316,9 @@ function renderTotalGraphFromBuckets(buckets) {
 
   const statsEl = document.getElementById('total-graph-stats');
   if (statsEl) statsEl.innerHTML = `
-    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px 20px;text-align:center"><div style="font-size:10px;color:#888;letter-spacing:1px">AVG</div><div style="font-size:20px;font-weight:800;color:#0097a7;font-family:'JetBrains Mono',monospace">${fmtMeso(avg)}/hr</div></div>
-    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 20px;text-align:center"><div style="font-size:10px;color:#888;letter-spacing:1px">MAX</div><div style="font-size:20px;font-weight:800;color:#16a34a;font-family:'JetBrains Mono',monospace">${fmtMeso(maxV)}/hr</div></div>
-    <div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:10px;padding:12px 20px;text-align:center"><div style="font-size:10px;color:#888;letter-spacing:1px">MIN</div><div style="font-size:20px;font-weight:800;color:#e74c3c;font-family:'JetBrains Mono',monospace">${fmtMeso(minV)}/hr</div></div>
+    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px 20px;text-align:center"><div style="font-size:10px;color:#888;letter-spacing:1px">AVG</div><div style="font-size:20px;font-weight:800;color:#0097a7;font-family:'JetBrains Mono',monospace">${fmtB(avg)}/hr</div></div>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 20px;text-align:center"><div style="font-size:10px;color:#888;letter-spacing:1px">MAX</div><div style="font-size:20px;font-weight:800;color:#16a34a;font-family:'JetBrains Mono',monospace">${fmtB(maxV)}/hr</div></div>
+    <div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:10px;padding:12px 20px;text-align:center"><div style="font-size:10px;color:#888;letter-spacing:1px">MIN</div><div style="font-size:20px;font-weight:800;color:#e74c3c;font-family:'JetBrains Mono',monospace">${fmtB(minV)}/hr</div></div>
     <div style="background:#fafafa;border:1px solid #e5e7eb;border-radius:10px;padding:12px 20px;text-align:center"><div style="font-size:10px;color:#888;letter-spacing:1px">RECORDS</div><div style="font-size:20px;font-weight:800;color:#555;font-family:'JetBrains Mono',monospace">${points.length}</div></div>`;
 
   const canvas = document.getElementById('total-graph-canvas');
@@ -2336,11 +2340,11 @@ function renderTotalGraphFromBuckets(buckets) {
       responsive: true,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => ` Total: ${fmtMeso(ctx.parsed.y)}/hr` } }
+        tooltip: { callbacks: { label: ctx => ` Total: ${fmtB(ctx.parsed.y)}/hr` } }
       },
       scales: {
         x: { type:'time', time:{tooltipFormat:'MM/dd HH:mm',displayFormats:{hour:'HH:mm'}}, ticks:{color:'#555',maxTicksLimit:12}, grid:{color:'rgba(0,0,0,.07)'} },
-        y: { ticks:{color:'#555',callback:v=>fmtMeso(v)}, grid:{color:'rgba(0,0,0,.07)'} }
+        y: { ticks:{color:'#555',callback:v=>fmtB(v)}, grid:{color:'rgba(0,0,0,.07)'} }
       }
     }
   });
