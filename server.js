@@ -16,18 +16,16 @@ const DISCORD_CLIENT_ID     = process.env.DISCORD_CLIENT_ID     || "";
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || "";
 const DISCORD_REDIRECT_URI  = process.env.DISCORD_REDIRECT_URI  || `http://localhost:${PORT}/auth/callback`;
 const JWT_SECRET            = process.env.JWT_SECRET            || "change-this-secret-in-production";
-// 허용할 Discord 유저 ID 목록 (쉼표로 구분)
-// 예: ALLOWED_USER_IDS=123456789,987654321
 const ALLOWED_USER_IDS = (process.env.ALLOWED_USER_IDS || "")
   .split(",").map(s => s.trim()).filter(Boolean);
 
 if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
   console.warn("[AUTH] ⚠  DISCORD_CLIENT_ID / DISCORD_CLIENT_SECRET 환경변수가 없습니다.");
-  console.warn("[AUTH]    .env 파일을 확인해주세요.");
 }
 if (ALLOWED_USER_IDS.length === 0) {
   console.warn("[AUTH] ⚠  ALLOWED_USER_IDS가 비어있습니다. 아무도 로그인할 수 없습니다.");
 }
+console.log(`[AUTH] CLIENT_ID set: ${!!DISCORD_CLIENT_ID}, REDIRECT_URI: ${DISCORD_REDIRECT_URI}, ALLOWED count: ${ALLOWED_USER_IDS.length}`);
 
 // ══════════════════════════════════════
 // MIDDLEWARE
@@ -36,7 +34,6 @@ app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(cookieParser());
 
-// JWT 인증 미들웨어 — 보호된 라우트에 사용
 function requireAuth(req, res, next) {
   const token = req.cookies?.ms_token;
   if (!token) return res.status(401).json({ error: "Unauthorized" });
@@ -50,16 +47,13 @@ function requireAuth(req, res, next) {
 }
 
 // ══════════════════════════════════════
-// STATIC FILES (HTML은 인증 후 서빙)
+// STATIC FILES
 // ══════════════════════════════════════
-// index.html은 아래 catch-all에서 인증 확인 후 서빙
 app.use("/images", express.static(path.join(__dirname, "public", "images")));
 
 // ══════════════════════════════════════
-// DISCORD OAUTH2 ROUTES (공개)
+// DISCORD OAUTH2 ROUTES
 // ══════════════════════════════════════
-
-// Step 1: Discord 로그인 페이지로 리다이렉트
 app.get("/auth/discord", (req, res) => {
   if (!DISCORD_CLIENT_ID) {
     return res.status(500).send("DISCORD_CLIENT_ID 환경변수가 설정되지 않았습니다.");
@@ -73,13 +67,11 @@ app.get("/auth/discord", (req, res) => {
   res.redirect(`https://discord.com/oauth2/authorize?${params}`);
 });
 
-// Step 2: Discord 콜백 처리
 app.get("/auth/callback", async (req, res) => {
   const { code, error } = req.query;
   if (error || !code) return res.redirect("/?error=discord_denied");
 
   try {
-    // code → access_token 교환
     const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
       method:  "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -94,23 +86,21 @@ app.get("/auth/callback", async (req, res) => {
     const tokenData = await tokenRes.json();
     if (!tokenData.access_token) {
       console.error("[AUTH] Discord token error:", tokenData);
-      return res.redirect("/?error=token_failed");
+      return res.redirect("/?error=token_failed&detail=" + encodeURIComponent(tokenData.error || "unknown"));
     }
 
-    // 유저 정보 조회
     const userRes = await fetch("https://discord.com/api/users/@me", {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
     const user = await userRes.json();
     console.log(`[AUTH] Login attempt: ${user.username} (${user.id})`);
 
-    // 화이트리스트 확인
     if (!ALLOWED_USER_IDS.includes(user.id)) {
-      console.warn(`[AUTH] ❌ Denied: ${user.username} (${user.id})`);
-      return res.redirect("/?error=unauthorized");
+      console.warn(`[AUTH] ❌ Denied: ${user.username} (${user.id}). Whitelisted IDs: [${ALLOWED_USER_IDS.join(", ")}]`);
+      // ★ 본인 ID를 URL에 담아 화면에 표시 → ALLOWED_USER_IDS에 어떤 ID를 추가해야 하는지 즉시 확인 가능
+      return res.redirect(`/?error=unauthorized&uid=${encodeURIComponent(user.id)}&uname=${encodeURIComponent(user.username)}`);
     }
 
-    // JWT 발급 (7일)
     const payload = {
       id:            user.id,
       username:      user.username,
@@ -121,9 +111,9 @@ app.get("/auth/callback", async (req, res) => {
 
     res.cookie("ms_token", jwtToken, {
       httpOnly: true,
-      maxAge:   7 * 24 * 60 * 60 * 1000, // 7일 (ms)
+      maxAge:   7 * 24 * 60 * 60 * 1000,
       sameSite: "lax",
-      secure:   process.env.NODE_ENV === "production", // HTTPS 환경에서만 secure
+      secure:   process.env.NODE_ENV === "production",
     });
 
     console.log(`[AUTH] ✅ Logged in: ${user.username} (${user.id})`);
@@ -131,17 +121,15 @@ app.get("/auth/callback", async (req, res) => {
 
   } catch (e) {
     console.error("[AUTH] callback error:", e);
-    res.redirect("/?error=server_error");
+    res.redirect("/?error=server_error&detail=" + encodeURIComponent(e.message || "unknown"));
   }
 });
 
-// 로그아웃
 app.get("/auth/logout", (req, res) => {
   res.clearCookie("ms_token");
   res.redirect("/");
 });
 
-// 현재 로그인 유저 확인 (프론트에서 호출)
 app.get("/api/me", (req, res) => {
   const token = req.cookies?.ms_token;
   if (!token) return res.json({ auth: false });
@@ -154,8 +142,21 @@ app.get("/api/me", (req, res) => {
   }
 });
 
+// ★ 환경설정 진단 엔드포인트 (시크릿은 노출 안 함, 존재 여부만)
+app.get("/api/auth/debug", (req, res) => {
+  res.json({
+    client_id_set:     !!DISCORD_CLIENT_ID,
+    client_secret_set: !!DISCORD_CLIENT_SECRET,
+    redirect_uri:      DISCORD_REDIRECT_URI,
+    jwt_secret_set:    JWT_SECRET !== "change-this-secret-in-production",
+    allowed_user_count: ALLOWED_USER_IDS.length,
+    allowed_user_ids:   ALLOWED_USER_IDS, // 본인 ID 확인용, 비밀 아님
+    node_env:          process.env.NODE_ENV || "(not set)",
+  });
+});
+
 // ══════════════════════════════════════
-// MAP NAMES (파일 기반)
+// MAP NAMES
 // ══════════════════════════════════════
 const MAPNAMES_PATH = path.join(__dirname, "public", "mapnames.json");
 function loadMapNames() {
@@ -170,19 +171,45 @@ function saveMapNames(obj) {
 }
 
 // ══════════════════════════════════════
-// DB READY → 라우트 등록
+// DB READY → ROUTES
 // ══════════════════════════════════════
 dbMod.getDb().then(() => {
   console.log("[DB] Ready");
 
-  // ── 봇 전용 라우트 (공개 — Lua 스크립트가 토큰으로 직접 호출) ──
+  // 봇 전용 (공개 — Lua 토큰)
   app.use("/api/bot-heartbeat/client", require("./routes/heartbeat"));
 
-  // ── 인증 필요 라우트 ──
+  // 인증 필요
   app.use("/api/tracker",        require("./routes/tracker"));
   app.use("/api/seller",         requireAuth, require("./routes/seller"));
   app.use("/api/forced-offline", requireAuth, require("./routes/forced"));
   app.use("/api/management",     require("./routes/management").router);
+
+  // ★★★ NEW: PC 태그 API ★★★
+  app.get("/api/bot-tags", requireAuth, (req, res) => {
+    const rows = dbMod.all("SELECT ign, pc_tag, updated_at FROM bot_pc_tags ORDER BY ign");
+    return res.json(rows);
+  });
+  app.post("/api/bot-tags", requireAuth, (req, res) => {
+    const { ign, pc_tag } = req.body;
+    if (!ign) return res.status(400).json({ error: "ign required" });
+    const now = Date.now();
+    if (!pc_tag || !pc_tag.trim()) {
+      dbMod.run("DELETE FROM bot_pc_tags WHERE ign=?", [ign]);
+      return res.json({ ok: true, ign, pc_tag: "", deleted: true });
+    }
+    const tag = pc_tag.trim().slice(0, 32);
+    dbMod.run(
+      `INSERT INTO bot_pc_tags (ign, pc_tag, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT(ign) DO UPDATE SET pc_tag=excluded.pc_tag, updated_at=excluded.updated_at`,
+      [ign, tag, now]
+    );
+    return res.json({ ok: true, ign, pc_tag: tag });
+  });
+  app.delete("/api/bot-tags/:ign", requireAuth, (req, res) => {
+    dbMod.run("DELETE FROM bot_pc_tags WHERE ign=?", [req.params.ign]);
+    return res.json({ ok: true });
+  });
 
   // Map names
   app.get("/api/mapnames", requireAuth, (req, res) => {
@@ -229,7 +256,7 @@ dbMod.getDb().then(() => {
     return res.json(dbMod.all("SELECT owner FROM clients ORDER BY owner"));
   });
 
-  // ── Catch-all: index.html 서빙 ──
+  // Catch-all
   app.get("*", (req, res) => {
     res.sendFile(path.join(__dirname, "public", "index.html"));
   });
