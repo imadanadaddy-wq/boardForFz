@@ -184,7 +184,7 @@ input::placeholder{color:#aaa;font-weight:normal}
 
 /* SITE LOCK */
 #site-lock-overlay{position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#004d5e 0%,#006064 50%,#00838f 100%);display:flex;align-items:center;justify-content:center}
-.site-lock-box{background:#fff;border-top:3px solid #fff;border-left:3px solid #fff;border-right:3px solid var(--ms-border-dark);border-bottom:3px solid var(--ms-border-dark);box-shadow:6px 6px 24px rgba(0,0,0,.35);padding:44px 52px;text-align:center;min-width:340px;max-width:90vw}
+.site-lock-box{background:#fff;border-top:3px solid #fff;border-left:3px solid #fff;border-right:3px solid var(--ms-border-dark);border-bottom:3px solid var(--ms-border-dark);box-shadow:6px 6px 24px rgba(0,0,0,.35);padding:44px 52px;text-align:center;min-width:340px;max-width:min(520px,92vw)}
 .discord-btn{display:inline-flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:13px 20px;background:#5865F2;border:none;border-radius:6px;color:#fff;font-family:'MaplestoryOTFBold',sans-serif;font-size:14px;font-weight:800;letter-spacing:.5px;cursor:pointer;transition:background .2s;text-decoration:none;margin-top:8px}
 .discord-btn:hover{background:#4752C4}
 .discord-btn svg{flex-shrink:0}
@@ -1025,10 +1025,28 @@ async function checkAuth() {
     } else {
       const params = new URLSearchParams(location.search);
       const err = params.get("error");
+      const uid = params.get("uid");
+      const uname = params.get("uname");
+      const detail = params.get("detail");
       const errEl = document.getElementById("site-lock-err");
       if (err && errEl) {
-        const msgs = { unauthorized: "⛔ Access denied.", discord_denied: "❌ Discord login cancelled.", token_failed: "❌ Discord authentication failed.", server_error: "❌ Server error." };
-        errEl.textContent = msgs[err] || "❌ Login error.";
+        if (err === "unauthorized" && uid) {
+          // ★ 본인 Discord ID/이름을 화면에 표시 → Railway env에 추가 가능
+          errEl.innerHTML = `⛔ Access denied.<br><br>
+            <div style="background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.3);border-radius:6px;padding:10px 14px;text-align:left;color:#c0392b;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.3px;line-height:1.7">
+              <div><b>Username:</b> ${uname || '(unknown)'}</div>
+              <div><b>Discord ID:</b> <code style="background:#fff;padding:1px 6px;border-radius:3px;user-select:all">${uid}</code></div>
+              <div style="margin-top:6px;color:#666">→ Add this ID to <code>ALLOWED_USER_IDS</code> on Railway env vars.</div>
+            </div>`;
+        } else {
+          const msgs = {
+            unauthorized: "⛔ Access denied. Your Discord ID is not whitelisted.",
+            discord_denied: "❌ Discord login cancelled.",
+            token_failed: "❌ Discord token exchange failed.",
+            server_error: "❌ Server error.",
+          };
+          errEl.textContent = (msgs[err] || "❌ Login error.") + (detail ? ` (${detail})` : '');
+        }
         history.replaceState({}, "", "/");
       }
     }
@@ -1228,7 +1246,7 @@ function renderMgmtItems(data) {
     return `<div class="mgmt-item-card">
       <div class="mgmt-item-card-head">
         <div>
-          <div class="mgmt-item-ign">${d.ign}</div>
+          <div class="mgmt-item-ign">${d.ign}${getPcTag(d.ign) ? `<span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#0097a7;font-weight:800;margin-left:6px;background:rgba(0,151,167,.08);border:1px solid rgba(0,151,167,.3);padding:1px 6px;border-radius:3px">🖥️ ${getPcTag(d.ign)}</span>` : ''}</div>
           <div class="mgmt-item-lv">Lv.${d.level} · ${formatAgo(d.ago_sec)}</div>
         </div>
         <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:#e74c3c;font-weight:800">⚠️ ${warnSlots.length} item(s) low</span>
@@ -1612,7 +1630,7 @@ function renderMesoCards(data) {
     const row3 = [findItem(items,"arcane"),findItem(items,"cer_sac"),findItem(items,"arcus_sac"),findItem(items,"ordium_sac"),findItem(items,"shang_sac")].map(it=>makeSlot(it)).join("");
     return `<div class="ccard">
       <div class="ccard-head">
-        <div><div class="ign">${d.ign||'Unknown'} <span>Lv.${d.level||'?'}</span></div><div style="font-size:11px;color:#555;font-weight:bold">OWNER: ${d.owner||'Hyeong'}</div></div>
+        <div><div class="ign">${d.ign||'Unknown'} <span>Lv.${d.level||'?'}</span>${getPcTag(d.ign) ? `<span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#0097a7;font-weight:800;margin-left:6px;background:rgba(0,151,167,.08);border:1px solid rgba(0,151,167,.3);padding:1px 6px;border-radius:3px">🖥️ ${getPcTag(d.ign)}</span>` : ''}</div><div style="font-size:11px;color:#555;font-weight:bold">OWNER: ${d.owner||'Hyeong'}</div></div>
         <div class="${d.online?'ccard-online':'ccard-offline'}">${d.online?'ONLINE':'OFFLINE'}</div>
       </div>
       <div class="consumable-bar">${consRow}</div>
@@ -1863,11 +1881,14 @@ async function loadPcTags() {
   try {
     const res = await fetch('/api/bot-tags');
     if (res.ok) {
-      const data = await res.json(); // [{ign, pc_tag}]
-      _pcTags = {};
-      data.forEach(r => { if (r.ign && r.pc_tag) _pcTags[r.ign] = r.pc_tag; });
-      localStorage.setItem('ms_pc_tags', JSON.stringify(_pcTags));
-      return;
+      const ct = res.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        const data = await res.json(); // [{ign, pc_tag, updated_at}]
+        _pcTags = {};
+        if (Array.isArray(data)) data.forEach(r => { if (r.ign && r.pc_tag) _pcTags[r.ign] = r.pc_tag; });
+        localStorage.setItem('ms_pc_tags', JSON.stringify(_pcTags));
+        return;
+      }
     }
   } catch(e) {}
   // 2) Fallback: localStorage
