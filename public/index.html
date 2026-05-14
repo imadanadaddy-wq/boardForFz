@@ -585,7 +585,7 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
             <th class="sortable" id="th-level" onclick="sortByLevel()">Level <span class="sort-icon"></span></th>
             <th>Channel</th>
             <th class="sortable" id="th-map" onclick="sortByMap()">Map <span class="sort-icon"></span></th>
-            <th>Status</th><th>Last Seen</th><th>Graph</th>
+            <th>Status</th><th>Last Seen</th><th>PC</th><th>Graph</th>
           </tr>
         </thead>
         <tbody id="bot-table-body">
@@ -1123,6 +1123,33 @@ function getBotRecentEvents(ign, withinHours = 2) {
     .sort((a, b) => new Date(b.ts) - new Date(a.ts));
 }
 
+// ── Drop Cause Detection ──
+// Finds the most likely reason for a meso drop at lowSinceTs (±10 min window)
+function getDropCause(ign, lowSinceTs) {
+  const ts = new Date(lowSinceTs).getTime();
+  const WINDOW = 10 * 60 * 1000; // ±10 minutes
+  const near = _changeLogCache.filter(r => {
+    if (r.ign !== ign) return false;
+    const d = Math.abs(new Date(r.ts).getTime() - ts);
+    return d <= WINDOW;
+  }).sort((a, b) => Math.abs(new Date(a.ts).getTime() - ts) - Math.abs(new Date(b.ts).getTime() - ts));
+
+  // Priority: death > evasion > cc > map > forced
+  const death  = near.find(r => r.field === 'buff_count' && r.new_val === '11');
+  const evade  = near.find(r => r.field === 'evasion');
+  const cc     = near.find(r => r.field === 'channel');
+  const map    = near.find(r => r.field === 'map_id');
+
+  if (death)  return { type: 'death',  label: '🪦 Death',         shortLabel: 'D',  color: '#9b59b6', ev: death };
+  if (evade)  return { type: 'evade',  label: '🏃 Evasion',       shortLabel: 'E',  color: '#e74c3c', ev: evade };
+  if (cc)     return { type: 'cc',     label: '📡 CC Change',     shortLabel: 'CC', color: '#0097a7', ev: cc    };
+  if (map)    return { type: 'map',    label: '🗺 Map Change',     shortLabel: 'M',  color: '#e67e22', ev: map   };
+
+  // Check if bot was forced offline around this time
+  // (no specific event but check if forced flag exists)
+  return null; // → "No Reason" handled by caller
+}
+
 // Determine event type (based on field)
 function getEventType(row) {
   if (row.field === 'channel') return 'cc';
@@ -1224,11 +1251,22 @@ function renderMgmtAlerts(data) {
   if (!allLogs.length) { logEl.innerHTML = `<div class="mgmt-empty">No alerts ✅</div>`; return; }
 
   logEl.innerHTML = allLogs.map(entry => {
-    // ★ recent events per bot
+    // ★ recent events per bot (2h window)
     const recentEvents = getBotRecentEvents(entry.ign, 2);
     const eventChips = recentEvents.length
       ? `<div class="mgmt-bot-recent-events" style="margin-top:6px">${recentEvents.map(r => buildEventChip(r, nowMs)).join('')}</div>`
       : '';
+
+    // ★ Drop cause badge (±10min from lowSince)
+    const dropCause = getDropCause(entry.ign, entry.lowSince);
+    const pcTag = getPcTag(entry.ign);
+    const pcBadge = pcTag ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:900;background:rgba(0,0,0,.06);border:1.5px solid #aaa;color:#555;padding:2px 7px;border-radius:4px;margin-left:4px;font-family:'JetBrains Mono',monospace;">🖥️ ${pcTag}</span>` : '';
+    let causeBadge = '';
+    if (dropCause) {
+      causeBadge = `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:900;font-family:'JetBrains Mono',monospace;padding:3px 10px;border-radius:4px;background:${dropCause.color}18;border:1.5px solid ${dropCause.color};color:${dropCause.color};margin-left:6px;white-space:nowrap;" title="Drop cause (±10min)">${dropCause.label}</span>`;
+    } else {
+      causeBadge = `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:900;font-family:'JetBrains Mono',monospace;padding:3px 10px;border-radius:4px;background:rgba(170,170,170,.1);border:1.5px solid #ccc;color:#aaa;margin-left:6px;white-space:nowrap;" title="No matching event within ±10min">❓ No Reason</span>`;
+    }
 
     if (entry._type === 'active') {
       const a = entry;
@@ -1240,8 +1278,9 @@ function renderMgmtAlerts(data) {
       const badgeText = a.alerted ? `📢 Discord alert sent` : isLong ? `🚨 15min exceeded · Sending alert` : `⏳ ${mgmtFmtDur(durMs)} elapsed`;
       return `<div class="mgmt-log-card ${cls}">
         <div class="mgmt-log-header">
-          <span class="mgmt-log-ign">${icon} ${a.ign}</span>
+          <span class="mgmt-log-ign">${icon} ${a.ign}${pcBadge}</span>
           <span class="mgmt-log-badge">${badgeText}</span>
+          ${causeBadge}
         </div>
         <div class="mgmt-log-meta">Lv.<b>${a.level}</b> · current <b>${mgmtFmtM(a.lastMesoHr)}/hr</b> · below threshold for <b>${mgmtFmtDur(durMs)}</b></div>
         <div class="mgmt-log-time">⏱ Low since: <b>${since}</b> ~ ongoing</div>
@@ -1255,8 +1294,9 @@ function renderMgmtAlerts(data) {
       const reason = r.resolvedReason === 'offline' ? 'went offline' : 'recovered';
       return `<div class="mgmt-log-card log-resolved">
         <div class="mgmt-log-header">
-          <span class="mgmt-log-ign">🔵 ${r.ign}</span>
+          <span class="mgmt-log-ign">🔵 ${r.ign}${pcBadge}</span>
           <span class="mgmt-log-badge">✅ Resolved · ${reason}</span>
+          ${causeBadge}
         </div>
         <div class="mgmt-log-meta">Lv.<b>${r.level}</b> · after recovery <b>${mgmtFmtM(r.resolvedMesoHr)}/hr</b> · total duration <b>${dur}</b></div>
         <div class="mgmt-log-time">⏱ ${since} ~ ${resolvedAt}</div>
@@ -1366,20 +1406,31 @@ function buildBotRow(b, mapOff = false) {
   else              statusBadge = `<span class="badge-offline">OFFLINE</span>${forceBtn}`;
   const isDead    = (b.buff_count === 11);
   const deadBadge = isDead ? `<span class="badge-dead">🪦 DEAD</span>` : '';
+
+  // ★ PC tag
+  const pcTag = getPcTag(b.ign);
+  const pcCell = `<td class="pc-tag-cell" style="padding:8px 12px;min-width:80px">
+    ${pcTag
+      ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;font-family:'JetBrains Mono',monospace;background:rgba(0,151,167,.08);border:1.5px solid rgba(0,151,167,.35);color:#0097a7;padding:2px 8px;border-radius:4px;cursor:pointer" onclick="startPcTagEdit('${b.ign}',this)" title="Click to edit">🖥️ ${pcTag}</span>`
+      : `<button onclick="startPcTagEdit('${b.ign}',this)" style="background:none;border:1px dashed #ccc;color:#ccc;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:800;padding:2px 8px;cursor:pointer;border-radius:4px;white-space:nowrap;transition:all .15s" onmouseover="this.style.borderColor='#0097a7';this.style.color='#0097a7'" onmouseout="this.style.borderColor='#ccc';this.style.color='#ccc'">+ PC</button>`
+    }
+  </td>`;
+
   return `<tr${isDead ? ' style="background:rgba(155,89,182,.07)"' : ''}>
-    <td class="td-ign">${b.ign}${deadBadge}</td>
+    <td class="td-ign">${b.ign}${deadBadge}${pcTag ? `<span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#0097a7;font-weight:800;margin-left:5px;opacity:.7">🖥️${pcTag}</span>` : ''}</td>
     <td class="td-level">Lv.${b.level}</td>
     <td class="td-loc${chChanged  ? ' cell-changed' : ''}">${nullDash(b.channel)}${chChanged  ? ' <span class="changed-badge">CHANGED</span>' : ''}</td>
     <td class="td-loc${mapChanged ? ' cell-changed' : ''}" id="mapcell-${b.map_id}">${buildMapCell(b.map_id)}${mapChanged ? ' <span class="changed-badge">CHANGED</span>' : ''}</td>
     <td>${statusBadge}</td>
     <td class="td-ago">${formatAgo(b.ago_sec)}</td>
+    ${pcCell}
     <td><button onclick="isAuthed ? openGraphModal('${b.ign}') : alert('🔒 Authentication required')" style="background:none;border:1px solid rgba(255,255,255,.15);border-radius:6px;color:#aaa;cursor:pointer;padding:3px 9px;font-size:13px;transition:all .15s" title="View Meso Graph">📈</button></td>
   </tr>`;
 }
 
 function renderBotTable() {
   const tbody = document.getElementById("bot-table-body");
-  if (!botData.length){ tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state">Waiting for heartbeat signals...</div></td></tr>`; return; }
+  if (!botData.length){ tbody.innerHTML=`<tr><td colspan="8"><div class="empty-state">Waiting for heartbeat signals...</div></td></tr>`; return; }
   const forced     = applySort(botData.filter(b =>  manualOffline.has(b.owner+'|'+b.ign)));
   const forcedKeys = new Set(forced.map(b => b.owner+'|'+b.ign));
   const online     = applySort(botData.filter(b =>  b.online && isKnownMap(b.map_id) && !forcedKeys.has(b.owner+'|'+b.ign)));
@@ -1388,7 +1439,7 @@ function renderBotTable() {
   const allOffline = [...forced, ...mapOffline, ...offline];
   let html = '';
   if (online.length) {
-    html += `<tr style="background:rgba(46,204,113,.07)"><td colspan="7" style="padding:6px 14px;font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:2px;color:var(--ms-green);border-bottom:1px solid rgba(46,204,113,.25)">● ONLINE — ${online.length}</td></tr>`;
+    html += `<tr style="background:rgba(46,204,113,.07)"><td colspan="8" style="padding:6px 14px;font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:2px;color:var(--ms-green);border-bottom:1px solid rgba(46,204,113,.25)">● ONLINE — ${online.length}</td></tr>`;
     html += online.map(b => buildBotRow(b, false)).join('');
   }
   if (allOffline.length) {
@@ -1397,7 +1448,7 @@ function renderBotTable() {
       mapOffline.length ? `<span style="color:#ff9800;margin-left:8px">📍 MAP ${mapOffline.length}</span>` : '',
       offline.length    ? `<span style="color:#e74c3c;margin-left:8px">✕ DEAD ${offline.length}</span>` : '',
     ].filter(Boolean).join('');
-    html += `<tr style="background:rgba(100,100,120,.06)"><td colspan="7" style="padding:6px 14px;font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:2px;color:#bbb;border-top:2px solid rgba(100,100,120,.18);border-bottom:1px solid rgba(100,100,120,.12)">○ OFFLINE — ${allOffline.length}${subLabels}</td></tr>`;
+    html += `<tr style="background:rgba(100,100,120,.06)"><td colspan="8" style="padding:6px 14px;font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:2px;color:#bbb;border-top:2px solid rgba(100,100,120,.18);border-bottom:1px solid rgba(100,100,120,.12)">○ OFFLINE — ${allOffline.length}${subLabels}</td></tr>`;
     html += forced.map(b => { const isMapOff = b.online && !isKnownMap(b.map_id); return buildBotRow(b, isMapOff).replace('<tr>', '<tr style="opacity:.85;background:rgba(155,89,182,.04)">'); }).join('');
     html += mapOffline.map(b => buildBotRow(b, true).replace('<tr>', '<tr style="opacity:.75">')).join('');
     html += offline.map(b => buildBotRow(b, false).replace('<tr>', '<tr style="opacity:.55">')).join('');
@@ -1745,6 +1796,7 @@ async function init() {
   await checkAuth();
   await loadMapNames();
   await loadForcedOffline();
+  await loadPcTags();
   autoRegisterDefault();
   fetchFC();
   renderSessions();
@@ -1790,10 +1842,10 @@ async function init() {
     document.getElementById("ov-offline-cnt").textContent=offline.length;
     const bhrEl=document.getElementById("ov-bhr-list");
     if(!online.length){bhrEl.innerHTML='<div class="ov-empty">No bots online</div>';}
-    else{const sorted=[...online].sort((a,b)=>(b.meso_hr||0)-(a.meso_hr||0));bhrEl.innerHTML=sorted.map((d,i)=>{const cls=ovRankClass(d.meso_hr||0);return`<div class="ov-row" style="animation-delay:${i*25}ms"><div class="ov-ign"><span class="${cls}" style="font-size:9px;min-width:14px">#${i+1}</span>${d.ign||'Unknown'} <span class="ov-lv">Lv.${d.level||'?'}</span></div><div class="ov-bhr ${cls}">${ovFmt(d.meso_hr||0)}<span class="ov-bhr-unit">/hr</span></div></div>`;}).join("");}
+    else{const sorted=[...online].sort((a,b)=>(b.meso_hr||0)-(a.meso_hr||0));bhrEl.innerHTML=sorted.map((d,i)=>{const cls=ovRankClass(d.meso_hr||0);const pc=getPcTag(d.ign);const pcStr=pc?`<span style="font-size:9px;color:rgba(0,151,167,.7);border:1px solid rgba(0,151,167,.4);padding:0 4px;border-radius:2px;margin-left:3px">🖥️${pc}</span>`:'';return`<div class="ov-row" style="animation-delay:${i*25}ms"><div class="ov-ign"><span class="${cls}" style="font-size:9px;min-width:14px">#${i+1}</span>${d.ign||'Unknown'}${pcStr} <span class="ov-lv">Lv.${d.level||'?'}</span></div><div class="ov-bhr ${cls}">${ovFmt(d.meso_hr||0)}<span class="ov-bhr-unit">/hr</span></div></div>`;}).join("");}
     const offEl=document.getElementById("ov-offline-list");
     if(!offline.length){offEl.innerHTML='<div class="ov-empty">— All bots online ✓ —</div>';}
-    else{offEl.innerHTML=offline.map((d,i)=>{const key=(d.owner||'Hyeong')+'|'+d.ign;const isForced=manualOffline.has(key);const isMapOff=d.online&&!isKnownMap(d.map_id);const reasonBadge=isForced?`<span style="font-size:9px;color:#9b59b6;border:1px solid #9b59b6;padding:0 4px;border-radius:2px;margin-left:3px">FORCED</span>`:isMapOff?`<span style="font-size:9px;color:#ff9800;border:1px solid #ff9800;padding:0 4px;border-radius:2px;margin-left:3px">MAP</span>`:'';return`<div class="ov-row" style="opacity:.75;animation-delay:${i*25}ms"><div class="ov-ign">${d.ign||'Unknown'} <span class="ov-lv">Lv.${d.level||'?'}</span>${reasonBadge}<span class="ov-ago">${ovFmtAgo(d.ago_sec)}</span></div><span class="ov-badge-off">OFFLINE</span></div>`;}).join("");}
+    else{offEl.innerHTML=offline.map((d,i)=>{const key=(d.owner||'Hyeong')+'|'+d.ign;const isForced=manualOffline.has(key);const isMapOff=d.online&&!isKnownMap(d.map_id);const pc=getPcTag(d.ign);const pcStr=pc?`<span style="font-size:9px;color:rgba(0,151,167,.7);border:1px solid rgba(0,151,167,.4);padding:0 4px;border-radius:2px;margin-left:3px">🖥️${pc}</span>`:'';const reasonBadge=isForced?`<span style="font-size:9px;color:#9b59b6;border:1px solid #9b59b6;padding:0 4px;border-radius:2px;margin-left:3px">FORCED</span>`:isMapOff?`<span style="font-size:9px;color:#ff9800;border:1px solid #ff9800;padding:0 4px;border-radius:2px;margin-left:3px">MAP</span>`:'';return`<div class="ov-row" style="opacity:.75;animation-delay:${i*25}ms"><div class="ov-ign">${d.ign||'Unknown'}${pcStr} <span class="ov-lv">Lv.${d.level||'?'}</span>${reasonBadge}<span class="ov-ago">${ovFmtAgo(d.ago_sec)}</span></div><span class="ov-badge-off">OFFLINE</span></div>`;}).join("");}
     const logEl=document.getElementById("ov-log-list");
     if(!logs||!logs.length){logEl.innerHTML='<div class="ov-empty">No change records</div>';}
     else{logEl.innerHTML=logs.slice(0,20).map((l,i)=>{const t=new Date(l.ts).toLocaleTimeString("ko-KR",{hour12:false,hour:"2-digit",minute:"2-digit"});const fieldCls=l.field==="channel"?"color:#0097a7":"color:#e67e22";const fieldLabel=l.field==="channel"?"CH":"MAP";return`<div class="ov-row" style="animation-delay:${i*15}ms"><div class="ov-ign" style="gap:4px;flex-wrap:wrap;max-width:170px"><span style="font-size:10px;color:rgba(255,255,255,.25)">${t}</span><span style="font-size:12px">${l.ign||'?'}</span><span style="font-size:10px;font-weight:900;border:1px solid;padding:0 4px;border-radius:2px;${fieldCls}">${fieldLabel}</span></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px"><span style="font-size:10px;color:#888;text-decoration:line-through">${l.old_val??'—'}</span><span style="font-size:11px;font-weight:800;color:#e0f7fa">${l.new_val??'—'}</span></div></div>`;}).join("");}
@@ -1801,7 +1853,60 @@ async function init() {
   try{const saved=localStorage.getItem("ov_opacity");if(saved){document.getElementById("ov-opacity").value=saved;window.ovSetOpacity(saved);}}catch(e){}
 })();
 
-window.onload=init;
+// ══════════════════════════════════════
+// PC TAG SYSTEM  (server-backed, localStorage fallback)
+// ══════════════════════════════════════
+let _pcTags = {};  // { ign: "PC1" }
+
+async function loadPcTags() {
+  // 1) Try server
+  try {
+    const res = await fetch('/api/bot-tags');
+    if (res.ok) {
+      const data = await res.json(); // [{ign, pc_tag}]
+      _pcTags = {};
+      data.forEach(r => { if (r.ign && r.pc_tag) _pcTags[r.ign] = r.pc_tag; });
+      localStorage.setItem('ms_pc_tags', JSON.stringify(_pcTags));
+      return;
+    }
+  } catch(e) {}
+  // 2) Fallback: localStorage
+  try { _pcTags = JSON.parse(localStorage.getItem('ms_pc_tags') || '{}'); } catch(e) { _pcTags = {}; }
+}
+
+async function savePcTag(ign, tag) {
+  _pcTags[ign] = tag || '';
+  if (!tag) delete _pcTags[ign];
+  localStorage.setItem('ms_pc_tags', JSON.stringify(_pcTags));
+  // Try server
+  try {
+    await fetch('/api/bot-tags', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ign, pc_tag: tag || '', token: FORCED_TOKEN })
+    });
+  } catch(e) {}
+  renderBotTable();
+}
+
+function getPcTag(ign) { return _pcTags[ign] || ''; }
+
+window.startPcTagEdit = function(ign, btn) {
+  const cell = btn.closest('.pc-tag-cell');
+  if (!cell) return;
+  const cur = getPcTag(ign);
+  cell.innerHTML = `<div style="display:flex;gap:4px;align-items:center">
+    <input id="pc-input-${ign.replace(/\W/g,'_')}" value="${cur}" placeholder="e.g. PC1" 
+      style="background:#f0f9ff;border:1.5px solid var(--ms-accent);color:var(--ms-text);padding:2px 7px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800;outline:none;width:80px"
+      onkeydown="if(event.key==='Enter')window.savePcTagFromCell('${ign}',this.value);if(event.key==='Escape')renderBotTable()"/>
+    <button onclick="window.savePcTagFromCell('${ign}',document.getElementById('pc-input-${ign.replace(/\W/g,'_')}').value)" 
+      style="background:linear-gradient(180deg,#00acc1,#0097a7);border:1px solid var(--ms-accent);color:#fff;font-family:'MaplestoryOTFBold',sans-serif;font-size:10px;font-weight:800;padding:2px 8px;cursor:pointer">✓</button>
+  </div>`;
+  setTimeout(() => { const inp = document.getElementById(`pc-input-${ign.replace(/\W/g,'_')}`); if(inp){inp.focus();inp.select();} }, 30);
+};
+window.savePcTagFromCell = function(ign, val) { savePcTag(ign, val.trim()); };
+
+
 
 // ══════════════════════════════════════
 // MESO GRAPH
@@ -1922,44 +2027,63 @@ const changeLogMarkersPlugin = {
                   : type === 'death' ? '#9b59b6'
                   : '#888';
 
+      // Short label text
+      const shortLabel = type === 'cc'    ? 'CC'
+                       : type === 'evade' ? 'E'
+                       : type === 'map'   ? 'M'
+                       : type === 'death' ? 'D'
+                       : '?';
+
+      const RADIUS = type === 'death' || type === 'evade' ? 16 : 14;
+
       // Vertical dashed line
-      ctx.strokeStyle = color + 'bb';
+      ctx.strokeStyle = color + 'cc';
       ctx.lineWidth = type === 'death' ? 2.5 : type === 'evade' ? 2.5 : 1.8;
       ctx.setLineDash(type === 'death' || type === 'evade' ? [3,3] : [4,4]);
       ctx.beginPath();
-      ctx.moveTo(px, ca.top);
+      ctx.moveTo(px, ca.top + RADIUS * 2 + 2);
       ctx.lineTo(px, ca.bottom);
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Icon circle at top
-      const icon = type === 'cc' ? '📡' : type === 'evade' ? '🏃' : type === 'map' ? '🗺' : type === 'death' ? '🪦' : '•';
       const diffMin = Math.round((nowMs - evTs) / 60000);
-      const agoStr  = diffMin < 1 ? 'just now' : diffMin < 60 ? `${diffMin}min ago` : `${Math.round(diffMin/60)}hr ago`;
+      const agoStr  = diffMin < 1 ? 'just now' : diffMin < 60 ? `${diffMin}m ago` : `${Math.round(diffMin/60)}h ago`;
+      const circleY = ca.top + RADIUS + 3;
 
-      // Circle background
-      ctx.fillStyle = color + '28';
-      ctx.strokeStyle = color + 'cc';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([]);
+      // Drop shadow for better visibility
+      ctx.shadowColor = 'rgba(0,0,0,0.28)';
+      ctx.shadowBlur  = 6;
+
+      // Circle fill
+      ctx.fillStyle = color + 'e8';
       ctx.beginPath();
-      ctx.arc(px, ca.top + 10, 9, 0, Math.PI * 2);
+      ctx.arc(px, circleY, RADIUS, 0, Math.PI * 2);
       ctx.fill();
+
+      // Circle border
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(px, circleY, RADIUS, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Emoji text
-      ctx.font = '10px serif';
+      // Label text inside circle
+      ctx.font = `bold ${shortLabel.length > 1 ? 10 : 12}px "JetBrains Mono", monospace`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#fff';
-      ctx.fillText(icon, px, ca.top + 10);
+      ctx.shadowColor = 'rgba(0,0,0,0.4)';
+      ctx.shadowBlur = 3;
+      ctx.fillText(shortLabel, px, circleY);
+      ctx.shadowBlur = 0;
 
-      // Bottom "Nmin ago" text
+      // "Nmin ago" text below the chart
       ctx.font = 'bold 9px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillStyle = color;
-      ctx.fillText(agoStr, px, ca.bottom + 2);
+      ctx.fillText(agoStr, px, ca.bottom + 3);
     }
     ctx.restore();
   }
@@ -2057,7 +2181,7 @@ function renderAllGraphs() {
     options: {
       responsive: true,
       interaction: { mode: 'index', intersect: false },
-      layout: { padding: { bottom: 18 } },  // Bottom "Nmin ago" text padding
+      layout: { padding: { top: 38, bottom: 22 } },  // Larger circles need more top space
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtMeso(ctx.parsed.y)}/hr` } }
