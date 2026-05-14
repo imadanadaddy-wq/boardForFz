@@ -9,6 +9,10 @@ const dbMod        = require("./db");
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
+// ★★★ Railway/Heroku 등 reverse proxy 뒤에서 동작 시 필수 ★★★
+// 이걸 안 켜면: req.secure가 항상 false → Secure 쿠키가 정상 동작 안할 수 있음
+app.set('trust proxy', 1);
+
 // ══════════════════════════════════════
 // ENV CONFIG
 // ══════════════════════════════════════
@@ -113,10 +117,11 @@ app.get("/auth/callback", async (req, res) => {
       httpOnly: true,
       maxAge:   7 * 24 * 60 * 60 * 1000,
       sameSite: "lax",
-      secure:   process.env.NODE_ENV === "production",
+      secure:   true,  // Railway = 항상 HTTPS
+      path:     "/",
     });
 
-    console.log(`[AUTH] ✅ Logged in: ${user.username} (${user.id})`);
+    console.log(`[AUTH] ✅ Logged in: ${user.username} (${user.id}) — cookie set, redirecting to /`);
     res.redirect("/");
 
   } catch (e) {
@@ -150,8 +155,34 @@ app.get("/api/auth/debug", (req, res) => {
     redirect_uri:      DISCORD_REDIRECT_URI,
     jwt_secret_set:    JWT_SECRET !== "change-this-secret-in-production",
     allowed_user_count: ALLOWED_USER_IDS.length,
-    allowed_user_ids:   ALLOWED_USER_IDS, // 본인 ID 확인용, 비밀 아님
+    allowed_user_ids:   ALLOWED_USER_IDS,
     node_env:          process.env.NODE_ENV || "(not set)",
+  });
+});
+
+// ★★★ 쿠키 진단 — 브라우저가 쿠키를 보내고 있는지 확인 ★★★
+app.get("/api/cookie-debug", (req, res) => {
+  let jwt_status = "no_cookie";
+  let jwt_payload = null;
+  if (req.cookies?.ms_token) {
+    try {
+      jwt_payload = jwt.verify(req.cookies.ms_token, JWT_SECRET);
+      jwt_status = "valid";
+    } catch (e) {
+      jwt_status = "invalid: " + e.message;
+    }
+  }
+  res.json({
+    cookies_seen:       Object.keys(req.cookies || {}),
+    has_ms_token:       !!req.cookies?.ms_token,
+    ms_token_length:    req.cookies?.ms_token?.length || 0,
+    jwt_status,
+    jwt_payload,
+    raw_cookie_header:  req.headers.cookie || "(none)",
+    host:               req.headers.host,
+    protocol_seen:      req.protocol,           // 'http' or 'https'
+    req_secure:         req.secure,             // trust proxy 작동 시 true
+    x_forwarded_proto:  req.headers['x-forwarded-proto'] || "(none)",
   });
 });
 
