@@ -97,9 +97,13 @@ async function getDb() {
       resolved_meso_hr INTEGER,
       alerted         INTEGER DEFAULT 0
     );
+    CREATE TABLE IF NOT EXISTS bot_pc_tags (
+      ign        TEXT PRIMARY KEY,
+      pc_tag     TEXT NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
   `);
   // ── 기본 클라이언트 시드 (서버 재시작해도 항상 유지) ──
-  // INSERT OR IGNORE 이므로 중복 삽입 없음
   const DEFAULT_CLIENTS = [
     { owner: "Hyeong", token_t: "fd9601cc2d89007ea64825510908023994b55e445d8d930ed582f7a8532afe30",
                        token_c: "fd9601cc2d89007ea64825510908023994b55e445d8d930ed582f7a8532afe30" },
@@ -110,7 +114,7 @@ async function getDb() {
   }
   persist();
 
-  // ── 기존 DB 마이그레이션: buff_count 컬럼이 없으면 추가 ──
+  // ── 기존 DB 마이그레이션 ──
   try { db.run("ALTER TABLE private_data ADD COLUMN buff_count INTEGER DEFAULT NULL"); } catch(e) {}
 
   return db;
