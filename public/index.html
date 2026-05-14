@@ -93,6 +93,8 @@ tr:hover .force-btn{display:inline-flex;align-items:center;gap:3px}
 @keyframes pulse-badge{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(1.15)}}
 .log-field-ch{color:#0097a7;font-weight:900;font-family:'JetBrains Mono',monospace;font-size:12px;border:1.5px solid #0097a7;padding:2px 7px;border-radius:3px}
 .log-field-map{color:#e67e22;font-weight:900;font-family:'JetBrains Mono',monospace;font-size:12px;border:1.5px solid #e67e22;padding:2px 7px;border-radius:3px}
+.log-field-evade{color:#e74c3c;font-weight:900;font-family:'JetBrains Mono',monospace;font-size:12px;border:1.5px solid #e74c3c;padding:2px 7px;border-radius:3px;animation:pulse-evade 1.8s ease-in-out 3}
+@keyframes pulse-evade{0%,100%{box-shadow:0 0 0 0 rgba(231,76,60,0)}50%{box-shadow:0 0 6px 2px rgba(231,76,60,.45)}}
 .log-old{color:#bbb;font-family:'JetBrains Mono',monospace;font-size:13px;text-decoration:line-through}
 .log-new{color:var(--ms-text);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:800}
 .log-time{font-family:'JetBrains Mono',monospace;font-size:12px;color:#888;white-space:nowrap}
@@ -232,7 +234,7 @@ input::placeholder{color:#aaa;font-weight:normal}
 .mgmt-event-chip.ev-cc{background:rgba(0,151,167,.1);border-color:rgba(0,151,167,.4);color:#0097a7}
 .mgmt-event-chip.ev-map{background:rgba(230,126,34,.1);border-color:rgba(230,126,34,.4);color:#e67e22}
 .mgmt-event-chip.ev-death{background:rgba(155,89,182,.12);border-color:rgba(155,89,182,.5);color:#9b59b6;animation:pulse-dead 2.5s ease-in-out infinite}
-.mgmt-event-chip.ev-forced{background:rgba(155,89,182,.15);border-color:rgba(155,89,182,.6);color:#c39bd3}
+.mgmt-event-chip.ev-evade{background:rgba(231,76,60,.1);border-color:rgba(231,76,60,.45);color:#e74c3c;animation:pulse-evade 2.5s ease-in-out infinite}
 
 /* Logged-in user badge */
 #discord-user-badge{display:none;align-items:center;gap:7px;font-size:11px;color:rgba(255,255,255,.9);font-family:'JetBrains Mono',monospace;border:1px solid rgba(255,255,255,.35);padding:3px 10px;border-radius:4px;text-decoration:none}
@@ -1124,12 +1126,13 @@ function getBotRecentEvents(ign, withinHours = 2) {
 // Determine event type (based on field)
 function getEventType(row) {
   if (row.field === 'channel') return 'cc';
+  if (row.field === 'evasion') return 'evade';
   if (row.field === 'map_id')  return 'map';
   if (row.field === 'buff_count' && row.new_val === '11') return 'death';
   return 'other';
 }
 
-// Event → chip HTML (simplified: map. cc. death. forced)
+// Event → chip HTML
 function buildEventChip(row, nowMs) {
   const type = getEventType(row);
   const diffMs = nowMs - new Date(row.ts).getTime();
@@ -1137,20 +1140,20 @@ function buildEventChip(row, nowMs) {
   const agoStr = diffMin < 1 ? 'just now' : diffMin < 60 ? `${diffMin}min ago` : `${Math.round(diffMin/60)}hr ago`;
 
   if (type === 'cc') {
-    return `<span class="mgmt-event-chip ev-cc" title="CC ${row.old_val} → ${row.new_val}">cc · ${agoStr}</span>`;
+    return `<span class="mgmt-event-chip ev-cc" title="${row.old_val} → ${row.new_val}">📡 CC ${row.new_val} · ${agoStr}</span>`;
+  }
+  if (type === 'evade') {
+    const byIgn = row.new_val || '?';
+    return `<span class="mgmt-event-chip ev-evade" title="evaded by ${byIgn}">🏃 EVADE by "${byIgn}" · ${agoStr}</span>`;
   }
   if (type === 'map') {
-    return `<span class="mgmt-event-chip ev-map" title="${mapNames[row.new_val]||row.new_val}">map · ${agoStr}</span>`;
+    const newMap = mapNames[row.new_val] ? mapNames[row.new_val].replace(/^[^\]]+\] /, '') : row.new_val;
+    return `<span class="mgmt-event-chip ev-map" title="${row.old_val} → ${row.new_val}">🗺 ${newMap.length > 18 ? newMap.slice(0,18)+'…' : newMap} · ${agoStr}</span>`;
   }
   if (type === 'death') {
-    return `<span class="mgmt-event-chip ev-death" title="Death detected">death · ${agoStr}</span>`;
+    return `<span class="mgmt-event-chip ev-death" title="buff_count=11 detected">🪦 DEATH · ${agoStr}</span>`;
   }
   return '';
-}
-
-// Forced chip (no timestamp — shows current forced state)
-function buildForcedChip() {
-  return `<span class="mgmt-event-chip ev-forced">forced · now</span>`;
 }
 
 function renderMgmtItems(data) {
@@ -1223,10 +1226,8 @@ function renderMgmtAlerts(data) {
   logEl.innerHTML = allLogs.map(entry => {
     // ★ recent events per bot
     const recentEvents = getBotRecentEvents(entry.ign, 2);
-    const isBotForced = [...manualOffline].some(k => k.endsWith('|' + entry.ign));
-    const forcedChipHtml = isBotForced ? buildForcedChip() : '';
-    const eventChips = (recentEvents.length || isBotForced)
-      ? `<div class="mgmt-bot-recent-events" style="margin-top:6px">${forcedChipHtml}${recentEvents.map(r => buildEventChip(r, nowMs)).join('')}</div>`
+    const eventChips = recentEvents.length
+      ? `<div class="mgmt-bot-recent-events" style="margin-top:6px">${recentEvents.map(r => buildEventChip(r, nowMs)).join('')}</div>`
       : '';
 
     if (entry._type === 'active') {
@@ -1531,7 +1532,16 @@ async function fetchMeso() {
     const data = await (await fetch("/api/tracker")).json();
     data.forEach(d => { d.meso_hr = calcMesoHr(d.ign, d.meso, d.meso_hr); });
     let tFrag = 0, tMeso = 0, tHr = 0, online = 0;
-    data.forEach(d => { tMeso += (Number(d.meso) || 0); tHr += (d.meso_hr || 0); if (d.online) online++; d.items?.forEach(it => { if (it.name.includes("조각")) tFrag += it.count; }); });
+    data.forEach(d => {
+      tMeso += (Number(d.meso) || 0);
+      if (d.online) online++;
+      d.items?.forEach(it => { if (it.name.includes("조각")) tFrag += it.count; });
+      // ★ Only add meso/hr for truly online bots (not forced offline, not map offline)
+      const key = (d.owner || 'Hyeong') + '|' + d.ign;
+      const isForced  = manualOffline.has(key);
+      const isMapOff  = d.online && !isKnownMap(d.map_id);
+      if (d.online && !isForced && !isMapOff) tHr += (d.meso_hr || 0);
+    });
     document.getElementById("s-fragments").textContent = tFrag.toLocaleString();
     document.getElementById("s-meso").textContent      = fmt(tMeso);
     document.getElementById("s-total-hr").textContent  = fmt(tHr);
@@ -1660,16 +1670,50 @@ function renderChangelog(rows) {
   const tbody   = document.getElementById("changelog-body");
   const countEl = document.getElementById("log-count");
   if (!tbody) return;
-  if (countEl) countEl.textContent = rows.length + " entries";
-  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">No changes recorded yet</div></td></tr>`; return; }
-  tbody.innerHTML = rows.map(r => {
+
+  // ── Deduplicate: remove A→B then B→A same-field same-ign round-trips ──
+  const deduped = [];
+  const lastSeen = {}; // key = ign+field → {val, idx}
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const key = r.ign + '|' + r.field;
+    const prev = lastSeen[key];
+    // If this row returns to the value from two steps ago, skip the "return" row
+    if (prev && String(r.new_val) === String(prev.fromVal) && String(r.old_val) === String(prev.toVal)) {
+      // Round-trip detected — drop the earlier entry too and skip this one
+      const prevIdx = deduped.indexOf(prev.row);
+      if (prevIdx !== -1) deduped.splice(prevIdx, 1);
+      lastSeen[key] = { fromVal: r.old_val, toVal: r.new_val, row: r };
+      continue;
+    }
+    lastSeen[key] = { fromVal: r.old_val, toVal: r.new_val, row: r };
+    deduped.push(r);
+  }
+
+  if (countEl) countEl.textContent = deduped.length + " entries";
+  if (!deduped.length) { tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">No changes recorded yet</div></td></tr>`; return; }
+  tbody.innerHTML = deduped.map(r => {
     const d    = new Date(r.ts);
     const time = d.toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"}) + " " + d.toLocaleTimeString("ko-KR",{hour12:false});
-    const isMap = r.field === "map_id";
-    const fieldLabel = isMap ? `<span class="log-field-map">MAP</span>` : `<span class="log-field-ch">CH</span>`;
-    const oldVal = isMap ? (mapNames[r.old_val] ? `${mapNames[r.old_val]} (${r.old_val})` : (r.old_val === 'null' ? '—' : r.old_val)) : (r.old_val === 'null' ? '—' : r.old_val);
-    const newVal = isMap ? (mapNames[r.new_val] ? `${mapNames[r.new_val]} (${r.new_val})` : (r.new_val === 'null' ? '—' : r.new_val)) : (r.new_val === 'null' ? '—' : r.new_val);
-    return `<tr><td class="log-time">${time}</td><td class="td-ign">${r.ign}</td><td>${fieldLabel}</td><td><span class="log-old">${oldVal}</span></td><td><span class="log-new">${newVal}</span></td></tr>`;
+    const isMap   = r.field === "map_id";
+    const isEvade = r.field === "evasion";
+    let fieldLabel, oldVal, newVal;
+    if (isEvade) {
+      fieldLabel = `<span class="log-field-evade">EVADE</span>`;
+      oldVal = '—';
+      newVal = `evasion by <b style="color:#e74c3c">"${r.new_val || '?'}"</b>`;
+    } else if (isMap) {
+      fieldLabel = `<span class="log-field-map">MAP</span>`;
+      oldVal = mapNames[r.old_val] ? `${mapNames[r.old_val]} (${r.old_val})` : (r.old_val === 'null' ? '—' : r.old_val);
+      newVal = mapNames[r.new_val] ? `${mapNames[r.new_val]} (${r.new_val})` : (r.new_val === 'null' ? '—' : r.new_val);
+    } else {
+      fieldLabel = `<span class="log-field-ch">CH</span>`;
+      oldVal = r.old_val === 'null' ? '—' : r.old_val;
+      newVal = r.new_val === 'null' ? '—' : r.new_val;
+    }
+    const oldHtml = isEvade ? `<span style="color:#bbb">—</span>` : `<span class="log-old">${oldVal}</span>`;
+    const newHtml = isEvade ? `<span class="log-new">${newVal}</span>` : `<span class="log-new">${newVal}</span>`;
+    return `<tr><td class="log-time">${time}</td><td class="td-ign">${r.ign}</td><td>${fieldLabel}</td><td>${oldHtml}</td><td>${newHtml}</td></tr>`;
   }).join("");
 }
 
@@ -1826,30 +1870,47 @@ const changeLogMarkersPlugin = {
     const { ctx, chartArea: ca, scales } = chart;
     if (!ca) return;
 
-    // ── Forced offline shading ──
-    const isForced = [...manualOffline].some(k => k.endsWith('|' + highlightedIgn));
-    if (isForced) {
-      ctx.save();
-      ctx.fillStyle = 'rgba(155,89,182,0.07)';
-      ctx.fillRect(ca.left, ca.top, ca.right - ca.left, ca.bottom - ca.top);
-      ctx.font = 'bold 11px "JetBrains Mono", monospace';
-      ctx.fillStyle = '#c39bd3';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      ctx.fillText('forced', ca.left + 6, ca.top + 4);
-      ctx.restore();
-    }
-
     const events = _changeLogCache
       .filter(r => r.ign === highlightedIgn)
       .slice(0, 50); // max 50
 
-    if (!events.length) return;
+    // Also draw forced/offline markers from botData
+    const botEntry = botData.find(b => b.ign === highlightedIgn);
+    const botKey   = botEntry ? ((botEntry.owner||'Hyeong') + '|' + botEntry.ign) : null;
+    const isForced = botKey ? manualOffline.has(botKey) : false;
+    const isOffline= botEntry ? (!botEntry.online) : false;
+
+    if (!events.length && !isForced && !isOffline) return;
 
     const xScale = scales.x;
     const nowMs  = Date.now();
 
     ctx.save();
+
+    // Draw forced/offline shading on right edge of chart
+    if (botEntry && (isForced || isOffline)) {
+      const shadeColor = isForced ? '#9b59b6' : '#e74c3c';
+      const lastSeenMs = nowMs - (botEntry.ago_sec || 0) * 1000;
+      const lastPx = Math.max(xScale.getPixelForValue(lastSeenMs), ca.left);
+      if (lastPx < ca.right) {
+        ctx.fillStyle = shadeColor + '18';
+        ctx.fillRect(lastPx, ca.top, ca.right - lastPx, ca.bottom - ca.top);
+        ctx.strokeStyle = shadeColor + '88';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath();
+        ctx.moveTo(lastPx, ca.top);
+        ctx.lineTo(lastPx, ca.bottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.font = 'bold 9px "JetBrains Mono", monospace';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = shadeColor + 'cc';
+        ctx.fillText(isForced ? '🔒 FORCED' : '✕ OFFLINE', Math.min(lastPx + 4, ca.right - 60), ca.top + 4);
+      }
+    }
+
     for (const ev of events) {
       const evTs = new Date(ev.ts).getTime();
       if (evTs < xScale.min || evTs > xScale.max) continue;
@@ -1858,15 +1919,16 @@ const changeLogMarkersPlugin = {
       const type = getEventType(ev);
 
       // Color per event type
-      const color = type === 'cc' ? '#0097a7'
-                  : type === 'map' ? '#e67e22'
+      const color = type === 'cc'    ? '#0097a7'
+                  : type === 'evade' ? '#e74c3c'
+                  : type === 'map'   ? '#e67e22'
                   : type === 'death' ? '#9b59b6'
                   : '#888';
 
       // Vertical dashed line
       ctx.strokeStyle = color + 'bb';
-      ctx.lineWidth = type === 'death' ? 2.5 : 1.8;
-      ctx.setLineDash(type === 'death' ? [3,3] : [4,4]);
+      ctx.lineWidth = type === 'death' ? 2.5 : type === 'evade' ? 2.5 : 1.8;
+      ctx.setLineDash(type === 'death' || type === 'evade' ? [3,3] : [4,4]);
       ctx.beginPath();
       ctx.moveTo(px, ca.top);
       ctx.lineTo(px, ca.bottom);
@@ -1874,7 +1936,7 @@ const changeLogMarkersPlugin = {
       ctx.setLineDash([]);
 
       // Icon circle at top
-      const icon = type === 'cc' ? '📡' : type === 'map' ? '🗺' : type === 'death' ? '🪦' : '•';
+      const icon = type === 'cc' ? '📡' : type === 'evade' ? '🏃' : type === 'map' ? '🗺' : type === 'death' ? '🪦' : '•';
       const diffMin = Math.round((nowMs - evTs) / 60000);
       const agoStr  = diffMin < 1 ? 'just now' : diffMin < 60 ? `${diffMin}min ago` : `${Math.round(diffMin/60)}hr ago`;
 
@@ -2076,11 +2138,9 @@ function updateGraphChangelogBanner(ign) {
     .filter(r => r.ign === ign && nowMs - new Date(r.ts).getTime() <= 48 * 3600 * 1000)
     .slice(0, 15);
 
-  const isForced = [...manualOffline].some(k => k.endsWith('|' + ign));
-  if (!events.length && !isForced) { banner.style.display = 'none'; return; }
+  if (!events.length) { banner.style.display = 'none'; return; }
 
-  const forcedChip = isForced ? buildForcedChip() : '';
-  chips.innerHTML = forcedChip + events.map(r => buildEventChip(r, nowMs)).join('');
+  chips.innerHTML = events.map(r => buildEventChip(r, nowMs)).join('');
   banner.style.display = 'flex';
 }
 
@@ -2222,9 +2282,9 @@ function renderModalChangelog(ign) {
     const d       = new Date(r.ts);
     const timeStr = d.toLocaleTimeString('ko-KR', { hour12:false, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
 
-    const color   = type==='cc' ? '#0097a7' : type==='map' ? '#e67e22' : type==='death' ? '#9b59b6' : '#888';
-    const icon    = type==='cc' ? '📡' : type==='map' ? '🗺' : type==='death' ? '🪦' : '•';
-    const label   = type==='cc' ? `CC ${r.new_val} (prev: ${r.old_val})` : type==='map' ? `MAP → ${mapNames[r.new_val]||r.new_val}` : type==='death' ? `Death detected` : `${r.field}: ${r.new_val}`;
+    const color   = type==='cc' ? '#0097a7' : type==='evade' ? '#e74c3c' : type==='map' ? '#e67e22' : type==='death' ? '#9b59b6' : '#888';
+    const icon    = type==='cc' ? '📡' : type==='evade' ? '🏃' : type==='map' ? '🗺' : type==='death' ? '🪦' : '•';
+    const label   = type==='cc' ? `CC ${r.new_val} (prev: ${r.old_val})` : type==='evade' ? `Evasion by "${r.new_val||'?'}"` : type==='map' ? `MAP → ${mapNames[r.new_val]||r.new_val}` : type==='death' ? `Death detected` : `${r.field}: ${r.new_val}`;
 
     return `<div style="display:flex;align-items:flex-start;gap:8px;padding:4px 0;border-bottom:1px solid rgba(0,0,0,.04)">
       <span style="font-size:13px;flex-shrink:0;margin-top:1px">${icon}</span>
@@ -2283,6 +2343,7 @@ async function fetchTotalGraph() {
     const isOnlineBot = (ign) => {
       const b = botData.find(x => x.ign === ign);
       if (!b) return true; // Include if in history but not in current data
+      if (!b.online) return false; // offline bot — exclude entirely
       const key = (b.owner||'Hyeong') + '|' + b.ign;
       if (forcedKeys.has(key)) return false;
       if (b.online && !isKnownMap(b.map_id)) return false; // map offline
@@ -2328,9 +2389,21 @@ function renderTotalGraphFromBuckets(buckets) {
     if (!v || isNaN(v)) return '0B';
     return (v / 1e9).toFixed(2) + 'B';
   }
-  const points = Object.entries(buckets)
+  const rawPoints = Object.entries(buckets)
     .map(([k, v]) => ({ x: new Date(parseInt(k)), y: Math.round(v.sum) }))
     .sort((a,b) => a.x - b.x);
+
+  // ── IQR spike filter: remove points > Q3 + 3*IQR ──
+  function iqrFilter(pts) {
+    if (pts.length < 4) return pts;
+    const sorted = [...pts].sort((a, b) => a.y - b.y);
+    const q1 = sorted[Math.floor(sorted.length * 0.25)].y;
+    const q3 = sorted[Math.floor(sorted.length * 0.75)].y;
+    const iqr = q3 - q1;
+    const upper = q3 + 3 * iqr;
+    return pts.filter(p => p.y <= upper);
+  }
+  const points = iqrFilter(rawPoints);
 
   const vals = points.map(p => p.y);
   const avg  = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
