@@ -1537,10 +1537,7 @@ async function fetchMeso() {
       if (d.online) online++;
       d.items?.forEach(it => { if (it.name.includes("조각")) tFrag += it.count; });
       // ★ Only add meso/hr for truly online bots (not forced offline, not map offline)
-      const key = (d.owner || 'Hyeong') + '|' + d.ign;
-      const isForced  = manualOffline.has(key);
-      const isMapOff  = d.online && !isKnownMap(d.map_id);
-      if (d.online && !isForced && !isMapOff) tHr += (d.meso_hr || 0);
+      if (d.online) tHr += (d.meso_hr || 0);
     });
     document.getElementById("s-fragments").textContent = tFrag.toLocaleString();
     document.getElementById("s-meso").textContent      = fmt(tMeso);
