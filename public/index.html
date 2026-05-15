@@ -126,7 +126,13 @@ input::placeholder{color:#aaa;font-weight:normal}
 
 /* MESO CARDS */
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:20px}
-.ccard{background:var(--ms-panel);border-top:2px solid var(--ms-border-light);border-left:2px solid var(--ms-border-light);border-right:2px solid var(--ms-border-dark);border-bottom:2px solid var(--ms-border-dark);padding:15px;box-shadow:3px 3px 12px rgba(0,0,0,.1)}
+.ccard{background:var(--ms-panel);border-top:2px solid var(--ms-border-light);border-left:2px solid var(--ms-border-light);border-right:2px solid var(--ms-border-dark);border-bottom:2px solid var(--ms-border-dark);padding:15px;box-shadow:3px 3px 12px rgba(0,0,0,.1);position:relative;transition:opacity .2s}
+.ccard.offline-card{opacity:.55}
+.ccard.offline-card .inv-section,.ccard.offline-card .consumable-bar,.ccard.offline-card .efficiency-bar,.ccard.offline-card .status-row,.ccard.offline-card .ccard-bottom-controls{filter:blur(3px);pointer-events:none;user-select:none;transition:filter .15s}
+.ccard.offline-card:hover .inv-section,.ccard.offline-card:hover .consumable-bar,.ccard.offline-card:hover .efficiency-bar,.ccard.offline-card:hover .status-row,.ccard.offline-card:hover .ccard-bottom-controls{filter:blur(0)}
+.ccard-delete-btn{position:absolute;top:8px;right:8px;background:rgba(231,76,60,.1);border:1.5px solid rgba(231,76,60,.4);color:#c0392b;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:900;padding:3px 9px;border-radius:4px;cursor:pointer;opacity:0;transition:all .15s;z-index:5}
+.ccard:hover .ccard-delete-btn{opacity:1}
+.ccard-delete-btn:hover{background:#e74c3c;color:#fff}
 .ccard-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;padding-bottom:6px;border-bottom:1.5px solid var(--ms-border-dark)}
 .ign{font-size:18px;font-weight:800;color:#004d40}
 .ign span{font-size:12px;font-weight:bold;color:#666}
@@ -1623,7 +1629,11 @@ async function fetchMeso() {
 function renderMesoCards(data) {
   const grid = document.getElementById("meso-cards");
   if (!data.length) { grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:50px;color:#aaa">No data</div>`; return; }
-  const sorted = [...data].sort((a,b)=>(b.meso_hr||0)-(a.meso_hr||0));
+  // ★ Sort: online first (by meso_hr desc), then offline (by meso_hr desc) at bottom
+  const sorted = [...data].sort((a,b) => {
+    if (!!a.online !== !!b.online) return a.online ? -1 : 1;  // online before offline
+    return (b.meso_hr||0) - (a.meso_hr||0);
+  });
   const maxHr  = Math.max(...sorted.map(d=>d.meso_hr||0), 1);
   grid.innerHTML = sorted.map(d => {
     const items = d.items || [];
@@ -1632,7 +1642,12 @@ function renderMesoCards(data) {
     const row1 = [findItem(items,"box"),findItem(items,"조각"),findItem(items,"주흔")].map(it=>makeSlot(it)).join("");
     const row2 = [findItem(items,"flame","eternal_flame","black_flame"),findItem(items,"eternal_flame"),findItem(items,"black_flame")].map(it=>makeSlot(it)).join("");
     const row3 = [findItem(items,"arcane"),findItem(items,"cer_sac"),findItem(items,"arcus_sac"),findItem(items,"ordium_sac"),findItem(items,"shang_sac")].map(it=>makeSlot(it)).join("");
-    return `<div class="ccard">
+    const offlineCls = d.online ? '' : ' offline-card';
+    const deleteBtn = !d.online
+      ? `<button class="ccard-delete-btn" onclick="deleteBot('${d.ign}', this, event)" title="Remove this bot from all records">🗑 DELETE</button>`
+      : '';
+    return `<div class="ccard${offlineCls}">
+      ${deleteBtn}
       <div class="ccard-head">
         <div><div class="ign">${d.ign||'Unknown'} <span>Lv.${d.level||'?'}</span>${getPcTag(d.ign) ? `<span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#0097a7;font-weight:800;margin-left:6px;background:rgba(0,151,167,.08);border:1px solid rgba(0,151,167,.3);padding:1px 6px;border-radius:3px">🖥️ ${getPcTag(d.ign)}</span>` : ''}</div><div style="font-size:11px;color:#555;font-weight:bold">OWNER: ${d.owner||'Hyeong'}</div></div>
         <div class="${d.online?'ccard-online':'ccard-offline'}">${d.online?'ONLINE':'OFFLINE'}</div>
@@ -1657,6 +1672,25 @@ function renderMesoCards(data) {
       grid.onscroll = () => { const idx = Math.round(grid.scrollLeft / (grid.offsetWidth * 0.85)); dotsEl.querySelectorAll('.meso-dot').forEach((d,i) => { d.style.background = i === idx ? 'var(--ms-accent)' : '#ccc'; }); };
     }
   } else { if (hintEl) hintEl.style.display='none'; if (dotsEl) dotsEl.style.display='none'; grid.onscroll=null; }
+}
+
+// ★★★ Delete bot completely (offline only) ★★★
+async function deleteBot(ign, btnEl, ev) {
+  if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+  if (!confirm(`⚠️ Permanently delete "${ign}"?\n\nThis removes:\n  • Meso tracker data\n  • Heartbeat / channel / map history\n  • Meso/hr history\n  • PC tag\n  • Forced-offline flag\n  • Change log entries\n  • Alert log entries\n\nIf this bot ever reconnects, it'll be re-registered fresh.\n\nProceed?`)) return;
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⏳ ...'; }
+  try {
+    const r = await fetch(`/api/bot/${encodeURIComponent(ign)}`, { method: 'DELETE' });
+    const j = await r.json();
+    if (!r.ok || !j.ok) throw new Error(j.error || 'Unknown error');
+    // Refresh all relevant views
+    await fetchMeso();
+    fetchFC();
+    fetchChangelog && fetchChangelog();
+  } catch (e) {
+    alert('❌ Failed to delete: ' + e.message);
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = '🗑 DELETE'; }
+  }
 }
 function scrollMesoCard(idx) {
   const grid = document.getElementById('meso-cards');
