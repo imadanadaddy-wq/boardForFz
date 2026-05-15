@@ -2,7 +2,6 @@ const express  = require("express");
 const router   = express.Router();
 const db       = require("../db");
 const jwt      = require("jsonwebtoken");
-const { checkMesoAlert } = require("./management");
 
 const JWT_SECRET = process.env.JWT_SECRET || "change-this-secret-in-production";
 
@@ -17,35 +16,9 @@ function requireAuth(req, res, next) {
   }
 }
 
-const HISTORY_INTERVAL = 30 * 60 * 1000;
-const _svrHistory = {};
-const SVR_MAX_DIFF    = 8_000_000;
-const SVR_MAX_DT_MS   = 90_000;
-const SVR_MESO_HR_CAP = 400_000_000;
-
-function svrCalcMesoHr(owner, ign, meso) {
-  const key = owner + "|" + ign;
-  const now = Date.now();
-  if (!_svrHistory[key]) _svrHistory[key] = { samples: [], lastMeso: null, lastTs: null };
-  const h = _svrHistory[key];
-  if (h.lastMeso != null && h.lastTs != null) {
-    const dt_ms = now - h.lastTs;
-    const diff  = meso - h.lastMeso;
-    if (dt_ms > SVR_MAX_DT_MS) {
-      h.samples = [];
-    } else if (dt_ms > 0 && diff >= 0 && diff < SVR_MAX_DIFF) {
-      const rate = Math.floor((diff / dt_ms) * 3_600_000);
-      h.samples.push(rate);
-      while (h.samples.length > 12) h.samples.shift();
-    }
-  }
-  h.lastMeso = meso;
-  h.lastTs   = now;
-  if (h.samples.length < 2) return null;
-  return Math.floor(h.samples.reduce((a, b) => a + b, 0) / h.samples.length);
-}
-
-// 우회 로그인
+// ══════════════════════════════════════════════════
+// 우회 로그인 (변경 없음)
+// ══════════════════════════════════════════════════
 const BYPASS_PASSWORD = "7678";
 router.post("/bypass-login", (req, res) => {
   const { password } = req.body;
@@ -59,66 +32,23 @@ router.post("/bypass-login", (req, res) => {
   return res.json({ ok: true, username: "Local Access" });
 });
 
-// POST: 봇 하트비트
+// ══════════════════════════════════════════════════
+// ⚠️ POST /api/tracker — DEPRECATED
+// v3.0.0부터 모든 봇 데이터는 /api/bot-heartbeat/client 로 통합됨.
+// 이 라우트는 옛 Lua 클라이언트가 잘못 전송할 경우 알려주는 용도.
+// 모든 봇이 mesoboard_unified.lua로 전환 완료되면 이 블록 삭제 가능.
+// ══════════════════════════════════════════════════
 router.post("/", (req, res) => {
-  const { owner, token, ign, level, meso, meso_hr: lua_meso_hr, items, buff_count } = req.body;
-  if (!owner || !token || !ign)
-    return res.status(400).json({ error: "Missing fields" });
-  const client = db.get("SELECT * FROM tokens WHERE owner = ?", [owner]);
-  if (!client)                return res.status(401).json({ error: "Unknown owner" });
-  if (client.token !== token) return res.status(401).json({ error: "Invalid token" });
-
-  const now     = Date.now();
-  const mesoNum = Number(meso) || 0;
-  const luaHr   = Number(lua_meso_hr) || 0;
-  const buffCnt = (buff_count !== undefined && buff_count !== null) ? Number(buff_count) : null;
-
-  const svrHr = svrCalcMesoHr(owner, ign, mesoNum);
-  let verified_meso_hr;
-  if (svrHr === null) {
-    verified_meso_hr = Math.min(luaHr, SVR_MESO_HR_CAP);
-  } else {
-    const diff    = Math.abs(luaHr - svrHr);
-    const maxVal  = Math.max(luaHr, svrHr, 1);
-    const diffPct = diff / maxVal;
-    verified_meso_hr = diffPct <= 0.3
-      ? Math.round((luaHr + svrHr) / 2)
-      : Math.min(luaHr, svrHr);
-    verified_meso_hr = Math.min(verified_meso_hr, SVR_MESO_HR_CAP);
-  }
-
-  db.run(
-    `INSERT INTO private_data (owner,ign,level,meso,meso_hr,items,last_seen,buff_count)
-     VALUES (?,?,?,?,?,?,?,?)
-     ON CONFLICT(owner,ign) DO UPDATE SET
-       level=excluded.level, meso=excluded.meso, meso_hr=excluded.meso_hr,
-       items=excluded.items, last_seen=excluded.last_seen, buff_count=excluded.buff_count`,
-    [owner, ign, level||0, mesoNum, verified_meso_hr, JSON.stringify(items||[]), now, buffCnt]
-  );
-
-  const last = db.get(
-    "SELECT ts FROM meso_history WHERE owner=? AND ign=? ORDER BY ts DESC LIMIT 1",
-    [owner, ign]
-  );
-  if (!last || (now - last.ts) >= HISTORY_INTERVAL) {
-    db.run(
-      "INSERT INTO meso_history (owner,ign,meso,meso_hr,ts) VALUES (?,?,?,?,?)",
-      [owner, ign, mesoNum, verified_meso_hr, now]
-    );
-  }
-
-  let isForcedOffline = false;
-  try {
-    const row = db.get("SELECT 1 FROM forced_offline WHERE owner=? AND ign=?", [owner, ign]);
-    isForcedOffline = !!row;
-  } catch(e) {}
-
-  checkMesoAlert(owner, ign, level || 0, verified_meso_hr || null, true, isForcedOffline);
-
-  return res.json({ ok: true, verified_meso_hr, svr_hr: svrHr, lua_hr: luaHr });
+  console.warn(`[TRACKER-DEPRECATED] Legacy POST from ${req.body?.ign || "?"} — ignored. Use /api/bot-heartbeat/client.`);
+  return res.status(410).json({
+    error: "Endpoint deprecated. Use POST /api/bot-heartbeat/client (unified).",
+    legacy: true
+  });
 });
 
-// GET: 대시보드용 봇 데이터
+// ══════════════════════════════════════════════════
+// GET: 대시보드용 봇 데이터 (변경 없음)
+// ══════════════════════════════════════════════════
 router.get("/", requireAuth, (req, res) => {
   const now  = Date.now();
   const rows = db.all("SELECT * FROM private_data ORDER BY meso_hr DESC");
