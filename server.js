@@ -242,6 +242,26 @@ dbMod.getDb().then(() => {
     return res.json({ ok: true });
   });
 
+  // ★★★ NEW: 봇 완전 삭제 (메소트래커 + 하트비트 + 메소히스토리 + PC태그 + 강제오프라인) ★★★
+  app.delete("/api/bot/:ign", requireAuth, (req, res) => {
+    const ign = req.params.ign;
+    if (!ign) return res.status(400).json({ error: "ign required" });
+    try {
+      dbMod.run("DELETE FROM private_data    WHERE ign=?", [ign]);
+      dbMod.run("DELETE FROM heartbeats      WHERE ign=?", [ign]);
+      dbMod.run("DELETE FROM meso_history    WHERE ign=?", [ign]);
+      dbMod.run("DELETE FROM bot_pc_tags     WHERE ign=?", [ign]);
+      dbMod.run("DELETE FROM forced_offline  WHERE ign=?", [ign]);
+      dbMod.run("DELETE FROM bot_change_log  WHERE ign=?", [ign]);
+      dbMod.run("DELETE FROM meso_alert_log  WHERE ign=?", [ign]);
+      console.log(`[BOT-DELETE] ✅ Removed all records for ign=${ign} by ${req.user?.username}`);
+      return res.json({ ok: true, ign, deleted: true });
+    } catch (e) {
+      console.error("[BOT-DELETE] error:", e);
+      return res.status(500).json({ error: e.message });
+    }
+  });
+
   // Map names
   app.get("/api/mapnames", requireAuth, (req, res) => {
     const obj  = loadMapNames();
