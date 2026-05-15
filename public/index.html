@@ -659,6 +659,10 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
         <div class="section-title" style="margin-bottom:0">Bot Change Log</div>
         <div style="display:flex;gap:8px;align-items:center">
           <span id="log-count" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#888"></span>
+          <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;background:rgba(0,151,167,.08);border:1.5px solid rgba(0,151,167,.35);padding:4px 10px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:800;color:#0097a7;user-select:none" title="Hide bots below Lv.219">
+            <input type="checkbox" id="log-filter-low-lv" checked onchange="renderChangelog(_changeLogCache)" style="margin:0;accent-color:#0097a7"/>
+            Lv.219+ only
+          </label>
           <button class="btn" style="padding:5px 14px;font-size:11px" onclick="fetchChangelog()">↺ Refresh</button>
           <button class="btn btn-red" style="padding:5px 14px;font-size:11px" onclick="clearChangelog()">Clear All</button>
         </div>
@@ -1737,6 +1741,23 @@ function renderChangelog(rows) {
   const countEl = document.getElementById("log-count");
   if (!tbody) return;
 
+  // ★ Level filter: hide entries from bots below Lv.219
+  const filterLow = document.getElementById("log-filter-low-lv")?.checked ?? true;
+  let filteredCount = 0;
+  if (filterLow && botData.length) {
+    // Build IGN→level map from current botData
+    const levelMap = {};
+    botData.forEach(b => { if (b.ign) levelMap[b.ign] = b.level || 0; });
+    const before = rows.length;
+    rows = rows.filter(r => {
+      const lv = levelMap[r.ign];
+      // If we don't know level (bot not in botData), keep it visible
+      if (lv === undefined) return true;
+      return lv >= 219;
+    });
+    filteredCount = before - rows.length;
+  }
+
   // ── Deduplicate: remove A→B then B→A same-field same-ign round-trips ──
   const deduped = [];
   const lastSeen = {}; // key = ign+field → {val, idx}
@@ -1756,8 +1777,14 @@ function renderChangelog(rows) {
     deduped.push(r);
   }
 
-  if (countEl) countEl.textContent = deduped.length + " entries";
-  if (!deduped.length) { tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">No changes recorded yet</div></td></tr>`; return; }
+  if (countEl) {
+    countEl.textContent = deduped.length + " entries" + (filteredCount ? ` (${filteredCount} low-lv hidden)` : '');
+  }
+  if (!deduped.length) {
+    const msg = filterLow && filteredCount ? "All hidden by Lv.219+ filter" : "No changes recorded yet";
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">${msg}</div></td></tr>`;
+    return;
+  }
   tbody.innerHTML = deduped.map(r => {
     const d    = new Date(r.ts);
     const time = d.toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"}) + " " + d.toLocaleTimeString("ko-KR",{hour12:false});
