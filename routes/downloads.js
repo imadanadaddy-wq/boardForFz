@@ -7,26 +7,22 @@
 //      (예: GitHub Releases 링크)
 //
 // 라우트:
-//   GET  /api/downloads/list        → 사용 가능한 빌드 목록 JSON (인증 필요)
-//   GET  /api/downloads/file/:name  → 실제 .exe 다운로드 (인증 필요)
+//   GET  /api/downloads/list        → 사용 가능한 빌드 목록 JSON
+//   GET  /api/downloads/file/:name  → 실제 .exe 다운로드 (브라우저 redirect)
+//
+// 주: 인증 안 거는 이유:
+//   - GitHub Releases는 어차피 public
+//   - <a href> 클릭으로 외부 redirect 가는 동안 ms_token 쿠키가 SameSite로 막혀서
+//     401 → 404 GitHub 페이지로 떨어지는 문제 발생
+//   - 다운로드 카드 자체는 dash UI를 거쳐서만 노출되니 실용적으로 충분히 보호됨
 // ════════════════════════════════════════════════════════════════════
 const express = require("express");
 const router  = express.Router();
 const fs      = require("fs");
 const path    = require("path");
-const jwt     = require("jsonwebtoken");
 
-const JWT_SECRET = process.env.JWT_SECRET || "change-this-secret-in-production";
 const DOWNLOADS_DIR = path.join(__dirname, "..", "public", "downloads");
 const REDIRECT_BASE = process.env.DOWNLOAD_REDIRECT_BASE || "";
-
-// 다운로드는 인증 필요 (.exe가 외부에 노출되면 곤란하니까)
-function requireAuth(req, res, next) {
-  const token = req.cookies?.ms_token;
-  if (!token) return res.status(401).json({ error: "Unauthorized" });
-  try { req.user = jwt.verify(token, JWT_SECRET); next(); }
-  catch { res.status(401).json({ error: "Session expired" }); }
-}
 
 // 빌드 목록 (대시보드에 표시할 데이터)
 function listLocalBuilds() {
@@ -56,7 +52,7 @@ const REDIRECT_FALLBACK_FILES = [
   { name: "Maple Overlay Setup 1.0.0.exe",   kind: "installer", size: 0 },
 ];
 
-router.get("/list", requireAuth, (req, res) => {
+router.get("/list", (req, res) => {
   const local = listLocalBuilds();
 
   let builds = local;
@@ -78,7 +74,7 @@ router.get("/list", requireAuth, (req, res) => {
   });
 });
 
-router.get("/file/:name", requireAuth, (req, res) => {
+router.get("/file/:name", (req, res) => {
   // 경로 트래버설 방지: 슬래시·백슬래시·.. 차단
   const raw = req.params.name || "";
   if (raw.includes("/") || raw.includes("\\") || raw.includes("..")) {
