@@ -12,16 +12,23 @@
   "build": {
     "appId": "com.hyeong.maple-overlay",
     "productName": "Maple Overlay",
-    "directories": { "output": "../dist-electron" },
+    "directories": {
+      "output": "../dist-electron",
+      "buildResources": "build"
+    },
     "win": {
-      "target": ["nsis", "portable"]
+      "target": ["nsis", "portable"],
+      "icon": "build/icon.ico"
     },
     "portable": {
       "artifactName": "MapleOverlay-Portable-${version}.exe"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon":   "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico"
     }
   },
   "keywords": [],

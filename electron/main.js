@@ -14,6 +14,14 @@ function createOverlayWindow() {
   const savedX = store.get('winX', width - 330);
   const savedY = store.get('winY', 80);
 
+  // 패키징 후엔 resourcesPath/build/icon.ico, dev에선 build/icon.ico 둘 다 시도
+  const iconPath = path.join(__dirname, 'build', 'icon.ico');
+  let trayIconImg = nativeImage.createFromPath(iconPath);
+  if (trayIconImg.isEmpty()) {
+    const alt = path.join(process.resourcesPath || '', 'build', 'icon.ico');
+    trayIconImg = nativeImage.createFromPath(alt);
+  }
+
   overlayWin = new BrowserWindow({
     x: savedX,
     y: savedY,
@@ -21,6 +29,7 @@ function createOverlayWindow() {
     height: 480,
     minWidth: 260,
     minHeight: 200,
+    icon: iconPath,
     frame: false,
     transparent: true,
     alwaysOnTop: true,       // ★ 항상 최상위
@@ -47,11 +56,24 @@ function createOverlayWindow() {
   });
 
   overlayWin.on('closed', () => { overlayWin = null; });
+
+  // 트레이가 createTray()에서 빈 아이콘을 쓰고 있으면 여기서 다시 입혀줌
+  if (tray && !trayIconImg.isEmpty()) {
+    try { tray.setImage(trayIconImg.resize({ width: 16, height: 16 })); } catch(e){}
+  }
 }
 
 function createTray() {
-  const icon = nativeImage.createEmpty();
-  tray = new Tray(icon);
+  // 아이콘은 createOverlayWindow에서 setImage로 덮어쓰지만, 트레이 자체는 먼저 만들어둠.
+  const iconPath = path.join(__dirname, 'build', 'icon.ico');
+  let img = nativeImage.createFromPath(iconPath);
+  if (img.isEmpty()) {
+    const alt = path.join(process.resourcesPath || '', 'build', 'icon.ico');
+    img = nativeImage.createFromPath(alt);
+  }
+  if (img.isEmpty()) img = nativeImage.createEmpty();
+  else img = img.resize({ width: 16, height: 16 });
+  tray = new Tray(img);
 
   const contextMenu = Menu.buildFromTemplate([
     {
