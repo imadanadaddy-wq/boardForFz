@@ -210,6 +210,11 @@ dbMod.getDb().then(() => {
   // 봇 전용 (공개 — Lua 토큰)
   app.use("/api/bot-heartbeat/client", require("./routes/heartbeat"));
 
+  // ★★★ NEW: PC 관리 ★★★
+  //   - /register, /heartbeat, /screenshot 는 라우터 내부에서 owner/token 검증 (Electron이 호출)
+  //   - /list, PATCH/DELETE/:pc_id, /screenshot/:pc_id 는 라우터 내부에서 requireAuth
+  app.use("/api/pc", require("./routes/pc"));
+
   // 인증 필요
   app.use("/api/tracker",        require("./routes/tracker"));
   app.use("/api/seller",         requireAuth, require("./routes/seller"));

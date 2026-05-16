@@ -102,6 +102,14 @@ async function getDb() {
       pc_tag     TEXT NOT NULL,
       updated_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS pcs (
+      pc_id            TEXT PRIMARY KEY,           -- Electron이 생성/저장하는 UUID (영구 식별자)
+      name             TEXT NOT NULL DEFAULT '',   -- 사용자가 카드에서 편집. bot_pc_tags.pc_tag와 매칭.
+      ip               TEXT NOT NULL DEFAULT '',
+      first_seen       INTEGER NOT NULL,
+      last_seen        INTEGER NOT NULL,
+      last_screenshot  INTEGER DEFAULT 0
+    );
   `);
   // ── 기본 클라이언트 시드 (서버 재시작해도 항상 유지) ──
   const DEFAULT_CLIENTS = [

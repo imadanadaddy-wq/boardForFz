@@ -14,7 +14,10 @@
     "productName": "Maple Overlay",
     "directories": { "output": "../dist-electron" },
     "win": {
-      "target": "nsis"
+      "target": ["nsis", "portable"]
+    },
+    "portable": {
+      "artifactName": "MapleOverlay-Portable-${version}.exe"
     },
     "nsis": {
       "oneClick": false,

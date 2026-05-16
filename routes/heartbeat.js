@@ -12,6 +12,28 @@ const SVR_MAX_DIFF    = 8_000_000;
 const SVR_MAX_DT_MS   = 90_000;
 const SVR_MESO_HR_CAP = 400_000_000;
 
+// ── evasion dedupe (맵 전환 등으로 on_evasion이 단시간에 여러 번 트리거되어도 1번만 기록) ──
+//    key: "owner|ign|by", value: lastInsertedTs
+const _evasionDedupe = new Map();
+const EVASION_DEDUPE_MS  = 5000;        // 같은 (bot, by) 5초 내 재발생은 무시
+const EVASION_GC_MAX_AGE = 5 * 60_000;  // 5분 지난 엔트리는 GC
+
+function shouldRecordEvasion(owner, ign, by) {
+  if (!by) return false;
+  const k = `${owner}|${ign}|${by}`;
+  const now = Date.now();
+  const prev = _evasionDedupe.get(k);
+  if (prev && (now - prev) < EVASION_DEDUPE_MS) return false;
+  _evasionDedupe.set(k, now);
+  // 가벼운 GC
+  if (_evasionDedupe.size > 500) {
+    for (const [kk, ts] of _evasionDedupe) {
+      if (now - ts > EVASION_GC_MAX_AGE) _evasionDedupe.delete(kk);
+    }
+  }
+  return true;
+}
+
 function svrCalcMesoHr(owner, ign, meso) {
   const key = owner + "|" + ign;
   const now = Date.now();
@@ -182,13 +204,20 @@ router.post("/", (req, res) => {
 
   // ─────────────────────────────────────────────
   // 4) Evasion 이벤트 (on_evasion 콜백 결과)
+  //    클라이언트가 맵 전환 시 같은 detected 리스트로 콜백을 여러 번
+  //    트리거하는 경우가 있어 5초 dedupe 윈도우로 1회만 기록.
   // ─────────────────────────────────────────────
   if (evasion_by) {
-    db.run(
-      "INSERT INTO bot_change_log (ts,owner,ign,field,old_val,new_val) VALUES (?,?,?,?,?,?)",
-      [Number(evasion_ts) || now, owner, ign, "evasion", "", String(evasion_by)]
-    );
-    console.log(`[EVASION] ${ign} evaded by: ${evasion_by}`);
+    if (shouldRecordEvasion(owner, ign, evasion_by)) {
+      db.run(
+        "INSERT INTO bot_change_log (ts,owner,ign,field,old_val,new_val) VALUES (?,?,?,?,?,?)",
+        [Number(evasion_ts) || now, owner, ign, "evasion", "", String(evasion_by)]
+      );
+      console.log(`[EVASION] ${ign} evaded by: ${evasion_by}`);
+    } else {
+      // 5초 이내 동일 (owner, ign, by) 재발생 → 무시 (디버그용 로그만)
+      console.log(`[EVASION] ${ign} by ${evasion_by} — duplicate within 5s, skipped`);
+    }
   }
 
   return res.json({ ok: true, ts: now });

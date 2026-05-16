@@ -423,6 +423,40 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
   #ov-panel{border-radius:12px 12px 0 0}
   .ov-scroll{max-height:140px}
 }
+
+/* ══════ PC 관리 ══════ */
+.pc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.pc-card{background:var(--ms-panel);border:2px solid var(--ms-border-dark);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;position:relative;transition:filter .25s,opacity .25s,border-color .2s,box-shadow .2s}
+.pc-card.offline{filter:blur(2.5px) grayscale(.6);opacity:.55;pointer-events:auto}
+.pc-card.offline:hover{filter:blur(0) grayscale(.2);opacity:.9}
+.pc-card.ip-dup{border-color:var(--ms-red);box-shadow:0 0 0 1px var(--ms-red) inset, 0 0 8px rgba(231,76,60,.25)}
+.pc-card-head{display:flex;align-items:center;gap:8px}
+.pc-name-input{flex:1;background:var(--ms-slot);border:1.5px solid var(--ms-border-dark);border-radius:5px;padding:6px 10px;font-family:'MaplestoryOTFBold',sans-serif;font-size:14px;color:var(--ms-text);min-width:0}
+.pc-name-input:focus{outline:none;border-color:var(--ms-accent);background:#fff}
+.pc-name-input::placeholder{color:#aaa;font-weight:400}
+.pc-del-btn{background:none;border:1.5px solid var(--ms-border-dark);color:#888;width:30px;height:30px;border-radius:5px;cursor:pointer;font-size:13px;flex-shrink:0;transition:all .15s}
+.pc-del-btn:hover{color:var(--ms-red);border-color:var(--ms-red);background:rgba(231,76,60,.06)}
+.pc-meta{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:11px;font-family:'JetBrains Mono',monospace;color:#555;letter-spacing:.3px}
+.pc-meta-row{display:flex;align-items:center;gap:5px}
+.pc-meta-lbl{color:#999;font-weight:800;font-size:10px;text-transform:uppercase;letter-spacing:1px}
+.pc-meta-val{font-weight:800;color:var(--ms-text)}
+.pc-ip-chip{padding:2px 7px;border-radius:3px;background:var(--ms-slot);font-weight:800}
+.pc-ip-chip.dup{background:rgba(231,76,60,.13);color:var(--ms-red);border:1px solid rgba(231,76,60,.45)}
+.pc-status-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+.pc-status-dot.on{background:var(--ms-green);box-shadow:0 0 4px var(--ms-green)}
+.pc-status-dot.off{background:#999}
+.pc-shot{width:100%;aspect-ratio:16/9;background:#0b0b0b url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%2256%22><text x=%2250%22 y=%2230%22 fill=%22%23444%22 font-family=%22monospace%22 font-size=%229%22 text-anchor=%22middle%22>NO SCREENSHOT</text></svg>') no-repeat center/contain;border:1.5px solid var(--ms-border-dark);border-radius:6px;display:block;object-fit:cover}
+.pc-shot-meta{font-size:10px;color:#888;font-family:'JetBrains Mono',monospace;text-align:right;margin-top:-4px;letter-spacing:.5px}
+.pc-bots{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
+.pc-bot-chip{display:inline-flex;align-items:center;gap:4px;background:var(--ms-slot);border:1px solid var(--ms-border-dark);border-radius:14px;padding:3px 9px;font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:800;color:var(--ms-text)}
+.pc-bot-chip.bot-on{border-color:var(--ms-green);background:rgba(46,204,113,.1)}
+.pc-bot-chip.bot-off{opacity:.55}
+.pc-bot-chip .dot{width:6px;height:6px;border-radius:50%;background:#999}
+.pc-bot-chip.bot-on .dot{background:var(--ms-green);box-shadow:0 0 3px var(--ms-green)}
+.pc-bots-empty{font-size:11px;color:#aaa;font-style:italic;font-family:'JetBrains Mono',monospace}
+.pc-section-lbl{font-size:10px;color:#888;font-family:'JetBrains Mono',monospace;letter-spacing:1.2px;text-transform:uppercase;font-weight:800}
+.pc-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
+.pc-empty{grid-column:1/-1;text-align:center;color:#888;font-size:13px;padding:40px 20px;background:var(--ms-panel);border:2px dashed var(--ms-border-dark);border-radius:10px}
 </style>
 </head>
 <body>
@@ -432,6 +466,7 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
   <div class="header-nav">
     <button class="cat-btn active" id="cat-btn-bot" onclick="switchCategory('bot')">🤖 BOT</button>
     <button class="cat-btn" id="cat-btn-meso" onclick="switchCategory('meso')">💰 MESO</button>
+    <button class="cat-btn" id="cat-btn-pc"   onclick="switchCategory('pc')">🖥️ PC</button>
     <a id="discord-user-badge" href="/auth/logout" title="Logout"></a>
     <span id="auth-badge">OWNER</span>
     <button id="ov-toggle-btn" onclick="toggleOverlay()">📊 OVERLAY</button>
@@ -554,6 +589,10 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
     <div class="sidebar-divider"></div>
     <div class="sidebar-section-label">MANAGEMENT</div>
     <button class="sidebar-item" id="sb-management" onclick="switchTab('management',this)">🔔 Bot Management</button>
+  </div>
+  <div id="sidebar-pc" style="display:none">
+    <div class="sidebar-section-label">PC</div>
+    <button class="sidebar-item" id="sb-pcs" onclick="switchTab('pcs',this)">🖥️ PC Status</button>
   </div>
 </div>
 
@@ -805,6 +844,23 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
       <div id="mgmt-alert-log" style="display:flex;flex-direction:column;gap:8px">
         <div class="mgmt-empty">Loading...</div>
       </div>
+    </div>
+  </div>
+
+  <!-- TAB: PC STATUS -->
+  <div class="tab-content" id="tab-pcs">
+    <div class="pc-toolbar">
+      <div class="section-title" style="margin-bottom:0">🖥️ PC Status</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div id="pc-summary" style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace;letter-spacing:.5px"></div>
+        <button class="btn" style="padding:5px 14px;font-size:11px" onclick="fetchPcs()">↺ Refresh</button>
+      </div>
+    </div>
+    <div id="pc-help" style="font-size:11px;color:#777;background:var(--ms-slot);border-left:3px solid var(--ms-accent);padding:8px 12px;border-radius:4px;margin-bottom:12px;line-height:1.6">
+      각 카드의 <b>PC 이름</b>은 직접 입력해서 저장. Bot Status에서 봇의 <b>PC 태그</b>와 이 이름이 <b>완전히 같으면</b> 그 봇이 카드 하단에 표시됩니다. 같은 IP를 쓰는 카드는 <span style="color:var(--ms-red);font-weight:800">빨간 테두리</span>로 강조, 5분 이상 신호 없는 PC는 <b>흐리게</b> 표시 (호버하면 또렷해짐).
+    </div>
+    <div id="pc-grid" class="pc-grid">
+      <div class="pc-empty">Loading...</div>
     </div>
   </div>
 
@@ -1079,12 +1135,17 @@ function applyAuth() {
 let currentCategory = 'bot';
 function switchCategory(cat) {
   currentCategory = cat;
-  document.getElementById("cat-btn-bot").classList.toggle("active", cat==="bot");
+  document.getElementById("cat-btn-bot") .classList.toggle("active", cat==="bot");
   document.getElementById("cat-btn-meso").classList.toggle("active", cat==="meso");
-  document.getElementById("sidebar-bot").style.display  = cat==="bot"  ? "block" : "none";
+  const pcBtn = document.getElementById("cat-btn-pc");
+  if (pcBtn) pcBtn.classList.toggle("active", cat==="pc");
+  document.getElementById("sidebar-bot") .style.display = cat==="bot"  ? "block" : "none";
   document.getElementById("sidebar-meso").style.display = cat==="meso" ? "block" : "none";
+  const sbPc = document.getElementById("sidebar-pc");
+  if (sbPc) sbPc.style.display = cat==="pc" ? "block" : "none";
   if (cat === "bot")  { const el = document.getElementById("sb-bots"); if(el) el.click(); }
   if (cat === "meso") { const el = document.getElementById("sb-meso"); if(el) el.click(); }
+  if (cat === "pc")   { const el = document.getElementById("sb-pcs");  if(el) el.click(); }
 }
 
 function injectOwnerSellerPanel() {
@@ -1118,6 +1179,7 @@ function switchTab(name, btn) {
   if (tabEl) tabEl.classList.add("active");
   if (name === "changelog")  fetchChangelog();
   if (name === "management") fetchManagement();
+  if (name === "pcs")        fetchPcs();
 }
 
 // ── BOT MANAGEMENT ──
@@ -1350,6 +1412,151 @@ function mgmtFmtM(n) {
 setInterval(() => {
   if (document.getElementById('tab-management')?.classList.contains('active')) fetchManagement();
 }, 60_000);
+
+// ══════════════════════════════════════════════════════════════
+// PC STATUS — 카드 렌더링, 이름 편집, 스크린샷 송출, 자동 갱신
+// ══════════════════════════════════════════════════════════════
+let _pcCache = [];
+let _pcOfflineThresholdMs = 5 * 60 * 1000;
+
+function _escAttr(s) {
+  return String(s ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function _fmtAgo(ms) {
+  if (ms == null) return "—";
+  const s = Math.max(0, Math.floor(ms / 1000));
+  if (s < 60)       return s + "초 전";
+  if (s < 3600)     return Math.floor(s / 60) + "분 전";
+  if (s < 86400)    return Math.floor(s / 3600) + "시간 전";
+  return Math.floor(s / 86400) + "일 전";
+}
+function _fmtTs(ts) {
+  if (!ts) return "—";
+  try {
+    return new Date(ts).toLocaleString("ko-KR", { hour12: false, month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" });
+  } catch { return "—"; }
+}
+
+async function fetchPcs() {
+  if (!isAuthed) return;
+  try {
+    const r = await fetch("/api/pc/list");
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json();
+    _pcCache = j.pcs || [];
+    _pcOfflineThresholdMs = j.offline_threshold_ms || _pcOfflineThresholdMs;
+    renderPcs();
+  } catch (e) {
+    console.warn("[pcs] fetch error", e);
+    const grid = document.getElementById("pc-grid");
+    if (grid) grid.innerHTML = `<div class="pc-empty">PC 목록을 불러오지 못했어요.</div>`;
+  }
+}
+
+function renderPcs() {
+  const grid = document.getElementById("pc-grid");
+  const summary = document.getElementById("pc-summary");
+  if (!grid) return;
+
+  if (!_pcCache.length) {
+    grid.innerHTML = `<div class="pc-empty">등록된 PC가 없어요. Electron 오버레이를 켜두면 자동으로 등록됩니다.</div>`;
+    if (summary) summary.textContent = "";
+    return;
+  }
+
+  const onlineCount = _pcCache.filter(p => p.online).length;
+  const dupCount    = _pcCache.filter(p => p.ip_duplicate).length;
+  if (summary) {
+    summary.textContent = `${_pcCache.length} PCs · ${onlineCount} ONLINE`
+      + (dupCount ? ` · ${dupCount} IP DUP` : "");
+  }
+
+  grid.innerHTML = _pcCache.map(p => {
+    const isOff   = !p.online;
+    const dup     = p.ip_duplicate;
+    const shotUrl = p.has_screenshot ? `/api/pc/screenshot/${encodeURIComponent(p.pc_id)}?ts=${p.last_screenshot}` : "";
+    const shotImg = shotUrl
+      ? `<img class="pc-shot" src="${shotUrl}" loading="lazy" onerror="this.style.display='none'"/>`
+      : `<div class="pc-shot"></div>`;
+    const shotMeta = p.last_screenshot
+      ? `<div class="pc-shot-meta">SCREENSHOT · ${_fmtAgo(Date.now() - p.last_screenshot)}</div>`
+      : `<div class="pc-shot-meta">스크린샷 대기중…</div>`;
+
+    const botsHtml = p.bots && p.bots.length
+      ? `<div class="pc-bots">${p.bots.map(b => {
+          const cls = b.online ? "bot-on" : "bot-off";
+          const lvl = b.level ? ` Lv.${b.level}` : "";
+          return `<span class="pc-bot-chip ${cls}" title="${_escAttr(b.ign)}${lvl}"><span class="dot"></span>${_escAttr(b.ign)}${lvl}</span>`;
+        }).join("")}</div>`
+      : `<div class="pc-bots-empty">${p.name ? "이 PC 이름과 일치하는 봇 태그 없음" : "PC 이름을 먼저 입력하세요"}</div>`;
+
+    return `
+      <div class="pc-card ${isOff ? "offline" : ""} ${dup ? "ip-dup" : ""}" data-pc="${_escAttr(p.pc_id)}">
+        <div class="pc-card-head">
+          <span class="pc-status-dot ${p.online ? "on" : "off"}" title="${p.online ? "ONLINE" : "OFFLINE 5min+"}"></span>
+          <input class="pc-name-input"
+                 type="text"
+                 placeholder="PC 이름 입력 (예: PC1)"
+                 value="${_escAttr(p.name)}"
+                 onchange="updatePcName('${_escAttr(p.pc_id)}', this.value)"
+                 maxlength="64"/>
+          <button class="pc-del-btn" title="이 카드 삭제" onclick="deletePcCard('${_escAttr(p.pc_id)}')">✕</button>
+        </div>
+        <div class="pc-meta">
+          <div class="pc-meta-row">
+            <span class="pc-meta-lbl">IP</span>
+            <span class="pc-ip-chip ${dup ? "dup" : ""}">${_escAttr(p.ip || "—")}</span>
+          </div>
+          <div class="pc-meta-row">
+            <span class="pc-meta-lbl">신호</span>
+            <span class="pc-meta-val">${_fmtAgo(p.offline_ms)}</span>
+          </div>
+          <div class="pc-meta-row">
+            <span class="pc-meta-lbl">최초</span>
+            <span class="pc-meta-val">${_fmtTs(p.first_seen)}</span>
+          </div>
+        </div>
+        ${shotImg}
+        ${shotMeta}
+        <div class="pc-section-lbl">매칭 봇 (${p.bots ? p.bots.length : 0})</div>
+        ${botsHtml}
+      </div>
+    `;
+  }).join("");
+}
+
+async function updatePcName(pcId, name) {
+  try {
+    const r = await fetch(`/api/pc/${encodeURIComponent(pcId)}`, {
+      method:  "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ name }),
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    // 봇 매칭 다시 계산하려면 전체 갱신
+    fetchPcs();
+  } catch (e) {
+    console.warn("[pcs] name update failed", e);
+    alert("PC 이름 저장 실패");
+  }
+}
+
+async function deletePcCard(pcId) {
+  if (!confirm("이 PC 카드를 삭제할까요? (PC가 켜져있으면 다시 자동 등록됩니다)")) return;
+  try {
+    const r = await fetch(`/api/pc/${encodeURIComponent(pcId)}`, { method: "DELETE" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    fetchPcs();
+  } catch (e) {
+    console.warn("[pcs] delete failed", e);
+    alert("PC 카드 삭제 실패");
+  }
+}
+
+// 자동 갱신 (PC 탭이 활성일 때만)
+setInterval(() => {
+  if (document.getElementById('tab-pcs')?.classList.contains('active')) fetchPcs();
+}, 30_000);
 
 // ── FORMAT ──
 function fmt(n) {

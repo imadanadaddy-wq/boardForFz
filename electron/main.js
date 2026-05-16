@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, screen, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 const Store = require('electron-store');
+const pcClient = require('./pc-client');
 
 const store = new Store();
 
@@ -96,22 +97,44 @@ ipcMain.on('window-hide',   () => overlayWin && overlayWin.hide());
 ipcMain.on('set-opacity',   (e, val) => overlayWin && overlayWin.setOpacity(val));
 
 ipcMain.handle('get-config', () => ({
-  apiUrl:   store.get('apiUrl',   'http://localhost:3000/api/bot-heartbeat/client'),
+  apiUrl:   store.get('apiUrl',   'https://hyeong.up.railway.app/api/bot-heartbeat/client'),
   interval: store.get('interval', 10000),
   opacity:  store.get('opacity',  93),
+  // PC 관리용
+  pcApiBase: store.get('pcApiBase', 'https://hyeong.up.railway.app'),
+  pcOwner:   store.get('pcOwner',   'Hyeong'),
+  pcToken:   store.get('pcToken',   'fd9601cc2d89007ea64825510908023994b55e445d8d930ed582f7a8532afe30'),
+  pcId:      pcClient.getPcId() || null,
 }));
 ipcMain.handle('save-config', (e, cfg) => {
   store.set('apiUrl',   cfg.apiUrl);
   store.set('interval', cfg.interval);
   store.set('opacity',  cfg.opacity);
+  if (cfg.pcApiBase !== undefined) store.set('pcApiBase', cfg.pcApiBase);
+  if (cfg.pcOwner   !== undefined) store.set('pcOwner',   cfg.pcOwner);
+  if (cfg.pcToken   !== undefined) store.set('pcToken',   cfg.pcToken);
+  // 설정 변경 시 pc-client에 즉시 반영
+  pcClient.updateConfig({
+    apiBase: store.get('pcApiBase'),
+    owner:   store.get('pcOwner'),
+    token:   store.get('pcToken'),
+  });
   return true;
 });
 
 app.whenReady().then(() => {
   createOverlayWindow();
   createTray();
+  // PC 카드 시스템 클라이언트 시작
+  pcClient.start(store, {
+    apiBase: store.get('pcApiBase', 'https://hyeong.up.railway.app'),
+    owner:   store.get('pcOwner',   'Hyeong'),
+    token:   store.get('pcToken',   'fd9601cc2d89007ea64825510908023994b55e445d8d930ed582f7a8532afe30'),
+  });
   app.on('activate', () => { if (!overlayWin) createOverlayWindow(); });
 });
+
+app.on('before-quit', () => { try { pcClient.stop(); } catch(e){} });
 
 // 창 닫아도 트레이 상주 유지 (종료는 트레이 메뉴 사용)
 app.on('window-all-closed', () => {});

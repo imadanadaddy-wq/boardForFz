@@ -10,7 +10,7 @@ const ALERT_DURATION_MS   = 30 * 60 * 1000;
 const MIN_LEVEL_FOR_ALERT = 260;
 
 // ★ NEW: 오프라인 전환 알람 설정
-const OFFLINE_THRESHOLD_MS    = 60 * 1000;        // 1분 이상 신호 없음 → 오프라인
+const OFFLINE_THRESHOLD_MS    = 5 * 60 * 1000;    // 5분 이상 신호 없음 → 오프라인
 const OFFLINE_CHECK_INTERVAL  = 30 * 1000;        // 30초마다 검사
 const OFFLINE_GRACE_AFTER_BOOT = 2 * 60 * 1000;   // 서버 부팅 후 2분간은 오프라인 알람 억제 (DB 로드 + 봇들 재신호 대기)
 const MIN_LEVEL_FOR_OFFLINE_ALERT = 260;          // 메소 알람과 동일 기준 (저렙 봇 제외)
@@ -236,7 +236,7 @@ function checkOfflineBots() {
       sendDiscord([{
         color: 0xe67e22,
         title: "🔴 봇 오프라인 감지",
-        description: `**${row.ign}** (Lv.${row.level}) 가 1분 이상 신호를 보내지 않습니다`,
+        description: `**${row.ign}** (Lv.${row.level}) 가 5분 이상 신호를 보내지 않습니다`,
         fields,
         footer: { text: "Maple Dash · Bot Offline Monitor" },
         timestamp: new Date().toISOString()
