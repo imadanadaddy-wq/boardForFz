@@ -248,19 +248,42 @@ input::placeholder{color:#aaa;font-weight:normal}
 #discord-user-badge img{width:20px;height:20px;border-radius:50%}
 
 /* SIDEBAR LAYOUT */
-#main-layout{display:flex;min-height:calc(100vh - 56px)}
-#sidebar{width:200px;min-width:200px;background:var(--ms-panel);border-right:2px solid var(--ms-border-dark);padding:12px 0;display:flex;flex-direction:column;gap:2px;flex-shrink:0}
-#content-area{flex:1;min-width:0;padding:24px}
-.sidebar-item{display:flex;align-items:center;gap:10px;padding:10px 18px;font-size:12px;font-weight:800;font-family:'MaplestoryOTFBold',sans-serif;color:#888;cursor:pointer;letter-spacing:.8px;text-transform:uppercase;transition:all .2s;border-left:3px solid transparent;border-right:none;background:none;border-top:none;border-bottom:none;width:100%;text-align:left}
+#main-layout{display:flex;min-height:calc(100vh - 56px);position:relative}
+#sidebar{
+  position:fixed;left:0;top:56px;height:calc(100vh - 56px);
+  width:200px;
+  background:var(--ms-panel);
+  border-right:2px solid var(--ms-border-dark);
+  padding:12px 0;
+  display:flex;flex-direction:column;gap:2px;
+  z-index:200;
+  overflow-y:auto;overflow-x:hidden;
+  transition:transform .32s cubic-bezier(.4,0,.2,1), box-shadow .32s;
+  box-shadow:3px 0 18px rgba(0,0,0,.10);
+  scrollbar-width:thin;scrollbar-color:var(--ms-border-dark) transparent;
+}
+#sidebar::-webkit-scrollbar{width:3px}
+#sidebar::-webkit-scrollbar-thumb{background:var(--ms-border-dark);border-radius:2px}
+#sidebar.sidebar-collapsed{
+  transform:translateX(-192px);
+  box-shadow:2px 0 8px rgba(0,0,0,.08);
+}
+/* peek strip on collapsed state */
+#sidebar.sidebar-collapsed::after{
+  content:'';
+  position:absolute;right:0;top:0;bottom:0;width:8px;
+  background:linear-gradient(180deg,var(--ms-border-dark),var(--ms-panel-dark));
+  cursor:pointer;
+}
+#content-area{flex:1;min-width:0;padding:24px;margin-left:200px;transition:margin-left .32s cubic-bezier(.4,0,.2,1)}
+#content-area.sidebar-collapsed-content{margin-left:8px}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:10px 18px;font-size:12px;font-weight:800;font-family:'MaplestoryOTFBold',sans-serif;color:#888;cursor:pointer;letter-spacing:.8px;text-transform:uppercase;transition:all .2s;border-left:3px solid transparent;border-right:none;background:none;border-top:none;border-bottom:none;width:100%;text-align:left;white-space:nowrap}
 .sidebar-item:hover{color:var(--ms-text);background:rgba(0,172,193,.06)}
 .sidebar-item.active{color:var(--ms-text);border-left-color:var(--ms-accent);background:rgba(255,179,0,.08)}
-.sidebar-section-label{font-size:9px;letter-spacing:2px;color:#bbb;text-transform:uppercase;font-family:'JetBrains Mono',monospace;padding:14px 18px 4px;margin-top:4px}
+.sidebar-section-label{font-size:9px;letter-spacing:2px;color:#bbb;text-transform:uppercase;font-family:'JetBrains Mono',monospace;padding:14px 18px 4px;margin-top:4px;white-space:nowrap}
 .sidebar-divider{height:1px;background:var(--ms-border-dark);margin:6px 12px}
-
-/* HEADER CATEGORY BUTTONS */
-.cat-btn{font-size:12px;font-weight:800;color:rgba(255,255,255,.8);background:transparent;border:1.5px solid rgba(255,255,255,.4);padding:5px 16px;border-radius:4px;cursor:pointer;font-family:'MaplestoryOTFBold',sans-serif;letter-spacing:1px;text-transform:uppercase;transition:all .2s}
-.cat-btn:hover{color:#fff;border-color:var(--ms-accent)}
-.cat-btn.active{color:#fff;border-color:var(--ms-accent);background:rgba(255,179,0,.2)}
+/* cat-btn hidden – tabs replaced by unified sidebar */
+.cat-btn{display:none!important}
 #auth-badge{display:none;font-size:11px;color:#b2ff59;font-family:'JetBrains Mono',monospace;border:1px solid #b2ff59;padding:3px 8px;border-radius:3px}
 
 /* ── OVERLAY STYLES ── */
@@ -359,17 +382,13 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 
 /* ── MOBILE RESPONSIVE ── */
 @media(max-width:700px){
-  #sidebar{width:140px;min-width:140px}
+  #sidebar{width:180px}
   .sidebar-item{padding:8px 10px;font-size:10px}
-  #content-area{padding:12px}
+  #content-area{padding:12px;margin-left:8px}
 }
 @media(max-width:500px){
-  #main-layout{flex-direction:column}
-  #sidebar{width:100%;min-width:0;flex-direction:row;overflow-x:auto;border-right:none;border-bottom:2px solid var(--ms-border-dark);padding:6px;gap:4px}
-  #sidebar-bot,#sidebar-meso{display:flex!important;flex-direction:row;gap:4px;align-items:center}
-  .sidebar-section-label{display:none}
-  .sidebar-item{white-space:nowrap;border-left:none;border-bottom:3px solid transparent;padding:6px 10px}
-  .sidebar-item.active{border-left-color:transparent;border-bottom-color:var(--ms-accent)}
+  #sidebar{width:170px}
+  #content-area{padding:8px;margin-left:8px}
 }
 @media (max-width: 768px) {
   header{padding:8px 10px;gap:6px;flex-wrap:wrap}
@@ -464,9 +483,6 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
   <div class="header-logo"></div>
   <div class="header-title">Hyeong Maple Dash</div>
   <div class="header-nav">
-    <button class="cat-btn active" id="cat-btn-bot" onclick="switchCategory('bot')">🤖 BOT</button>
-    <button class="cat-btn" id="cat-btn-meso" onclick="switchCategory('meso')">💰 MESO</button>
-    <button class="cat-btn" id="cat-btn-pc"   onclick="switchCategory('pc')">🖥️ PC</button>
     <a id="discord-user-badge" href="/auth/logout" title="Logout"></a>
     <span id="auth-badge">OWNER</span>
     <button id="ov-toggle-btn" onclick="toggleOverlay()">📊 OVERLAY</button>
@@ -574,26 +590,35 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 <div id="main-layout">
 <!-- ══ SIDEBAR ══ -->
 <div id="sidebar">
-  <div id="sidebar-bot">
-    <div class="sidebar-section-label">BOT</div>
-    <button class="sidebar-item active" id="sb-bots"      onclick="switchTab('bots',this)">📡 Bot Status</button>
-    <button class="sidebar-item"        id="sb-changelog" onclick="switchTab('changelog',this)">📋 Change Log</button>
-    <button class="sidebar-item"        id="sb-seller"    onclick="switchTab('seller',this)">💳 Seller Calc</button>
-    <button class="sidebar-item"        id="sb-register"  onclick="switchTab('register',this)">🔧 Register Client</button>
+  <!-- BOT -->
+  <div class="sidebar-section-label">BOT</div>
+  <button class="sidebar-item active" id="sb-bots"      onclick="switchTab('bots',this)">📡 Bot Status</button>
+  <button class="sidebar-item"        id="sb-changelog" onclick="switchTab('changelog',this)">📋 Change Log</button>
+  <!-- hidden legacy tabs -->
+  <div style="display:none">
+    <button class="sidebar-item" id="sb-seller"   onclick="switchTab('seller',this)">💳 Seller Calc</button>
+    <button class="sidebar-item" id="sb-register" onclick="switchTab('register',this)">🔧 Register Client</button>
   </div>
-  <div id="sidebar-meso" style="display:none">
-    <div class="sidebar-section-label">MESO</div>
-    <button class="sidebar-item" id="sb-meso"       onclick="switchTab('meso',this)">💰 Meso Tracker</button>
-    <button class="sidebar-item" id="sb-mesoGraph"  onclick="switchTab('mesoGraph',this)">📈 Meso Graph</button>
-    <button class="sidebar-item" id="sb-totalGraph" onclick="switchTab('totalGraph',this)">🔢 Total Meso/HR</button>
-    <div class="sidebar-divider"></div>
-    <div class="sidebar-section-label">MANAGEMENT</div>
-    <button class="sidebar-item" id="sb-management" onclick="switchTab('management',this)">🔔 Bot Management</button>
-  </div>
-  <div id="sidebar-pc" style="display:none">
-    <div class="sidebar-section-label">PC</div>
-    <button class="sidebar-item" id="sb-pcs" onclick="switchTab('pcs',this)">🖥️ PC Status</button>
-  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <!-- MESO -->
+  <div class="sidebar-section-label">MESO</div>
+  <button class="sidebar-item" id="sb-meso"       onclick="switchTab('meso',this)">💰 Meso Tracker</button>
+  <button class="sidebar-item" id="sb-mesoGraph"  onclick="switchTab('mesoGraph',this)">📈 Meso Graph</button>
+  <button class="sidebar-item" id="sb-totalGraph" onclick="switchTab('totalGraph',this)">🔢 Total Meso/HR</button>
+
+  <div class="sidebar-divider"></div>
+
+  <!-- MANAGEMENT -->
+  <div class="sidebar-section-label">MANAGEMENT</div>
+  <button class="sidebar-item" id="sb-management" onclick="switchTab('management',this)">🔔 Bot Management</button>
+
+  <div class="sidebar-divider"></div>
+
+  <!-- PC -->
+  <div class="sidebar-section-label">PC</div>
+  <button class="sidebar-item" id="sb-pcs" onclick="switchTab('pcs',this)">🖥️ PC Status</button>
 </div>
 
 <!-- ══ CONTENT AREA ══ -->
@@ -1141,22 +1166,45 @@ function applyAuth() {
   fetchChangelog();
 }
 
-// ── CATEGORY SWITCHING ──
+// ── SIDEBAR AUTO-HIDE ──
+(function() {
+  let hideTimer = null;
+  const HIDE_DELAY = 3500;
+
+  function collapseNow() {
+    const sb = document.getElementById('sidebar');
+    const ca = document.getElementById('content-area');
+    if (sb) sb.classList.add('sidebar-collapsed');
+    if (ca) ca.classList.add('sidebar-collapsed-content');
+  }
+  function expandNow() {
+    const sb = document.getElementById('sidebar');
+    const ca = document.getElementById('content-area');
+    if (sb) sb.classList.remove('sidebar-collapsed');
+    if (ca) ca.classList.remove('sidebar-collapsed-content');
+  }
+  function scheduleHide() {
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(collapseNow, HIDE_DELAY);
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const sb = document.getElementById('sidebar');
+    if (!sb) return;
+    scheduleHide();
+    sb.addEventListener('mouseenter', function() {
+      clearTimeout(hideTimer);
+      expandNow();
+    });
+    sb.addEventListener('mouseleave', function() {
+      scheduleHide();
+    });
+  });
+})();
+
+// ── CATEGORY SWITCHING (legacy no-op stubs) ──
 let currentCategory = 'bot';
-function switchCategory(cat) {
-  currentCategory = cat;
-  document.getElementById("cat-btn-bot") .classList.toggle("active", cat==="bot");
-  document.getElementById("cat-btn-meso").classList.toggle("active", cat==="meso");
-  const pcBtn = document.getElementById("cat-btn-pc");
-  if (pcBtn) pcBtn.classList.toggle("active", cat==="pc");
-  document.getElementById("sidebar-bot") .style.display = cat==="bot"  ? "block" : "none";
-  document.getElementById("sidebar-meso").style.display = cat==="meso" ? "block" : "none";
-  const sbPc = document.getElementById("sidebar-pc");
-  if (sbPc) sbPc.style.display = cat==="pc" ? "block" : "none";
-  if (cat === "bot")  { const el = document.getElementById("sb-bots"); if(el) el.click(); }
-  if (cat === "meso") { const el = document.getElementById("sb-meso"); if(el) el.click(); }
-  if (cat === "pc")   { const el = document.getElementById("sb-pcs");  if(el) el.click(); }
-}
+function switchCategory(cat) { /* unified sidebar — no-op */ }
 
 function injectOwnerSellerPanel() {
   if (document.getElementById("owner-seller-panel")) return;
@@ -1904,7 +1952,7 @@ function renderMesoCards(data) {
     return `<div class="ccard${offlineCls}">
       ${deleteBtn}
       <div class="ccard-head">
-        <div><div class="ign">${d.ign||'Unknown'} <span>Lv.${d.level||'?'}</span>${getPcTag(d.ign) ? `<span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#0097a7;font-weight:800;margin-left:6px;background:rgba(0,151,167,.08);border:1px solid rgba(0,151,167,.3);padding:1px 6px;border-radius:3px">🖥️ ${getPcTag(d.ign)}</span>` : ''}</div><div style="font-size:11px;color:#555;font-weight:bold">OWNER: ${d.owner||'Hyeong'}</div></div>
+        <div><div class="ign">${d.ign||'Unknown'} <span>Lv.${d.level||'?'}</span>${getPcTag(d.ign) ? `<span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#0097a7;font-weight:800;margin-left:6px;background:rgba(0,151,167,.08);border:1px solid rgba(0,151,167,.3);padding:1px 6px;border-radius:3px">🖥️ ${getPcTag(d.ign)}</span>` : ''}</div></div>
         <div class="${d.online?'ccard-online':'ccard-offline'}">${d.online?'ONLINE':'OFFLINE'}</div>
       </div>
       <div class="consumable-bar">${consRow}</div>
