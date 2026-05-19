@@ -1337,9 +1337,10 @@ function renderMgmtItems(data) {
   const CHARM_IGNS = new Set(['KIHAO2','scan2gaa','nggaCoFFE','peruCOFFEE','J2WCOFFEE']);
   const CHARM_THR  = 2;
   const SLOT_DEFS = [
-    { label:'FUEL',  icon:ICON_MAP['연료'],         thr:100, forAll:true,  finder:(it)=>findItem(it,'연료','에센스') },
-    { label:'PET',   icon:ICON_MAP['펫먹이'],       thr:1000,forAll:true,  finder:(it)=>findItem(it,'펫먹이') },
-    { label:'WAP',   icon:ICON_MAP['재획'],         thr:100, forAll:true,  finder:(it)=>findItem(it,'재획') },
+    { label:'FUEL',  icon:ICON_MAP['연료'],         thr:100,  forAll:true,  finder:(it)=>findItem(it,'연료','에센스') },
+    { label:'PET',   icon:ICON_MAP['펫먹이'],       thr:1000, forAll:true,  finder:(it)=>findItem(it,'펫먹이') },
+    { label:'WAP',   icon:ICON_MAP['재획'],         thr:100,  forAll:true,  finder:(it)=>findItem(it,'재획') },
+    { label:'ALE',   icon:ICON_MAP['ale'],          thr:1000, forAll:true,  finder:(it)=>findItemById(it,2002023)||findItem(it,'ale') },
     { label:'CHARM', icon:ICON_MAP['safety_charm'], thr:CHARM_THR,forAll:false,finder:(it)=>findItem(it,'safety_charm') },
   ];
 
@@ -1827,6 +1828,7 @@ const ICON_MAP = {
   "주흔":         "/images/scroll.png",
   "elixir":       "/images/elixir.png",
   "chest":        "/images/chest.png",
+  "ale":          "/images/ale.png",
   "box":          "/images/box.png",
   "flame":        "/images/flame.png",
   "eternal_flame":"/images/eternal_flame.png",
@@ -1850,6 +1852,7 @@ function getIcon(name) {
   if (name.includes("elixir"))        return ICON_MAP["elixir"];
   if (name.includes("safety_charm"))  return ICON_MAP["safety_charm"];
   if (name.includes("chest"))         return ICON_MAP["chest"];
+  if (name.includes("ale"))           return ICON_MAP["ale"];
   if (name.includes("box"))           return ICON_MAP["box"];
   if (name.includes("black_flame"))   return ICON_MAP["black_flame"];
   if (name.includes("eternal_flame")) return ICON_MAP["eternal_flame"];
@@ -1869,6 +1872,15 @@ function findItem(items, keyword, ...excludes) {
     if (excludes.some(ex => it.name.includes(ex))) return false;
     return true;
   }) || null;
+}
+// item_id(숫자/문자열) 로 찾기 — ale(2002023) 등 이름 키워드가 불안정한 경우 사용
+function findItemById(items, id) {
+  if (!items) return null;
+  const sid = String(id);
+  return items.find(it =>
+    String(it.id) === sid || String(it.item_id) === sid ||
+    (it.name && it.name.includes(sid))
+  ) || null;
 }
 function makeSlot(item, small=false) {
   const cls = small ? "c-slot" : "slot";
@@ -1941,7 +1953,7 @@ function renderMesoCards(data) {
   grid.innerHTML = sorted.map(d => {
     const items = d.items || [];
     const barW  = Math.min(100, ((d.meso_hr||0)/maxHr)*100);
-    const consRow = [findItem(items,"재획"),findItem(items,"연료","에센스"),findItem(items,"펫먹이"),findItem(items,"safety_charm"),findItem(items,"chest")].map(it=>makeSlot(it,true)).join("");
+    const consRow = [findItem(items,"재획"),findItem(items,"연료","에센스"),findItem(items,"펫먹이"),findItem(items,"safety_charm"),findItemById(items,2002023)||findItem(items,"ale")].map(it=>makeSlot(it,true)).join("");
     const row1 = [findItem(items,"box"),findItem(items,"조각"),findItem(items,"주흔")].map(it=>makeSlot(it)).join("");
     const row2 = [findItem(items,"flame","eternal_flame","black_flame"),findItem(items,"eternal_flame"),findItem(items,"black_flame")].map(it=>makeSlot(it)).join("");
     const row3 = [findItem(items,"arcane"),findItem(items,"cer_sac"),findItem(items,"arcus_sac"),findItem(items,"ordium_sac"),findItem(items,"shang_sac")].map(it=>makeSlot(it)).join("");
