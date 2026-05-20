@@ -2324,8 +2324,8 @@ async function init() {
   autoRegisterDefault();
   fetchFC();
   renderSessions();
-  setInterval(()=>{ fetchFC(); if(isAuthed) fetchMeso(); }, 30000);
-  setInterval(()=>loadForcedOffline().then(()=>renderBotTable()), 30000);
+  setInterval(()=>{ fetchFC(); if(isAuthed) fetchMeso(); }, 10000);
+  setInterval(()=>loadForcedOffline().then(()=>renderBotTable()), 10000);
 }
 
 // ══════════════════════════════════════
