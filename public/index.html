@@ -238,6 +238,7 @@ input::placeholder{color:#aaa;font-weight:normal}
 .mgmt-bot-recent-events{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 .mgmt-event-chip{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;font-family:'JetBrains Mono',monospace;padding:3px 8px;border-radius:20px;white-space:nowrap;letter-spacing:.3px;border:1px solid}
 .mgmt-event-chip.ev-cc{background:rgba(0,151,167,.1);border-color:rgba(0,151,167,.4);color:#0097a7}
+.mgmt-event-chip.ev-cced{background:linear-gradient(90deg,rgba(231,76,60,.12),rgba(0,151,167,.12));border-color:rgba(231,76,60,.5);color:#e74c3c;animation:pulse-evade 2s ease-in-out 3}
 .mgmt-event-chip.ev-map{background:rgba(230,126,34,.1);border-color:rgba(230,126,34,.4);color:#e67e22}
 .mgmt-event-chip.ev-death{background:rgba(155,89,182,.12);border-color:rgba(155,89,182,.5);color:#9b59b6;animation:pulse-dead 2.5s ease-in-out infinite}
 .mgmt-event-chip.ev-evade{background:rgba(231,76,60,.1);border-color:rgba(231,76,60,.45);color:#e74c3c;animation:pulse-evade 2.5s ease-in-out infinite}
@@ -381,14 +382,17 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 }
 
 /* ── MOBILE RESPONSIVE ── */
+#mobile-nav-wrap{display:none}
 @media(max-width:700px){
   #sidebar{width:180px}
   .sidebar-item{padding:8px 10px;font-size:10px}
   #content-area{padding:12px;margin-left:8px}
 }
 @media(max-width:500px){
-  #sidebar{width:170px}
-  #content-area{padding:8px;margin-left:8px}
+  #sidebar{display:none!important}
+  #content-area{padding:8px;margin-left:0!important}
+  #mobile-nav-wrap{display:block;padding:7px 10px;background:var(--ms-panel-dark);border-bottom:1.5px solid var(--ms-border-dark)}
+  #mobile-nav{width:100%;background:var(--ms-slot);border:1.5px solid var(--ms-accent);color:var(--ms-text);font-family:'MaplestoryOTFBold',sans-serif;font-size:13px;font-weight:800;padding:8px 10px;outline:none;border-radius:0}
 }
 @media (max-width: 768px) {
   header{padding:8px 10px;gap:6px;flex-wrap:wrap}
@@ -585,6 +589,18 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
   <div class="info-pill status">
     <div class="info-content"><div class="info-label">FC BOTS</div><div class="info-val status-v" id="s-fc-online">0 | 0</div></div>
   </div>
+</div>
+
+<div id="mobile-nav-wrap">
+  <select id="mobile-nav" onchange="switchTab(this.value)">
+    <option value="bots">📡 Bot Status</option>
+    <option value="changelog">📋 Change Log</option>
+    <option value="meso">💰 Meso Tracker</option>
+    <option value="mesoGraph">📈 Meso Graph</option>
+    <option value="totalGraph">🔢 Total Meso/HR</option>
+    <option value="management">🔔 Bot Management</option>
+    <option value="pcs">🖥️ PC Status</option>
+  </select>
 </div>
 
 <div id="main-layout">
@@ -1235,6 +1251,8 @@ function switchTab(name, btn) {
   if (btn) btn.classList.add("active");
   const tabEl = document.getElementById("tab-"+name);
   if (tabEl) tabEl.classList.add("active");
+  const mobileNav = document.getElementById("mobile-nav");
+  if (mobileNav) mobileNav.value = name;
   if (name === "changelog")  fetchChangelog();
   if (name === "management") fetchManagement();
   if (name === "pcs")        fetchPcs();
@@ -1282,16 +1300,18 @@ function getDropCause(ign, lowSinceTs) {
     return d <= WINDOW;
   }).sort((a, b) => Math.abs(new Date(a.ts).getTime() - ts) - Math.abs(new Date(b.ts).getTime() - ts));
 
-  // Priority: death > evasion > cc > map > forced
+  // Priority: death > cced_by_evasion > evasion > cc > map > forced
   const death  = near.find(r => r.field === 'buff_count' && r.new_val === '11');
+  const cced   = near.find(r => r.field === 'cced_by_evasion');
   const evade  = near.find(r => r.field === 'evasion');
   const cc     = near.find(r => r.field === 'channel');
   const map    = near.find(r => r.field === 'map_id');
 
-  if (death)  return { type: 'death',  label: '🪦 Death',         shortLabel: 'D',  color: '#9b59b6', ev: death };
-  if (evade)  return { type: 'evade',  label: '🏃 Evasion',       shortLabel: 'E',  color: '#e74c3c', ev: evade };
-  if (cc)     return { type: 'cc',     label: '📡 CC Change',     shortLabel: 'CC', color: '#0097a7', ev: cc    };
-  if (map)    return { type: 'map',    label: '🗺 Map Change',     shortLabel: 'M',  color: '#e67e22', ev: map   };
+  if (death)  return { type: 'death',  label: '🪦 Death',              shortLabel: 'D',    color: '#9b59b6', ev: death };
+  if (cced)   return { type: 'cced',   label: '🏃💥 CCed by Evasion', shortLabel: 'CCED', color: '#e74c3c', ev: cced  };
+  if (evade)  return { type: 'evade',  label: '🏃 Evasion',            shortLabel: 'E',    color: '#e74c3c', ev: evade };
+  if (cc)     return { type: 'cc',     label: '📡 CC Change',          shortLabel: 'CC',   color: '#0097a7', ev: cc    };
+  if (map)    return { type: 'map',    label: '🗺 Map Change',          shortLabel: 'M',    color: '#e67e22', ev: map   };
 
   // Check if bot was forced offline around this time
   // (no specific event but check if forced flag exists)
@@ -1300,6 +1320,7 @@ function getDropCause(ign, lowSinceTs) {
 
 // Determine event type (based on field)
 function getEventType(row) {
+  if (row.field === 'cced_by_evasion') return 'cced';
   if (row.field === 'channel') return 'cc';
   if (row.field === 'evasion') return 'evade';
   if (row.field === 'map_id')  return 'map';
@@ -1314,6 +1335,12 @@ function buildEventChip(row, nowMs) {
   const diffMin = Math.round(diffMs / 60000);
   const agoStr = diffMin < 1 ? 'just now' : diffMin < 60 ? `${diffMin}min ago` : `${Math.round(diffMin/60)}hr ago`;
 
+  if (type === 'cced') {
+    const parts  = (row.new_val || '').split('||');
+    const newCh  = parts[0] || '?';
+    const byIgn  = parts[1] || '?';
+    return `<span class="mgmt-event-chip ev-cced" title="CH${row.old_val}→CH${newCh} evaded by ${byIgn}">🏃💥 CCED CH${newCh} by "${byIgn}" · ${agoStr}</span>`;
+  }
   if (type === 'cc') {
     return `<span class="mgmt-event-chip ev-cc" title="${row.old_val} → ${row.new_val}">📡 CC ${row.new_val} · ${agoStr}</span>`;
   }
@@ -2137,10 +2164,18 @@ function renderChangelog(rows) {
   tbody.innerHTML = deduped.map(r => {
     const d    = new Date(r.ts);
     const time = d.toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"}) + " " + d.toLocaleTimeString("ko-KR",{hour12:false});
-    const isMap   = r.field === "map_id";
-    const isEvade = r.field === "evasion";
+    const isMap    = r.field === "map_id";
+    const isEvade  = r.field === "evasion";
+    const isCced   = r.field === "cced_by_evasion";
     let fieldLabel, oldVal, newVal;
-    if (isEvade) {
+    if (isCced) {
+      const parts   = (r.new_val || '').split('||');
+      const newCh   = parts[0] || '?';
+      const byIgn   = parts[1] || '?';
+      fieldLabel = `<span class="log-field-evade">CCED</span>`;
+      oldVal = r.old_val === 'null' ? '—' : `CH ${r.old_val}`;
+      newVal = `CH ${newCh} · cced by <b style="color:#e74c3c">"${byIgn}"</b>`;
+    } else if (isEvade) {
       fieldLabel = `<span class="log-field-evade">EVADE</span>`;
       oldVal = '—';
       newVal = `evasion by <b style="color:#e74c3c">"${r.new_val || '?'}"</b>`;
@@ -2153,8 +2188,8 @@ function renderChangelog(rows) {
       oldVal = r.old_val === 'null' ? '—' : r.old_val;
       newVal = r.new_val === 'null' ? '—' : r.new_val;
     }
-    const oldHtml = isEvade ? `<span style="color:#bbb">—</span>` : `<span class="log-old">${oldVal}</span>`;
-    const newHtml = isEvade ? `<span class="log-new">${newVal}</span>` : `<span class="log-new">${newVal}</span>`;
+    const oldHtml = (isEvade || isCced) ? `<span style="color:#bbb">—</span>` : `<span class="log-old">${oldVal}</span>`;
+    const newHtml = `<span class="log-new">${newVal}</span>`;
     return `<tr><td class="log-time">${time}</td><td class="td-ign">${r.ign}</td><td>${fieldLabel}</td><td>${oldHtml}</td><td>${newHtml}</td></tr>`;
   }).join("");
 }
@@ -2242,7 +2277,7 @@ async function init() {
     else{offEl.innerHTML=offline.map((d,i)=>{const key=(d.owner||'Hyeong')+'|'+d.ign;const isForced=manualOffline.has(key);const isMapOff=d.online&&!isKnownMap(d.map_id);const pc=getPcTag(d.ign);const pcStr=pc?`<span style="font-size:9px;color:rgba(0,151,167,.7);border:1px solid rgba(0,151,167,.4);padding:0 4px;border-radius:2px;margin-left:3px">🖥️${pc}</span>`:'';const reasonBadge=isForced?`<span style="font-size:9px;color:#9b59b6;border:1px solid #9b59b6;padding:0 4px;border-radius:2px;margin-left:3px">FORCED</span>`:isMapOff?`<span style="font-size:9px;color:#ff9800;border:1px solid #ff9800;padding:0 4px;border-radius:2px;margin-left:3px">MAP</span>`:'';return`<div class="ov-row" style="opacity:.75;animation-delay:${i*25}ms"><div class="ov-ign">${d.ign||'Unknown'}${pcStr} <span class="ov-lv">Lv.${d.level||'?'}</span>${reasonBadge}<span class="ov-ago">${ovFmtAgo(d.ago_sec)}</span></div><span class="ov-badge-off">OFFLINE</span></div>`;}).join("");}
     const logEl=document.getElementById("ov-log-list");
     if(!logs||!logs.length){logEl.innerHTML='<div class="ov-empty">No change records</div>';}
-    else{logEl.innerHTML=logs.slice(0,20).map((l,i)=>{const t=new Date(l.ts).toLocaleTimeString("ko-KR",{hour12:false,hour:"2-digit",minute:"2-digit"});const fieldCls=l.field==="channel"?"color:#0097a7":"color:#e67e22";const fieldLabel=l.field==="channel"?"CH":"MAP";return`<div class="ov-row" style="animation-delay:${i*15}ms"><div class="ov-ign" style="gap:4px;flex-wrap:wrap;max-width:170px"><span style="font-size:10px;color:rgba(255,255,255,.25)">${t}</span><span style="font-size:12px">${l.ign||'?'}</span><span style="font-size:10px;font-weight:900;border:1px solid;padding:0 4px;border-radius:2px;${fieldCls}">${fieldLabel}</span></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px"><span style="font-size:10px;color:#888;text-decoration:line-through">${l.old_val??'—'}</span><span style="font-size:11px;font-weight:800;color:#e0f7fa">${l.new_val??'—'}</span></div></div>`;}).join("");}
+    else{logEl.innerHTML=logs.slice(0,20).map((l,i)=>{const t=new Date(l.ts).toLocaleTimeString("ko-KR",{hour12:false,hour:"2-digit",minute:"2-digit"});const isCced=l.field==="cced_by_evasion";const isEvade=l.field==="evasion";const fieldCls=isCced?"color:#e74c3c":l.field==="channel"?"color:#0097a7":"color:#e67e22";const fieldLabel=isCced?"CCED":isEvade?"EVADE":l.field==="channel"?"CH":"MAP";let displayVal=l.new_val??'—';if(isCced){const p=(l.new_val||'').split('||');displayVal=`CH${p[0]||'?'} by ${p[1]||'?'}`;}return`<div class="ov-row" style="animation-delay:${i*15}ms"><div class="ov-ign" style="gap:4px;flex-wrap:wrap;max-width:170px"><span style="font-size:10px;color:rgba(255,255,255,.25)">${t}</span><span style="font-size:12px">${l.ign||'?'}</span><span style="font-size:10px;font-weight:900;border:1px solid;padding:0 4px;border-radius:2px;${fieldCls}">${fieldLabel}</span></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px"><span style="font-size:10px;color:#888;text-decoration:line-through">${isCced||isEvade?'—':l.old_val??'—'}</span><span style="font-size:11px;font-weight:800;color:#e0f7fa">${displayVal}</span></div></div>`;}).join("");}
   }
   try{const saved=localStorage.getItem("ov_opacity");if(saved){document.getElementById("ov-opacity").value=saved;window.ovSetOpacity(saved);}}catch(e){}
 })();
@@ -2800,9 +2835,9 @@ function renderModalChangelog(ign) {
     const d       = new Date(r.ts);
     const timeStr = d.toLocaleTimeString('ko-KR', { hour12:false, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
 
-    const color   = type==='cc' ? '#0097a7' : type==='evade' ? '#e74c3c' : type==='map' ? '#e67e22' : type==='death' ? '#9b59b6' : '#888';
-    const icon    = type==='cc' ? '📡' : type==='evade' ? '🏃' : type==='map' ? '🗺' : type==='death' ? '🪦' : '•';
-    const label   = type==='cc' ? `CC ${r.new_val} (prev: ${r.old_val})` : type==='evade' ? `Evasion by "${r.new_val||'?'}"` : type==='map' ? `MAP → ${mapNames[r.new_val]||r.new_val}` : type==='death' ? `Death detected` : `${r.field}: ${r.new_val}`;
+    const color   = type==='cced' ? '#e74c3c' : type==='cc' ? '#0097a7' : type==='evade' ? '#e74c3c' : type==='map' ? '#e67e22' : type==='death' ? '#9b59b6' : '#888';
+    const icon    = type==='cced' ? '🏃💥' : type==='cc' ? '📡' : type==='evade' ? '🏃' : type==='map' ? '🗺' : type==='death' ? '🪦' : '•';
+    const label   = type==='cced' ? (()=>{const p=(r.new_val||'').split('||');return`CCED CH${p[0]||'?'} by "${p[1]||'?'}" (prev: ${r.old_val})`;})() : type==='cc' ? `CC ${r.new_val} (prev: ${r.old_val})` : type==='evade' ? `Evasion by "${r.new_val||'?'}"` : type==='map' ? `MAP → ${mapNames[r.new_val]||r.new_val}` : type==='death' ? `Death detected` : `${r.field}: ${r.new_val}`;
 
     return `<div style="display:flex;align-items:flex-start;gap:8px;padding:4px 0;border-bottom:1px solid rgba(0,0,0,.04)">
       <span style="font-size:13px;flex-shrink:0;margin-top:1px">${icon}</span>
