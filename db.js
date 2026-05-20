@@ -113,8 +113,8 @@ async function getDb() {
   `);
   // ── 기본 클라이언트 시드 (서버 재시작해도 항상 유지) ──
   const DEFAULT_CLIENTS = [
-    { owner: "Hyeong", token_t: "fd9601cc2d89007ea64825510908023994b55e445d8d930ed582f7a8532afe30",
-                       token_c: "fd9601cc2d89007ea64825510908023994b55e445d8d930ed582f7a8532afe30" },
+    { owner: "Hyeong", token_t: "b4e8a2f1c9d3705e6b2c4a8f1d5e9a7c3b6e2f4d8a0c5e1b9f3a7c2d6e4b8f0",
+                       token_c: "b4e8a2f1c9d3705e6b2c4a8f1d5e9a7c3b6e2f4d8a0c5e1b9f3a7c2d6e4b8f0" },
   ];
   for (const c of DEFAULT_CLIENTS) {
     db.run("INSERT OR IGNORE INTO tokens  (owner, token) VALUES (?,?)", [c.owner, c.token_t]);

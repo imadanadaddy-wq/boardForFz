@@ -227,7 +227,13 @@ router.post("/", (req, res) => {
   //    클라이언트가 맵 전환 시 같은 detected 리스트로 콜백을 여러 번
   //    트리거하는 경우가 있어 5초 dedupe 윈도우로 1회만 기록.
   // ─────────────────────────────────────────────
-  if (evasion_by) {
+  // ── iiPudin 이베이전 로그 완전 무시 ──
+  const EVASION_IGN_BLACKLIST = ['iiPudin'];
+  const isBlacklistedEvasion =
+    EVASION_IGN_BLACKLIST.some(bl => ign === bl) ||
+    EVASION_IGN_BLACKLIST.some(bl => typeof evasion_by === 'string' && evasion_by.split(',').map(s=>s.trim()).includes(bl));
+
+  if (evasion_by && !isBlacklistedEvasion) {
     if (shouldRecordEvasion(owner, ign, evasion_by)) {
       const evTs = Number(evasion_ts) || now;
       db.run(

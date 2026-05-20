@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Hyeong's Maple Dash</title>
+<title>RudyFZ Maple Dash</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@800&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
@@ -480,15 +480,29 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 .pc-section-lbl{font-size:10px;color:#888;font-family:'JetBrains Mono',monospace;letter-spacing:1.2px;text-transform:uppercase;font-weight:800}
 .pc-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
 .pc-empty{grid-column:1/-1;text-align:center;color:#888;font-size:13px;padding:40px 20px;background:var(--ms-panel);border:2px dashed var(--ms-border-dark);border-radius:10px}
+/* Locked sidebar tabs */
+.tab-lock-icon{font-size:10px;opacity:.5;margin-left:4px}
+.locked-tab{opacity:.7}
+.locked-tab.unlocked{opacity:1}
+.locked-tab.unlocked .tab-lock-icon{display:none}
+/* CCed alert banner */
+.cced-alert-block{display:flex;align-items:center;gap:14px;padding:14px 20px;background:linear-gradient(90deg,rgba(231,76,60,.15),rgba(255,140,0,.12));border:2.5px solid #e74c3c;border-radius:6px;margin-bottom:8px;box-shadow:0 0 18px rgba(231,76,60,.25);animation:cced-pulse 1.8s ease-in-out 5}
+@keyframes cced-pulse{0%,100%{box-shadow:0 0 18px rgba(231,76,60,.25)}50%{box-shadow:0 0 32px rgba(231,76,60,.6)}}
+.cced-icon{font-size:28px;line-height:1;flex-shrink:0}
+.cced-body{flex:1}
+.cced-title{font-size:16px;font-weight:900;color:#e74c3c;letter-spacing:1px;font-family:'JetBrains Mono',monospace}
+.cced-detail{font-size:12px;color:#c0392b;font-family:'JetBrains Mono',monospace;margin-top:3px;font-weight:800}
+.cced-timer{font-size:11px;color:#888;font-family:'JetBrains Mono',monospace;flex-shrink:0;text-align:right}
 </style>
 </head>
 <body>
 <header>
   <div class="header-logo"></div>
-  <div class="header-title">Hyeong Maple Dash</div>
+  <div class="header-title">RudyFZ Maple Dash</div>
   <div class="header-nav">
     <a id="discord-user-badge" href="/auth/logout" title="Logout"></a>
     <span id="auth-badge">OWNER</span>
+    <button id="owner-secret-btn" onclick="ownerBtnClick()" title="" style="background:none;border:none;color:rgba(255,255,255,.2);font-size:13px;cursor:pointer;padding:4px 8px;letter-spacing:2px;font-family:'JetBrains Mono',monospace;transition:color .2s" onmouseover="this.style.color='rgba(255,255,255,.5)'" onmouseout="this.style.color='rgba(255,255,255,.2)'">•••</button>
     <button id="ov-toggle-btn" onclick="toggleOverlay()">📊 OVERLAY</button>
     <div id="last-upd">READY</div>
   </div>
@@ -540,11 +554,11 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
   </div>
 </div>
 
-<!-- ══ SITE LOCK ══ -->
-<div id="site-lock-overlay">
+<!-- ══ AUTH MODAL (triggered by secret button) ══ -->
+<div id="site-lock-overlay" style="display:none">
   <div class="site-lock-box">
     <div id="cat-logo-click" style="width:72px;height:72px;border-radius:50%;border:3px solid var(--ms-accent);background:#0d0d0d url('/images/cat-logo.png') no-repeat center/contain;margin:0 auto 18px;cursor:pointer;user-select:none" title=""></div>
-    <div style="font-size:20px;font-weight:800;color:var(--ms-text);margin-bottom:6px">Hyeong Maple Dash</div>
+    <div style="font-size:20px;font-weight:800;color:var(--ms-text);margin-bottom:6px">RudyFZ Maple Dash</div>
     <div style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace;letter-spacing:1px;margin-bottom:28px">Sign in with your Discord account</div>
     <a href="/auth/discord" class="discord-btn">
       <svg width="20" height="20" viewBox="0 0 71 55" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -620,21 +634,21 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 
   <!-- MESO -->
   <div class="sidebar-section-label">MESO</div>
-  <button class="sidebar-item" id="sb-meso"       onclick="switchTab('meso',this)">💰 Meso Tracker</button>
-  <button class="sidebar-item" id="sb-mesoGraph"  onclick="switchTab('mesoGraph',this)">📈 Meso Graph</button>
-  <button class="sidebar-item" id="sb-totalGraph" onclick="switchTab('totalGraph',this)">🔢 Total Meso/HR</button>
+  <button class="sidebar-item locked-tab" id="sb-meso"       onclick="switchTab('meso',this)">💰 Meso Tracker <span class="tab-lock-icon">🔒</span></button>
+  <button class="sidebar-item locked-tab" id="sb-mesoGraph"  onclick="switchTab('mesoGraph',this)">📈 Meso Graph <span class="tab-lock-icon">🔒</span></button>
+  <button class="sidebar-item locked-tab" id="sb-totalGraph" onclick="switchTab('totalGraph',this)">🔢 Total Meso/HR <span class="tab-lock-icon">🔒</span></button>
 
   <div class="sidebar-divider"></div>
 
   <!-- MANAGEMENT -->
   <div class="sidebar-section-label">MANAGEMENT</div>
-  <button class="sidebar-item" id="sb-management" onclick="switchTab('management',this)">🔔 Bot Management</button>
+  <button class="sidebar-item locked-tab" id="sb-management" onclick="switchTab('management',this)">🔔 Bot Management <span class="tab-lock-icon">🔒</span></button>
 
   <div class="sidebar-divider"></div>
 
   <!-- PC -->
   <div class="sidebar-section-label">PC</div>
-  <button class="sidebar-item" id="sb-pcs" onclick="switchTab('pcs',this)">🖥️ PC Status</button>
+  <button class="sidebar-item locked-tab" id="sb-pcs" onclick="switchTab('pcs',this)">🖥️ PC Status <span class="tab-lock-icon">🔒</span></button>
 </div>
 
 <!-- ══ CONTENT AREA ══ -->
@@ -643,6 +657,8 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 
   <!-- TAB: BOT STATUS -->
   <div class="tab-content active" id="tab-bots">
+    <!-- CCed alert banner: populated by JS when CC events occur -->
+    <div id="cced-alert-area" style="margin-bottom:12px"></div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
       <div class="section-title" style="margin-bottom:0">Bot Status</div>
       <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -956,6 +972,65 @@ let prevBotMap  = {};
 let changedCells = {};
 let currentSort = 'default';
 
+// ── CC Alert tracking (10-min window) ──
+const CC_ALERT_DURATION_MS = 10 * 60 * 1000;
+let ccedAlerts = [];  // [{ ign, fromCh, toCh, ts }]
+
+function trackCcedAlert(ign, fromCh, toCh) {
+  const now = Date.now();
+  // Remove expired
+  ccedAlerts = ccedAlerts.filter(a => now - a.ts < CC_ALERT_DURATION_MS);
+  // Remove duplicate ign (keep latest)
+  ccedAlerts = ccedAlerts.filter(a => a.ign !== ign);
+  ccedAlerts.unshift({ ign, fromCh, toCh, ts: now });
+  renderCcedAlerts();
+}
+
+function renderCcedAlerts() {
+  const el = document.getElementById('cced-alert-area');
+  if (!el) return;
+  const now = Date.now();
+  ccedAlerts = ccedAlerts.filter(a => now - a.ts < CC_ALERT_DURATION_MS);
+  if (!ccedAlerts.length) { el.innerHTML = ''; return; }
+  el.innerHTML = ccedAlerts.map(a => {
+    const remSec = Math.ceil((CC_ALERT_DURATION_MS - (now - a.ts)) / 1000);
+    const remMin = Math.floor(remSec / 60);
+    const remS   = remSec % 60;
+    const remStr = remMin > 0 ? `${remMin}m ${remS}s` : `${remS}s`;
+    return `<div class="cced-alert-block">
+      <div class="cced-icon">⚠️</div>
+      <div class="cced-body">
+        <div class="cced-title">CCed. need FZ</div>
+        <div class="cced-detail">${a.ign} — CH${a.fromCh ?? '?'} → CH${a.toCh ?? '?'}</div>
+      </div>
+      <div class="cced-timer">expires in<br><b>${remStr}</b></div>
+    </div>`;
+  }).join('');
+}
+setInterval(renderCcedAlerts, 10000);
+
+// ── Secret owner auth button (5-click trigger) ──
+let _ownerClickCount = 0;
+let _ownerClickTimer = null;
+function ownerBtnClick() {
+  _ownerClickCount++;
+  clearTimeout(_ownerClickTimer);
+  _ownerClickTimer = setTimeout(() => { _ownerClickCount = 0; }, 2000);
+  if (_ownerClickCount >= 5) {
+    _ownerClickCount = 0;
+    if (!isAuthed) {
+      document.getElementById('site-lock-overlay').style.display = 'flex';
+    }
+  }
+}
+// Click overlay backdrop to close (without auth)
+document.addEventListener('DOMContentLoaded', () => {
+  const overlay = document.getElementById('site-lock-overlay');
+  if (overlay) overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) overlay.style.display = 'none';
+  });
+});
+
 // ── Global change log cache ──
 let _changeLogCache = [];  // Latest 300 entries, updated on fetchChangelog()
 
@@ -991,7 +1066,7 @@ let mapNames = {
 let sellerRecords = [];
 
 const FORCED_OWNER = "Hyeong";
-const FORCED_TOKEN = "fd9601cc2d89007ea64825510908023994b55e445d8d930ed582f7a8532afe30";
+const FORCED_TOKEN = "b4e8a2f1c9d3705e6b2c4a8f1d5e9a7c3b6e2f4d8a0c5e1b9f3a7c2d6e4b8f0";
 let manualOffline = new Set();
 
 async function loadForcedOffline() {
@@ -1147,6 +1222,8 @@ async function checkAuth() {
       const detail = params.get("detail");
       const errEl = document.getElementById("site-lock-err");
       if (err && errEl) {
+        // Show the auth modal to display the error
+        document.getElementById("site-lock-overlay").style.display = "flex";
         if (err === "unauthorized" && uid) {
           // ★ 본인 Discord ID/이름을 화면에 표시 → Railway env에 추가 가능
           errEl.innerHTML = `⛔ Access denied.<br><br>
@@ -1177,6 +1254,11 @@ function applyAuth() {
   if (bulkBtns) bulkBtns.style.display = "flex";
   injectOwnerSellerPanel();
   document.getElementById("ov-toggle-btn").style.display = "inline-block";
+  // Unlock sidebar tabs
+  document.querySelectorAll(".locked-tab").forEach(el => el.classList.add("unlocked"));
+  // Hide secret auth button (already authed)
+  const sb = document.getElementById("owner-secret-btn");
+  if (sb) sb.style.display = "none";
   fetchMeso();
   fetchSellerRecords();
   fetchChangelog();
@@ -1245,7 +1327,14 @@ function injectOwnerSellerPanel() {
 }
 
 // ── TABS ──
+const LOCKED_TABS = ['meso','mesoGraph','totalGraph','management','pcs','seller','register'];
 function switchTab(name, btn) {
+  if (LOCKED_TABS.includes(name) && !isAuthed) {
+    // Flash the secret button to hint where to auth
+    const sb = document.getElementById('owner-secret-btn');
+    if (sb) { sb.style.color='var(--ms-accent)'; setTimeout(()=>sb.style.color='rgba(255,255,255,.2)',800); }
+    return;
+  }
   document.querySelectorAll(".sidebar-item").forEach(b=>b.classList.remove("active"));
   document.querySelectorAll(".tab-content").forEach(c=>c.classList.remove("active"));
   if (btn) btn.classList.add("active");
@@ -1713,7 +1802,13 @@ async function fetchFC() {
       const key  = b.owner + '|' + b.ign;
       const prev = prevBotMap[key];
       if (prev) {
-        if (String(prev.channel) !== String(b.channel ?? null)) changedCells[key + '|channel'] = now;
+        if (String(prev.channel) !== String(b.channel ?? null)) {
+          changedCells[key + '|channel'] = now;
+          // Track for CCed alert banner (only if bot was online and channel actually changed to a value)
+          if (prev.channel != null && b.channel != null) {
+            trackCcedAlert(b.ign, prev.channel, b.channel);
+          }
+        }
         if (String(prev.map_id)  !== String(b.map_id  ?? null)) changedCells[key + '|map_id']  = now;
       }
       prevBotMap[key] = { channel: b.channel ?? null, map_id: b.map_id ?? null };
@@ -2214,7 +2309,7 @@ async function registerClient() {
 
 async function autoRegisterDefault() {
   const DEFAULT_OWNER = "Hyeong";
-  const DEFAULT_TOKEN = "fd9601cc2d89007ea64825510908023994b55e445d8d930ed582f7a8532afe30";
+  const DEFAULT_TOKEN = "b4e8a2f1c9d3705e6b2c4a8f1d5e9a7c3b6e2f4d8a0c5e1b9f3a7c2d6e4b8f0";
   const FZ_BASE       = "https://rudy-hyeong-fz-board.up.railway.app";
   try { const check = await fetch("/api/clients"); if (check.ok) { const data = await check.json(); const exists = Array.isArray(data) && data.some(c => c.owner === DEFAULT_OWNER); if (!exists) { await fetch("/api/clients", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({owner:DEFAULT_OWNER,token:DEFAULT_TOKEN}) }); } } } catch(e){}
   try { const check = await fetch(`${FZ_BASE}/api/clients`); if (check.ok) { const data = await check.json(); const exists = Array.isArray(data) && data.some(c => c.owner === DEFAULT_OWNER); if (exists) return; } await fetch(`${FZ_BASE}/api/clients`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({owner:DEFAULT_OWNER,token:DEFAULT_TOKEN}) }); } catch(e){}

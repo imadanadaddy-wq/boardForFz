@@ -119,13 +119,13 @@ ipcMain.on('window-hide',   () => overlayWin && overlayWin.hide());
 ipcMain.on('set-opacity',   (e, val) => overlayWin && overlayWin.setOpacity(val));
 
 ipcMain.handle('get-config', () => ({
-  apiUrl:   store.get('apiUrl',   'https://hyeong.up.railway.app/api/bot-heartbeat/client'),
+  apiUrl:   store.get('apiUrl',   'https://RudyFZ.up.railway.app/api/bot-heartbeat/client'),
   interval: store.get('interval', 10000),
   opacity:  store.get('opacity',  93),
   // PC 관리용
-  pcApiBase: store.get('pcApiBase', 'https://hyeong.up.railway.app'),
+  pcApiBase: store.get('pcApiBase', 'https://RudyFZ.up.railway.app'),
   pcOwner:   store.get('pcOwner',   'Hyeong'),
-  pcToken:   store.get('pcToken',   'fd9601cc2d89007ea64825510908023994b55e445d8d930ed582f7a8532afe30'),
+  pcToken:   store.get('pcToken',   'b4e8a2f1c9d3705e6b2c4a8f1d5e9a7c3b6e2f4d8a0c5e1b9f3a7c2d6e4b8f0'),
   pcId:      pcClient.getPcId() || null,
 }));
 ipcMain.handle('save-config', (e, cfg) => {
@@ -149,9 +149,9 @@ app.whenReady().then(() => {
   createTray();
   // PC 카드 시스템 클라이언트 시작
   pcClient.start(store, {
-    apiBase: store.get('pcApiBase', 'https://hyeong.up.railway.app'),
+    apiBase: store.get('pcApiBase', 'https://RudyFZ.up.railway.app'),
     owner:   store.get('pcOwner',   'Hyeong'),
-    token:   store.get('pcToken',   'fd9601cc2d89007ea64825510908023994b55e445d8d930ed582f7a8532afe30'),
+    token:   store.get('pcToken',   'b4e8a2f1c9d3705e6b2c4a8f1d5e9a7c3b6e2f4d8a0c5e1b9f3a7c2d6e4b8f0'),
   });
   app.on('activate', () => { if (!overlayWin) createOverlayWindow(); });
 });
