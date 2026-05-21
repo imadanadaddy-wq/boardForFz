@@ -622,7 +622,6 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 <div id="sidebar">
   <!-- BOT -->
   <div class="sidebar-section-label">BOT</div>
-  <button class="sidebar-item" id="sb-bots"      onclick="switchTab('bots',this)">📡 Bot Status</button>
   <button class="sidebar-item active" id="sb-fzlist"    onclick="switchTab('fzlist',this)">📋 FZ List</button>
   <button class="sidebar-item"        id="sb-changelog" onclick="switchTab('changelog',this)">📋 Change Log</button>
   <!-- hidden legacy tabs -->
@@ -655,48 +654,6 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 <!-- ══ CONTENT AREA ══ -->
 <div id="content-area">
 <main>
-
-  <!-- TAB: BOT STATUS -->
-  <div class="tab-content" id="tab-bots" style="display:none">
-    <!-- CCed alert banner: populated by JS when CC events occur -->
-    <div id="cced-alert-area" style="margin-bottom:12px"></div>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-      <div class="section-title" style="margin-bottom:0">Bot Status</div>
-      <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <div id="bulk-force-btns" style="display:none;gap:6px;align-items:center">
-          <button class="btn" id="btn-all-offline"
-            style="padding:5px 14px;font-size:11px;background:linear-gradient(180deg,#9b59b6,#7d3c98);border-color:#9b59b6;color:#fff;font-weight:800"
-            onclick="bulkForceOffline()">🔒 Force All Offline</button>
-          <button class="btn" id="btn-all-online"
-            style="padding:5px 14px;font-size:11px;background:linear-gradient(180deg,#2ecc71,#27ae60);border-color:#2ecc71;color:#fff;font-weight:800"
-            onclick="bulkForceOnline()">🔓 Release All</button>
-          <div style="width:1px;height:18px;background:#ddd;margin:0 2px"></div>
-        </div>
-        <span style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace">SORT:</span>
-        <button class="btn" style="padding:5px 12px;font-size:11px" onclick="sortBots('lv-asc')">LV ▲</button>
-        <button class="btn" style="padding:5px 12px;font-size:11px" onclick="sortBots('lv-desc')">LV ▼</button>
-        <button class="btn" style="padding:5px 12px;font-size:11px" onclick="sortBots('map-asc')">MAP A→Z</button>
-        <button class="btn" style="padding:5px 12px;font-size:11px" onclick="sortBots('map-desc')">MAP Z→A</button>
-        <button class="btn" style="padding:5px 12px;font-size:11px;background:linear-gradient(180deg,#888,#666);border-color:#999" onclick="sortBots('default')">DEFAULT</button>
-      </div>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>IGN</th>
-            <th class="sortable" id="th-level" onclick="sortByLevel()">Level <span class="sort-icon"></span></th>
-            <th>Channel</th>
-            <th class="sortable" id="th-map" onclick="sortByMap()">Map <span class="sort-icon"></span></th>
-            <th>Status</th><th>Last Seen</th><th>PC</th><th>Graph</th>
-          </tr>
-        </thead>
-        <tbody id="bot-table-body">
-          <tr><td colspan="6"><div class="empty-state">Waiting for heartbeat signals...</div></td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
 
   <!-- TAB: SELLER CALC -->
   <div class="tab-content" id="tab-seller">
@@ -2377,11 +2334,28 @@ function renderFzList() {
 
   c.innerHTML = "";
   fzList.forEach((entry, idx) => {
-    // 온라인 여부 확인 (botData 있으면)
-    const isOnline = typeof botData !== "undefined" && botData && botData.some(b => b.ign === entry.ign);
+    // 온라인 여부 + 채널/맵 정보
+    const botEntry = (typeof botData !== "undefined" && botData)
+      ? botData.find(b => b.ign === entry.ign)
+      : null;
+    const isOnline = !!botEntry;
+
     const statusDot = isOnline
-      ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ms-green);box-shadow:0 0 5px var(--ms-green);margin-right:6px"></span>`
-      : `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#555;margin-right:6px"></span>`;
+      ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ms-green);box-shadow:0 0 5px var(--ms-green);flex-shrink:0"></span>`
+      : `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#555;flex-shrink:0"></span>`;
+
+    // CC / 맵 정보
+    const ch      = botEntry && botEntry.channel != null ? `CH.${botEntry.channel}` : null;
+    const mapName = botEntry && botEntry.map_id
+      ? (mapNames[String(botEntry.map_id)] || String(botEntry.map_id))
+      : null;
+    // 맵 이름 앞의 [지역] 태그 제거
+    const mapShort = mapName ? mapName.replace(/^\[[^\]]+\]\s*/, '') : null;
+
+    const infoHtml = isOnline
+      ? `<span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ms-accent);white-space:nowrap">${ch || '-'}</span>
+         <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#aaa;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis">${mapShort || '-'}</span>`
+      : `<span style="font-size:10px;color:#555;font-family:'JetBrains Mono',monospace">OFFLINE</span>`;
 
     const row = document.createElement("div");
     row.style.cssText = "display:flex;align-items:center;gap:10px;background:var(--ms-slot);border:1px solid var(--ms-border-dark);border-radius:6px;padding:8px 12px;cursor:grab;transition:opacity .15s";
@@ -2391,10 +2365,11 @@ function renderFzList() {
     row.innerHTML = `
       <span style="font-family:'MaplestoryOTFBold',sans-serif;font-size:14px;color:var(--ms-accent);min-width:24px">${idx + 1}.</span>
       ${statusDot}
-      <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:${isOnline ? 'var(--ms-text)' : '#666'};flex:1;${isOnline ? '' : 'text-decoration:line-through'}">${entry.ign}</span>
-      ${!isOnline ? '<span style="font-size:10px;color:#555;font-family:\'JetBrains Mono\',monospace">OFFLINE</span>' : ''}
+      <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:${isOnline ? 'var(--ms-text)' : '#666'};min-width:120px;${isOnline ? '' : 'text-decoration:line-through'}">${entry.ign}</span>
+      ${infoHtml}
+      <span style="flex:1"></span>
       <button onclick="deleteFzEntry('${entry.ign}')"
-        style="background:rgba(220,50,50,.15);border:1px solid rgba(220,50,50,.3);color:#e06060;padding:3px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:'MaplestoryOTFBold',sans-serif">
+        style="background:rgba(220,50,50,.15);border:1px solid rgba(220,50,50,.3);color:#e06060;padding:3px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:'MaplestoryOTFBold',sans-serif;flex-shrink:0">
         삭제
       </button>
     `;
