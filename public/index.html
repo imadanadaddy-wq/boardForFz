@@ -906,7 +906,7 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
       Bot casting order for Rudy. Order persists even when offline. Drag to reorder. Click the map name to edit it.
     </div>
 
-    <div id="fz-list-container" style="display:flex;flex-direction:column;gap:6px;max-width:560px">
+    <div id="fz-list-container" style="display:flex;flex-direction:column;gap:6px;max-width:640px">
       <div style="color:#666;font-size:12px;font-family:'JetBrains Mono',monospace">Loading...</div>
     </div>
   </div>
@@ -2385,28 +2385,28 @@ function renderFzList() {
     row.dataset.ign = entry.ign;
     row.draggable = true;
 
-    // 셀 색상
-    const idxBg     = "#1a1a1a";
-    const idxColor  = "#dcdcdc";
-    const ignColor  = isOnline ? "#000" : "#555";
+    // 셀 색상 — 채널만 연분홍, 나머지는 흰 배경 + 검정 글씨
+    const idxBg     = "#fff";
+    const idxColor  = "#000";
+    const ignColor  = isOnline ? "#000" : "#888";
     const ignDeco   = isOnline ? "" : "text-decoration:line-through;";
-    const chBg      = (ch != null) ? "#ff5ab4" : "#eee";  // 핑크 셀
+    const chBg      = (ch != null) ? "#ffc6dd" : "#fff";  // 연분홍
     const chColor   = "#000";
-    const mapColor  = "#1f6e3a";  // 진녹색 이탤릭
+    const mapColor  = "#000";  // 검정으로 통일
     const mapDisplay = mapShort
       ? fzEscapeHtml(mapShort)
       : (mapId != null ? `#${mapId}` : (isOnline ? '-' : 'OFFLINE'));
 
     row.innerHTML = `
-      <div style="width:34px;flex-shrink:0;background:${idxBg};color:${idxColor};text-align:center;padding:9px 4px;font-family:Georgia,serif;font-style:normal;font-weight:600;font-size:12px;display:flex;align-items:center;justify-content:center;border-right:1px solid #888">${idx + 1}</div>
-      <div style="flex:1;min-width:0;color:${ignColor};padding:9px 14px;border-right:1px solid #c4c4c4;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${ignDeco}">${fzEscapeHtml(entry.ign)}</div>
-      <div style="width:54px;flex-shrink:0;background:${chBg};color:${chColor};text-align:center;padding:9px 4px;border-right:1px solid #c4c4c4;font-size:15px;display:flex;align-items:center;justify-content:center">${ch != null ? ch : '-'}</div>
+      <div style="width:42px;flex-shrink:0;background:${idxBg};color:${idxColor};text-align:center;padding:11px 4px;font-family:Georgia,serif;font-style:normal;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;border-right:1px solid #c4c4c4">${idx + 1}</div>
+      <div style="flex:1;min-width:0;color:${ignColor};padding:11px 16px;border-right:1px solid #c4c4c4;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${ignDeco}">${fzEscapeHtml(entry.ign)}</div>
+      <div style="width:68px;flex-shrink:0;background:${chBg};color:${chColor};text-align:center;padding:11px 4px;border-right:1px solid #c4c4c4;font-size:18px;display:flex;align-items:center;justify-content:center">${ch != null ? ch : '-'}</div>
       <div class="fz-mapname" data-mapid="${mapId != null ? mapId : ''}"
         ${mapId != null ? `onclick="startFzMapEdit('${mapId}', this)" title="Click to edit"` : ''}
-        style="flex:1.4;min-width:0;color:${mapColor};padding:9px 12px;border-right:1px solid #c4c4c4;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${mapId != null ? 'cursor:pointer' : ''}">${mapDisplay}</div>
-      <div style="width:42px;flex-shrink:0;background:#f4f4f4;display:flex;align-items:center;justify-content:center">
+        style="flex:1.4;min-width:0;color:${mapColor};padding:11px 14px;border-right:1px solid #c4c4c4;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${mapId != null ? 'cursor:pointer' : ''}">${mapDisplay}</div>
+      <div style="width:48px;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center">
         <button onclick="event.stopPropagation();deleteFzEntry('${fzEscapeHtml(entry.ign)}')"
-          style="background:none;border:none;color:#b00020;font-size:18px;cursor:pointer;font-style:normal;font-weight:700;padding:2px 6px;line-height:1"
+          style="background:none;border:none;color:#b00020;font-size:20px;cursor:pointer;font-style:normal;font-weight:700;padding:2px 6px;line-height:1"
           title="Delete">×</button>
       </div>
     `;
