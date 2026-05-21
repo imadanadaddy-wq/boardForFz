@@ -622,7 +622,8 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 <div id="sidebar">
   <!-- BOT -->
   <div class="sidebar-section-label">BOT</div>
-  <button class="sidebar-item active" id="sb-bots"      onclick="switchTab('bots',this)">📡 Bot Status</button>
+  <button class="sidebar-item" id="sb-bots"      onclick="switchTab('bots',this)">📡 Bot Status</button>
+  <button class="sidebar-item active" id="sb-fzlist"    onclick="switchTab('fzlist',this)">📋 FZ List</button>
   <button class="sidebar-item"        id="sb-changelog" onclick="switchTab('changelog',this)">📋 Change Log</button>
   <!-- hidden legacy tabs -->
   <div style="display:none">
@@ -656,7 +657,7 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 <main>
 
   <!-- TAB: BOT STATUS -->
-  <div class="tab-content active" id="tab-bots">
+  <div class="tab-content" id="tab-bots" style="display:none">
     <!-- CCed alert banner: populated by JS when CC events occur -->
     <div id="cced-alert-area" style="margin-bottom:12px"></div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
@@ -928,6 +929,28 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 
     <div id="pc-grid" class="pc-grid">
       <div class="pc-empty">Loading...</div>
+    </div>
+  </div>
+
+  <!-- TAB: FZ LIST -->
+  <div class="tab-content active" id="tab-fzlist">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+      <div class="section-title" style="margin-bottom:0">📋 FZ List</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="fz-add-input" type="text" placeholder="IGN 입력..."
+          style="background:var(--ms-slot);border:1px solid var(--ms-border-dark);color:var(--ms-text);padding:6px 12px;border-radius:4px;font-size:12px;font-family:'JetBrains Mono',monospace;width:160px"
+          onkeydown="if(event.key==='Enter')addFzEntry()"
+        />
+        <button class="btn" style="padding:6px 16px;font-size:12px" onclick="addFzEntry()">+ Add</button>
+      </div>
+    </div>
+
+    <div style="font-size:11px;color:#777;background:var(--ms-slot);border-left:3px solid var(--ms-accent);padding:8px 12px;border-radius:4px;margin-bottom:14px;line-height:1.6">
+      Rudy가 캐스팅할 봇 순서 목록. 오프라인이어도 순서 유지. 드래그로 순서 변경 가능.
+    </div>
+
+    <div id="fz-list-container" style="display:flex;flex-direction:column;gap:6px;max-width:480px">
+      <div style="color:#666;font-size:12px;font-family:'JetBrains Mono',monospace">Loading...</div>
     </div>
   </div>
 
@@ -2324,8 +2347,130 @@ async function init() {
   autoRegisterDefault();
   fetchFC();
   renderSessions();
+  fetchFzList();
   setInterval(()=>{ fetchFC(); if(isAuthed) fetchMeso(); }, 10000);
   setInterval(()=>loadForcedOffline().then(()=>renderBotTable()), 10000);
+  setInterval(fetchFzList, 15000);
+}
+
+// ══════════════════════════════════════
+// FZ LIST
+// ══════════════════════════════════════
+
+let fzList = [];
+let fzDragSrc = null;
+
+async function fetchFzList() {
+  try {
+    fzList = await (await fetch("/api/fz")).json();
+    renderFzList();
+  } catch(e) {}
+}
+
+function renderFzList() {
+  const c = document.getElementById("fz-list-container");
+  if (!c) return;
+  if (!fzList.length) {
+    c.innerHTML = '<div style="color:#666;font-size:12px;font-family:\'JetBrains Mono\',monospace">아직 목록이 없어요. IGN을 추가해주세요.</div>';
+    return;
+  }
+
+  c.innerHTML = "";
+  fzList.forEach((entry, idx) => {
+    // 온라인 여부 확인 (botData 있으면)
+    const isOnline = typeof botData !== "undefined" && botData && botData.some(b => b.ign === entry.ign);
+    const statusDot = isOnline
+      ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ms-green);box-shadow:0 0 5px var(--ms-green);margin-right:6px"></span>`
+      : `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#555;margin-right:6px"></span>`;
+
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;gap:10px;background:var(--ms-slot);border:1px solid var(--ms-border-dark);border-radius:6px;padding:8px 12px;cursor:grab;transition:opacity .15s";
+    row.dataset.ign = entry.ign;
+    row.draggable = true;
+
+    row.innerHTML = `
+      <span style="font-family:'MaplestoryOTFBold',sans-serif;font-size:14px;color:var(--ms-accent);min-width:24px">${idx + 1}.</span>
+      ${statusDot}
+      <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:${isOnline ? 'var(--ms-text)' : '#666'};flex:1;${isOnline ? '' : 'text-decoration:line-through'}">${entry.ign}</span>
+      ${!isOnline ? '<span style="font-size:10px;color:#555;font-family:\'JetBrains Mono\',monospace">OFFLINE</span>' : ''}
+      <button onclick="deleteFzEntry('${entry.ign}')"
+        style="background:rgba(220,50,50,.15);border:1px solid rgba(220,50,50,.3);color:#e06060;padding:3px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:'MaplestoryOTFBold',sans-serif">
+        삭제
+      </button>
+    `;
+
+    // 드래그 앤 드롭
+    row.addEventListener("dragstart", e => {
+      fzDragSrc = row;
+      e.dataTransfer.effectAllowed = "move";
+      setTimeout(() => row.style.opacity = "0.4", 0);
+    });
+    row.addEventListener("dragend", () => {
+      row.style.opacity = "1";
+      fzDragSrc = null;
+    });
+    row.addEventListener("dragover", e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+    });
+    row.addEventListener("drop", e => {
+      e.preventDefault();
+      if (!fzDragSrc || fzDragSrc === row) return;
+      const allRows = [...c.querySelectorAll("[data-ign]")];
+      const srcIdx  = allRows.indexOf(fzDragSrc);
+      const dstIdx  = allRows.indexOf(row);
+      // DOM 순서 변경
+      if (srcIdx < dstIdx) {
+        row.after(fzDragSrc);
+      } else {
+        row.before(fzDragSrc);
+      }
+      // 번호 업데이트 후 서버에 순서 저장
+      saveFzOrder();
+    });
+
+    c.appendChild(row);
+  });
+}
+
+async function saveFzOrder() {
+  const c = document.getElementById("fz-list-container");
+  if (!c) return;
+  const order = [...c.querySelectorAll("[data-ign]")].map(r => r.dataset.ign);
+  try {
+    await fetch("/api/fz/reorder", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order })
+    });
+    await fetchFzList();
+  } catch(e) {}
+}
+
+async function addFzEntry() {
+  const input = document.getElementById("fz-add-input");
+  const ign = (input.value || "").trim();
+  if (!ign) return;
+  try {
+    const res = await fetch("/api/fz", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ign })
+    });
+    if (res.ok) {
+      input.value = "";
+      await fetchFzList();
+    } else {
+      const e = await res.json();
+      alert(e.error || "추가 실패");
+    }
+  } catch(e) {}
+}
+
+async function deleteFzEntry(ign) {
+  if (!confirm(`${ign} 을 목록에서 삭제할까요?`)) return;
+  await fetch(`/api/fz/${encodeURIComponent(ign)}`, { method: "DELETE" });
+  await fetchFzList();
 }
 
 // ══════════════════════════════════════
