@@ -906,7 +906,7 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
       Bot casting order for Rudy. Order persists even when offline. Drag to reorder. Click the map name to edit it.
     </div>
 
-    <div id="fz-list-container" style="display:flex;flex-direction:column;gap:6px;max-width:520px">
+    <div id="fz-list-container" style="display:flex;flex-direction:column;gap:6px;max-width:560px">
       <div style="color:#666;font-size:12px;font-family:'JetBrains Mono',monospace">Loading...</div>
     </div>
   </div>
@@ -2350,8 +2350,12 @@ function renderFzList() {
   }
 
   c.innerHTML = "";
+
+  // Rudy 스타일 스프레드시트 컨테이너
+  const table = document.createElement("div");
+  table.style.cssText = "border:1px solid #888;background:#fff;font-family:Georgia,Cambria,'Times New Roman',serif;font-style:italic;font-weight:700;border-radius:2px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.25)";
+
   fzList.forEach((entry, idx) => {
-    // 공개 status 엔드포인트 우선, 없으면 botData 폴백 (인증된 owner 시점)
     const status = fzStatusMap[entry.ign];
     const botEntry = (typeof botData !== "undefined" && botData)
       ? botData.find(b => b.ign === entry.ign)
@@ -2362,71 +2366,59 @@ function renderFzList() {
       botEntry ? true : false;
 
     const ch =
-      status && status.channel != null ? `CH.${status.channel}` :
-      (botEntry && botEntry.channel != null ? `CH.${botEntry.channel}` : null);
+      status && status.channel != null ? status.channel :
+      (botEntry && botEntry.channel != null ? botEntry.channel : null);
 
     const mapId =
       (status && status.map_id != null) ? status.map_id :
       (botEntry && botEntry.map_id != null ? botEntry.map_id : null);
 
-    // 맵 이름: status.map_name 우선 → 클라이언트 mapNames 폴백 → 원본 ID
     let mapName = null;
     if (status && status.map_name) mapName = status.map_name;
     else if (mapId != null && typeof mapNames !== "undefined" && mapNames[String(mapId)]) {
       mapName = mapNames[String(mapId)];
     }
-    // [지역] 태그 제거
     const mapShort = mapName ? mapName.replace(/^\[[^\]]+\]\s*/, '') : null;
 
-    const statusDot = isOnline
-      ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ms-green);box-shadow:0 0 5px var(--ms-green);flex-shrink:0"></span>`
-      : `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#555;flex-shrink:0"></span>`;
-
-    // 맵이름 cell: 클릭 시 인라인 편집 가능 (map_id가 있을 때만)
-    let mapCellHtml;
-    if (mapId != null) {
-      const display = mapShort || `#${mapId}`;
-      mapCellHtml = `<span class="fz-mapname"
-        data-mapid="${mapId}"
-        onclick="startFzMapEdit('${mapId}', this)"
-        style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#aaa;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;cursor:pointer;border-bottom:1px dotted transparent;transition:border-color .15s"
-        onmouseover="this.style.borderColor='var(--ms-accent)'"
-        onmouseout="this.style.borderColor='transparent'"
-        title="Click to edit map name">${fzEscapeHtml(display)}</span>`;
-    } else {
-      mapCellHtml = `<span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#555">—</span>`;
-    }
-
-    const infoHtml = isOnline
-      ? `<span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ms-accent);white-space:nowrap">${ch || '-'}</span>
-         ${mapCellHtml}`
-      : `<span style="font-size:10px;color:#555;font-family:'JetBrains Mono',monospace">OFFLINE</span>`;
-
     const row = document.createElement("div");
-    row.style.cssText = "display:flex;align-items:center;gap:10px;background:var(--ms-slot);border:1px solid var(--ms-border-dark);border-radius:6px;padding:8px 12px;cursor:grab;transition:opacity .15s";
+    row.style.cssText = "display:flex;align-items:stretch;border-bottom:1px solid #c4c4c4;cursor:grab;background:#fff;transition:opacity .15s" + (isOnline ? "" : ";opacity:.5");
     row.dataset.ign = entry.ign;
     row.draggable = true;
 
+    // 셀 색상
+    const idxBg     = "#1a1a1a";
+    const idxColor  = "#dcdcdc";
+    const ignColor  = isOnline ? "#000" : "#555";
+    const ignDeco   = isOnline ? "" : "text-decoration:line-through;";
+    const chBg      = (ch != null) ? "#ff5ab4" : "#eee";  // 핑크 셀
+    const chColor   = "#000";
+    const mapColor  = "#1f6e3a";  // 진녹색 이탤릭
+    const mapDisplay = mapShort
+      ? fzEscapeHtml(mapShort)
+      : (mapId != null ? `#${mapId}` : (isOnline ? '-' : 'OFFLINE'));
+
     row.innerHTML = `
-      <span style="font-family:'MaplestoryOTFBold',sans-serif;font-size:14px;color:var(--ms-accent);min-width:24px">${idx + 1}.</span>
-      ${statusDot}
-      <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:${isOnline ? 'var(--ms-text)' : '#666'};min-width:120px;${isOnline ? '' : 'text-decoration:line-through'}">${fzEscapeHtml(entry.ign)}</span>
-      ${infoHtml}
-      <span style="flex:1"></span>
-      <button onclick="deleteFzEntry('${fzEscapeHtml(entry.ign)}')"
-        style="background:rgba(220,50,50,.15);border:1px solid rgba(220,50,50,.3);color:#e06060;padding:3px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-family:'MaplestoryOTFBold',sans-serif;flex-shrink:0">
-        Delete
-      </button>
+      <div style="width:34px;flex-shrink:0;background:${idxBg};color:${idxColor};text-align:center;padding:9px 4px;font-family:Georgia,serif;font-style:normal;font-weight:600;font-size:12px;display:flex;align-items:center;justify-content:center;border-right:1px solid #888">${idx + 1}</div>
+      <div style="flex:1;min-width:0;color:${ignColor};padding:9px 14px;border-right:1px solid #c4c4c4;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${ignDeco}">${fzEscapeHtml(entry.ign)}</div>
+      <div style="width:54px;flex-shrink:0;background:${chBg};color:${chColor};text-align:center;padding:9px 4px;border-right:1px solid #c4c4c4;font-size:15px;display:flex;align-items:center;justify-content:center">${ch != null ? ch : '-'}</div>
+      <div class="fz-mapname" data-mapid="${mapId != null ? mapId : ''}"
+        ${mapId != null ? `onclick="startFzMapEdit('${mapId}', this)" title="Click to edit"` : ''}
+        style="flex:1.4;min-width:0;color:${mapColor};padding:9px 12px;border-right:1px solid #c4c4c4;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${mapId != null ? 'cursor:pointer' : ''}">${mapDisplay}</div>
+      <div style="width:42px;flex-shrink:0;background:#f4f4f4;display:flex;align-items:center;justify-content:center">
+        <button onclick="event.stopPropagation();deleteFzEntry('${fzEscapeHtml(entry.ign)}')"
+          style="background:none;border:none;color:#b00020;font-size:18px;cursor:pointer;font-style:normal;font-weight:700;padding:2px 6px;line-height:1"
+          title="Delete">×</button>
+      </div>
     `;
 
     // 드래그 앤 드롭
     row.addEventListener("dragstart", e => {
       fzDragSrc = row;
       e.dataTransfer.effectAllowed = "move";
-      setTimeout(() => row.style.opacity = "0.4", 0);
+      setTimeout(() => row.style.opacity = "0.3", 0);
     });
     row.addEventListener("dragend", () => {
-      row.style.opacity = "1";
+      row.style.opacity = isOnline ? "1" : "0.5";
       fzDragSrc = null;
     });
     row.addEventListener("dragover", e => {
@@ -2436,7 +2428,7 @@ function renderFzList() {
     row.addEventListener("drop", e => {
       e.preventDefault();
       if (!fzDragSrc || fzDragSrc === row) return;
-      const allRows = [...c.querySelectorAll("[data-ign]")];
+      const allRows = [...table.querySelectorAll("[data-ign]")];
       const srcIdx  = allRows.indexOf(fzDragSrc);
       const dstIdx  = allRows.indexOf(row);
       if (srcIdx < dstIdx) {
@@ -2447,13 +2439,20 @@ function renderFzList() {
       saveFzOrder();
     });
 
-    c.appendChild(row);
+    table.appendChild(row);
   });
+
+  // 마지막 행 border 제거
+  const lastRow = table.lastElementChild;
+  if (lastRow) lastRow.style.borderBottom = "none";
+
+  c.appendChild(table);
 }
 
 async function saveFzOrder() {
   const c = document.getElementById("fz-list-container");
   if (!c) return;
+  // table은 c의 첫 자식, row들은 그 안에 있음
   const order = [...c.querySelectorAll("[data-ign]")].map(r => r.dataset.ign);
   try {
     await fetch("/api/fz/reorder", {
@@ -2496,13 +2495,13 @@ function startFzMapEdit(mapId, el) {
   if (!el || el.dataset.editing === "1") return;
   el.dataset.editing = "1";
   const current = el.textContent || "";
-  const wrap = document.createElement("span");
-  wrap.style.cssText = "display:inline-flex;gap:4px;align-items:center";
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "flex:1.4;min-width:0;display:flex;gap:4px;align-items:center;padding:6px 8px;border-right:1px solid #c4c4c4;background:#fffbe6";
   wrap.innerHTML = `
     <input type="text" value="${current.replace(/"/g,'&quot;')}"
-      style="background:var(--ms-slot);border:1px solid var(--ms-accent);color:var(--ms-text);padding:2px 6px;border-radius:3px;font-size:11px;font-family:'JetBrains Mono',monospace;width:160px" />
-    <button style="background:var(--ms-accent);border:none;color:#fff;padding:2px 8px;border-radius:3px;font-size:10px;cursor:pointer">Save</button>
-    <button style="background:#444;border:none;color:#ccc;padding:2px 8px;border-radius:3px;font-size:10px;cursor:pointer">Cancel</button>
+      style="flex:1;min-width:0;background:#fff;border:1px solid #888;color:#000;padding:3px 6px;border-radius:2px;font-size:13px;font-family:Georgia,Cambria,serif;font-style:italic;font-weight:700" />
+    <button style="background:#1f6e3a;border:none;color:#fff;padding:3px 8px;border-radius:2px;font-size:11px;cursor:pointer;font-family:Georgia,serif;font-weight:700">Save</button>
+    <button style="background:#888;border:none;color:#fff;padding:3px 8px;border-radius:2px;font-size:11px;cursor:pointer;font-family:Georgia,serif;font-weight:700">Cancel</button>
   `;
   el.replaceWith(wrap);
   const input = wrap.querySelector("input");
@@ -2518,7 +2517,6 @@ function startFzMapEdit(mapId, el) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ map_id: String(mapId), map_name: name })
       });
-      // 로컬 mapNames도 즉시 반영
       if (typeof mapNames !== "undefined") mapNames[String(mapId)] = name;
     } catch(e) {}
     fetchFzList();
