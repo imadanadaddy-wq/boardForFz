@@ -223,6 +223,7 @@ dbMod.getDb().then(() => {
   app.use("/api/seller",         requireAuth, require("./routes/seller"));
   app.use("/api/forced-offline", requireAuth, require("./routes/forced"));
   app.use("/api/management",     require("./routes/management").router);
+  app.use("/api/fz",             require("./routes/fz"));
 
   // ★★★ NEW: PC 태그 API ★★★
   app.get("/api/bot-tags", requireAuth, (req, res) => {
