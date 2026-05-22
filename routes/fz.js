@@ -79,22 +79,37 @@ router.get("/status", (req, res) => {
     }
   }
 
+  // ── 최근 채널변경(=CC) 시점을 IGN별로 집계 (FZ 리스트 IGN에 한해) ──
+  // field='channel' 또는 'cced_by_evasion' 둘 다 CC로 간주
+  const ccRows = db.all(
+    `SELECT ign, MAX(ts) AS last_cc_ts
+       FROM bot_change_log
+      WHERE ign IN (${placeholders})
+        AND field IN ('channel','cced_by_evasion')
+      GROUP BY ign`,
+    fzIgns
+  );
+  const lastCcByIgn = {};
+  for (const r of ccRows) lastCcByIgn[r.ign] = r.last_cc_ts || 0;
+
   const mapNames = loadMapNames();
   const ONLINE_THRESHOLD_MS = 120_000;
 
   const result = fzIgns.map(ign => {
     const r = byIgn[ign];
+    const last_cc_ts = lastCcByIgn[ign] || null;
     if (!r) {
-      return { ign, online: false, channel: null, map_id: null, map_name: null, ago_sec: null };
+      return { ign, online: false, channel: null, map_id: null, map_name: null, ago_sec: null, last_cc_ts };
     }
     const ago = Math.floor((now - r.last_seen) / 1000);
     return {
-      ign:       r.ign,
-      online:    (now - r.last_seen) < ONLINE_THRESHOLD_MS,
-      channel:   r.channel,
-      map_id:    r.map_id,
-      map_name:  r.map_id != null ? (mapNames[String(r.map_id)] || null) : null,
-      ago_sec:   ago,
+      ign:        r.ign,
+      online:     (now - r.last_seen) < ONLINE_THRESHOLD_MS,
+      channel:    r.channel,
+      map_id:     r.map_id,
+      map_name:   r.map_id != null ? (mapNames[String(r.map_id)] || null) : null,
+      ago_sec:    ago,
+      last_cc_ts,
     };
   });
 

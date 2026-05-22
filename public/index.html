@@ -904,10 +904,31 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 
     <div style="font-size:11px;color:#777;background:var(--ms-slot);border-left:3px solid var(--ms-accent);padding:8px 12px;border-radius:4px;margin-bottom:14px;line-height:1.6">
       Bot casting order for Rudy. Order persists even when offline. Drag to reorder. Click the map name to edit it.
+      <span id="fz-cc-help" style="display:none;margin-left:6px;color:#c0392b;font-weight:700">· 🔴 red border = CC'd within the last 15min</span>
     </div>
 
-    <div id="fz-list-container" style="display:flex;flex-direction:column;gap:6px;max-width:640px">
-      <div style="color:#666;font-size:12px;font-family:'JetBrains Mono',monospace">Loading...</div>
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start">
+      <!-- LEFT: existing FZ list (visible to everyone) -->
+      <div id="fz-list-container" style="display:flex;flex-direction:column;gap:6px;flex:1 1 480px;min-width:340px;max-width:640px">
+        <div style="color:#666;font-size:12px;font-family:'JetBrains Mono',monospace">Loading...</div>
+      </div>
+
+      <!-- RIGHT: My Bots panel — only visible when authed -->
+      <div id="fz-mybots-panel" style="display:none;flex:0 0 280px;background:var(--ms-slot);border:1px solid var(--ms-border-dark);border-radius:8px;padding:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:12px;font-weight:800;color:var(--ms-text);letter-spacing:1px;font-family:'JetBrains Mono',monospace">🤖 MY BOTS</div>
+          <div style="display:flex;gap:4px">
+            <button id="fz-mybots-sort-lv" class="btn" style="padding:2px 8px;font-size:10px;font-family:'JetBrains Mono',monospace" onclick="setMyBotsSort('lv')" title="Sort by level">LV</button>
+            <button id="fz-mybots-sort-name" class="btn" style="padding:2px 8px;font-size:10px;font-family:'JetBrains Mono',monospace;opacity:.55" onclick="setMyBotsSort('name')" title="Sort by name">A-Z</button>
+          </div>
+        </div>
+        <div style="font-size:10px;color:#888;margin-bottom:8px;line-height:1.5">
+          Click or drag a bot into the FZ list to add it. Bots already in the FZ list are dimmed.
+        </div>
+        <div id="fz-mybots-container" style="display:flex;flex-direction:column;gap:3px;max-height:560px;overflow-y:auto">
+          <div style="color:#666;font-size:11px;font-family:'JetBrains Mono',monospace">Loading...</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1239,9 +1260,16 @@ function applyAuth() {
   // Hide secret auth button (already authed)
   const sb = document.getElementById("owner-secret-btn");
   if (sb) sb.style.display = "none";
+  // ★ NEW: 인증된 사용자에게만 My Bots 사이드 패널 노출 + CC 도움말 라벨 표시
+  const myBotsPanel = document.getElementById("fz-mybots-panel");
+  if (myBotsPanel) myBotsPanel.style.display = "block";
+  const ccHelp = document.getElementById("fz-cc-help");
+  if (ccHelp) ccHelp.style.display = "inline";
   fetchMeso();
   fetchSellerRecords();
   fetchChangelog();
+  // 첫 렌더 (botData가 이미 있을 수도 있음)
+  renderMyBotsPanel();
 }
 
 // ── SIDEBAR AUTO-HIDE ──
@@ -1798,6 +1826,8 @@ async function fetchFC() {
     const online = data.filter(b => b.online && isKnownMap(b.map_id) && !manualOffline.has(b.owner+'|'+b.ign)).length;
     if (isAuthed) document.getElementById("s-fc-online").textContent=`${online} | ${data.length}`;
     renderBotTable();
+    // ★ NEW: My Bots 패널도 함께 갱신 (인증된 경우에만 동작)
+    if (isAuthed) renderMyBotsPanel();
     document.getElementById("last-upd").textContent="UPDATED: "+new Date().toLocaleTimeString("ko-KR",{hour12:false});
   } catch(e){}
 }
@@ -2333,6 +2363,8 @@ async function fetchFzList() {
       for (const s of arr) fzStatusMap[s.ign] = s;
     }
     renderFzList();
+    // ★ NEW: FZ 리스트가 바뀌면 My Bots 패널의 "IN LIST" 상태도 갱신
+    if (isAuthed) renderMyBotsPanel();
   } catch(e) {}
 }
 
@@ -2344,8 +2376,12 @@ function fzEscapeHtml(s) {
 function renderFzList() {
   const c = document.getElementById("fz-list-container");
   if (!c) return;
+
+  // 컨테이너 자체가 "My Bots에서 드래그한 봇 추가" 드롭타겟이 되도록 attach
+  attachMyBotsDropHandler(c);
+
   if (!fzList.length) {
-    c.innerHTML = '<div style="color:#666;font-size:12px;font-family:\'JetBrains Mono\',monospace">List is empty. Add an IGN to get started.</div>';
+    c.innerHTML = '<div style="color:#666;font-size:12px;font-family:\'JetBrains Mono\',monospace;padding:10px;border:1px dashed #444;border-radius:6px">List is empty. Add an IGN, or drag a bot here from My Bots.</div>';
     return;
   }
 
@@ -2354,6 +2390,9 @@ function renderFzList() {
   // Rudy 스타일 스프레드시트 컨테이너
   const table = document.createElement("div");
   table.style.cssText = "border:1px solid #888;background:#fff;font-family:Georgia,Cambria,'Times New Roman',serif;font-style:italic;font-weight:700;border-radius:2px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.25)";
+
+  const now = Date.now();
+  const CC_HIGHLIGHT_MS = 15 * 60 * 1000;  // 15분
 
   fzList.forEach((entry, idx) => {
     const status = fzStatusMap[entry.ign];
@@ -2380,8 +2419,18 @@ function renderFzList() {
     }
     const mapShort = mapName ? mapName.replace(/^\[[^\]]+\]\s*/, '') : null;
 
+    // ── CC 강조: 15분 내 채널 변경이 있었던 봇 ──
+    const lastCcTs = status && status.last_cc_ts ? Number(status.last_cc_ts) : 0;
+    const isRecentCc = lastCcTs > 0 && (now - lastCcTs) < CC_HIGHLIGHT_MS;
+
     const row = document.createElement("div");
-    row.style.cssText = "display:flex;align-items:stretch;border-bottom:1px solid #c4c4c4;cursor:grab;background:#fff;transition:opacity .15s" + (isOnline ? "" : ";opacity:.5");
+    let rowStyle = "display:flex;align-items:stretch;border-bottom:1px solid #c4c4c4;cursor:grab;background:#fff;transition:opacity .15s,box-shadow .2s,outline-color .2s" + (isOnline ? "" : ";opacity:.5");
+    if (isRecentCc) {
+      // 빨간 외곽선 + 부드러운 글로우 — outline-offset:-2px로 행 안쪽에 표시되어
+      // 인접 행의 border-bottom과 겹치지 않음
+      rowStyle += ";outline:2px solid #e74c3c;outline-offset:-2px;box-shadow:0 0 8px 1px rgba(231,76,60,.45);position:relative;z-index:1";
+    }
+    row.style.cssText = rowStyle;
     row.dataset.ign = entry.ign;
     row.draggable = true;
 
@@ -2397,9 +2446,16 @@ function renderFzList() {
       ? fzEscapeHtml(mapShort)
       : (mapId != null ? `#${mapId}` : (isOnline ? '-' : 'OFFLINE'));
 
+    // CC 배지 — 최근 15분내 CC면 IGN 옆에 표시 (몇 분 전인지 같이)
+    let ccBadgeHtml = '';
+    if (isRecentCc) {
+      const minsAgo = Math.max(1, Math.floor((now - lastCcTs) / 60000));
+      ccBadgeHtml = `<span style="display:inline-block;margin-left:6px;background:#e74c3c;color:#fff;font-family:'JetBrains Mono',monospace;font-style:normal;font-weight:800;font-size:9px;padding:1px 5px;border-radius:3px;letter-spacing:.5px;vertical-align:middle">🔴 CC ${minsAgo}m</span>`;
+    }
+
     row.innerHTML = `
       <div style="width:42px;flex-shrink:0;background:${idxBg};color:${idxColor};text-align:center;padding:11px 4px;font-family:Georgia,serif;font-style:normal;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;border-right:1px solid #c4c4c4">${idx + 1}</div>
-      <div style="flex:1;min-width:0;color:${ignColor};padding:11px 16px;border-right:1px solid #c4c4c4;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${ignDeco}">${fzEscapeHtml(entry.ign)}</div>
+      <div style="flex:1;min-width:0;color:${ignColor};padding:11px 16px;border-right:1px solid #c4c4c4;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${ignDeco}">${fzEscapeHtml(entry.ign)}${ccBadgeHtml}</div>
       <div style="width:68px;flex-shrink:0;background:${chBg};color:${chColor};text-align:center;padding:11px 4px;border-right:1px solid #c4c4c4;font-size:18px;display:flex;align-items:center;justify-content:center">${ch != null ? ch : '-'}</div>
       <div class="fz-mapname" data-mapid="${mapId != null ? mapId : ''}"
         ${mapId != null ? `onclick="startFzMapEdit('${mapId}', this)" title="Click to edit"` : ''}
@@ -2411,7 +2467,7 @@ function renderFzList() {
       </div>
     `;
 
-    // 드래그 앤 드롭
+    // 드래그 앤 드롭 — FZ list 내부 reorder
     row.addEventListener("dragstart", e => {
       fzDragSrc = row;
       e.dataTransfer.effectAllowed = "move";
@@ -2427,6 +2483,14 @@ function renderFzList() {
     });
     row.addEventListener("drop", e => {
       e.preventDefault();
+      e.stopPropagation();  // 컨테이너 드롭 핸들러로 버블링 방지
+      // My Bots에서 드래그된 봇이면 → FZ 추가 처리
+      const incomingIgn = e.dataTransfer.getData("application/x-bot-ign");
+      if (incomingIgn) {
+        addFzEntryByIgn(incomingIgn);
+        return;
+      }
+      // 그렇지 않으면 → 기존 reorder
       if (!fzDragSrc || fzDragSrc === row) return;
       const allRows = [...table.querySelectorAll("[data-ign]")];
       const srcIdx  = allRows.indexOf(fzDragSrc);
@@ -2447,6 +2511,37 @@ function renderFzList() {
   if (lastRow) lastRow.style.borderBottom = "none";
 
   c.appendChild(table);
+}
+
+// ── FZ list 컨테이너 자체에 "My Bots 드롭" 처리 부착 ──
+// (행이 없을 때도, 빈 영역에 드롭해도 동작하도록)
+function attachMyBotsDropHandler(c) {
+  if (c._myBotsDropAttached) return;
+  c._myBotsDropAttached = true;
+  c.addEventListener("dragover", e => {
+    // My Bots에서 드래그하는 경우(=dataTransfer types에 우리 타입이 있음) 만 허용
+    const types = e.dataTransfer && e.dataTransfer.types;
+    if (types && [...types].includes("application/x-bot-ign")) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      c.style.outline = "2px dashed var(--ms-accent)";
+      c.style.outlineOffset = "2px";
+    }
+  });
+  c.addEventListener("dragleave", e => {
+    if (e.target === c) {
+      c.style.outline = "";
+      c.style.outlineOffset = "";
+    }
+  });
+  c.addEventListener("drop", e => {
+    const ign = e.dataTransfer.getData("application/x-bot-ign");
+    c.style.outline = "";
+    c.style.outlineOffset = "";
+    if (!ign) return;
+    e.preventDefault();
+    addFzEntryByIgn(ign);
+  });
 }
 
 async function saveFzOrder() {
@@ -2488,6 +2583,106 @@ async function deleteFzEntry(ign) {
   if (!confirm(`Remove ${ign} from the list?`)) return;
   await fetch(`/api/fz/${encodeURIComponent(ign)}`, { method: "DELETE" });
   await fetchFzList();
+}
+
+// ══════════════════════════════════════
+// MY BOTS PANEL — 인증된 사용자만 보이는 사이드 패널
+// botData(이미 fetchFC에서 채워짐)를 그대로 사용
+// ══════════════════════════════════════
+let _myBotsSort = 'lv';   // 'lv' | 'name'
+
+function setMyBotsSort(mode) {
+  _myBotsSort = mode;
+  // 버튼 활성/비활성 시각 표시
+  const lvBtn   = document.getElementById('fz-mybots-sort-lv');
+  const nameBtn = document.getElementById('fz-mybots-sort-name');
+  if (lvBtn)   lvBtn.style.opacity   = (mode === 'lv'   ? '1' : '.55');
+  if (nameBtn) nameBtn.style.opacity = (mode === 'name' ? '1' : '.55');
+  renderMyBotsPanel();
+}
+
+function renderMyBotsPanel() {
+  if (!isAuthed) return;
+  const c = document.getElementById('fz-mybots-container');
+  if (!c) return;
+  if (typeof botData === 'undefined' || !botData || !botData.length) {
+    c.innerHTML = '<div style="color:#666;font-size:11px;font-family:\'JetBrains Mono\',monospace">Waiting for bot heartbeats...</div>';
+    return;
+  }
+
+  // FZ 리스트에 이미 추가된 IGN 집합 (중복 추가 방지 + dim 표시)
+  const fzIgnSet = new Set((fzList || []).map(e => e.ign));
+
+  // 정렬
+  const sorted = [...botData];
+  if (_myBotsSort === 'lv') {
+    sorted.sort((a, b) => (b.level || 0) - (a.level || 0) || String(a.ign).localeCompare(b.ign));
+  } else {
+    sorted.sort((a, b) => String(a.ign).localeCompare(b.ign));
+  }
+
+  c.innerHTML = '';
+  sorted.forEach(b => {
+    const alreadyInFz = fzIgnSet.has(b.ign);
+    const row = document.createElement('div');
+    row.draggable = !alreadyInFz;
+    row.dataset.ign = b.ign;
+    const baseBg     = alreadyInFz ? 'rgba(255,255,255,.02)' : 'rgba(255,255,255,.04)';
+    const hoverBg    = 'rgba(0,151,167,.18)';
+    const borderClr  = alreadyInFz ? 'rgba(255,255,255,.05)' : 'rgba(255,255,255,.12)';
+    const cursor     = alreadyInFz ? 'not-allowed' : 'grab';
+    const opacity    = alreadyInFz ? '.4' : (b.online ? '1' : '.65');
+    const dotColor   = b.online ? '#2ecc71' : '#888';
+    row.style.cssText = `display:flex;align-items:center;gap:8px;padding:6px 8px;background:${baseBg};border:1px solid ${borderClr};border-radius:4px;cursor:${cursor};opacity:${opacity};transition:background .12s,transform .08s;font-family:'JetBrains Mono',monospace`;
+
+    row.innerHTML = `
+      <span style="width:7px;height:7px;border-radius:50%;background:${dotColor};flex-shrink:0"></span>
+      <span style="font-size:10px;color:#0097a7;font-weight:800;min-width:42px">Lv.${b.level || '-'}</span>
+      <span style="font-size:11px;color:var(--ms-text);font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fzEscapeHtml(b.ign)}</span>
+      ${alreadyInFz ? '<span style="font-size:9px;color:#888;flex-shrink:0">IN LIST</span>' : '<span style="font-size:12px;color:#666;flex-shrink:0" title="Click or drag to add">+</span>'}
+    `;
+
+    if (!alreadyInFz) {
+      // 클릭으로 추가
+      row.addEventListener('click', () => addFzEntryByIgn(b.ign));
+      // 호버 효과
+      row.addEventListener('mouseenter', () => { row.style.background = hoverBg; });
+      row.addEventListener('mouseleave', () => { row.style.background = baseBg; });
+      // 드래그로 추가
+      row.addEventListener('dragstart', e => {
+        e.dataTransfer.effectAllowed = 'copy';
+        e.dataTransfer.setData('application/x-bot-ign', b.ign);
+        // 일부 브라우저 호환 — text/plain도 같이 채워줌
+        e.dataTransfer.setData('text/plain', b.ign);
+        row.style.opacity = '.4';
+      });
+      row.addEventListener('dragend', () => {
+        row.style.opacity = b.online ? '1' : '.65';
+      });
+    }
+
+    c.appendChild(row);
+  });
+}
+
+async function addFzEntryByIgn(ign) {
+  if (!ign) return;
+  // 중복 체크 (UI 사전 차단)
+  if ((fzList || []).some(e => e.ign === ign)) return;
+  try {
+    const res = await fetch('/api/fz', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ign })
+    });
+    if (res.ok) {
+      await fetchFzList();
+      renderMyBotsPanel();  // dim 상태 즉시 반영
+    } else {
+      const e = await res.json().catch(() => ({}));
+      if (e.error && !/already/i.test(e.error)) alert(e.error);
+    }
+  } catch(e) {}
 }
 
 // ── 인라인 맵이름 편집 (FZ 탭) ──
