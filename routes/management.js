@@ -7,13 +7,20 @@ const JWT_SECRET = process.env.JWT_SECRET || "change-this-secret-in-production";
 const DISCORD_WEBHOOK    = "https://discord.com/api/webhooks/1503065555022774273/BtJoqbrGR1ym4ZgYKf5usuuqSbTfnSggzfTO2M9b0wSGuTdMUBBhLI1cEi2xZKCU7ad8";
 const LOW_MESO_THRESHOLD  = 150_000_000;
 const ALERT_DURATION_MS   = 30 * 60 * 1000;
-const MIN_LEVEL_FOR_ALERT = 260;
+// ★ CHANGED: 기존 MIN_LEVEL_FOR_ALERT(260) 제거 → active_bots 테이블 기반 필터로 대체
+// ★ CHANGED: 기존 MIN_LEVEL_FOR_OFFLINE_ALERT(260) 제거 → 동일하게 active_bots 사용
 
 // ★ NEW: 오프라인 전환 알람 설정
 const OFFLINE_THRESHOLD_MS    = 5 * 60 * 1000;    // 5분 이상 신호 없음 → 오프라인
 const OFFLINE_CHECK_INTERVAL  = 30 * 1000;        // 30초마다 검사
 const OFFLINE_GRACE_AFTER_BOOT = 2 * 60 * 1000;   // 서버 부팅 후 2분간은 오프라인 알람 억제 (DB 로드 + 봇들 재신호 대기)
-const MIN_LEVEL_FOR_OFFLINE_ALERT = 260;          // 메소 알람과 동일 기준 (저렙 봇 제외)
+
+// 헬퍼 — ign이 active_bots에 등록되어 있는지 확인
+function isActiveBot(ign) {
+  try {
+    return !!db.get("SELECT 1 FROM active_bots WHERE ign=?", [ign]);
+  } catch { return false; }
+}
 
 const alertStates       = new Map();   // 저메소 알람
 const offlineAlertSent  = new Map();   // ★ NEW: 봇별 오프라인 알람 발송 상태
@@ -103,7 +110,9 @@ function checkMesoAlert(owner, ign, level, meso_hr, isOnline, isForcedOffline) {
     return;
   }
 
-  if (!level || level < MIN_LEVEL_FOR_ALERT) return;
+  if (!level || level < 1) return;
+  // ★ CHANGED: 레벨 필터(>=260) 대신 active_bots 등록 여부로 판정
+  if (!isActiveBot(ign)) return;
   if (meso_hr === null || meso_hr === undefined || meso_hr === 0) return;
 
   if (meso_hr < LOW_MESO_THRESHOLD) {
@@ -213,8 +222,8 @@ function checkOfflineBots() {
       // 강제 오프라인은 알람 안 보냄 (사용자가 의도적으로 막은 봇)
       if (forced.has(key)) continue;
 
-      // 레벨 필터 (저레벨 봇 알람 안 보냄)
-      if (!row.level || row.level < MIN_LEVEL_FOR_OFFLINE_ALERT) continue;
+      // ★ CHANGED: 레벨 필터(>=260) → active_bots 등록 봇만 알람
+      if (!isActiveBot(row.ign)) continue;
 
       // 이미 알람 보낸 봇 — 중복 발송 방지
       if (offlineAlertSent.has(key)) continue;
