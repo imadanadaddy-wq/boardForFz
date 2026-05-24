@@ -21,7 +21,7 @@ const EVASION_GC_MAX_AGE = 5 * 60_000;  // 5분 지난 엔트리는 GC
 // ── cced_by_evasion 머지: evasion 후 60초 내 CC → 두 로그를 하나로 합침 ──
 //    key: "owner|ign", value: { ts, by, evasionLogTs }
 const _pendingEvasions = new Map();
-const CCED_BY_EVASION_WINDOW_MS = 60_000;  // evasion → CC 간격 허용치 (60초)
+const CCED_BY_EVASION_WINDOW_MS = 5 * 60_000;  // ★ CHANGED: evasion → CC 간격 허용치를 60초 → 5분으로 확장 (봇 CC가 늦게 일어나는 경우 대비)
 
 function shouldRecordEvasion(owner, ign, by) {
   if (!by) return false;
@@ -121,19 +121,19 @@ router.post("/", (req, res) => {
     const newCh  = channel ?? null;
     const newMap = map_id  ?? null;
     if (String(oldCh) !== String(newCh)) {
-      // ── cced_by_evasion 머지: 60초 내 pending evasion이 있으면 단일 로그로 합침 ──
+      // ── cced_by_evasion 머지: 윈도우 내 pending evasion이 있으면 단일 로그로 합침 ──
+      // ★ CHANGED: 이제 raw evasion 행은 DB에 INSERT하지 않으므로 DELETE 불필요.
+      //            pending 메모리 맵에 있을 때만 cced_by_evasion으로 기록.
       const evKey    = `${owner}|${ign}`;
       const pendingEv = _pendingEvasions.get(evKey);
       if (pendingEv && (now - pendingEv.ts) <= CCED_BY_EVASION_WINDOW_MS) {
-        // 기존에 삽입된 evasion 로그 삭제 후 merged 로그 삽입
-        db.run("DELETE FROM bot_change_log WHERE ts=? AND owner=? AND ign=? AND field='evasion'",
-          [pendingEv.evasionLogTs, owner, ign]);
         // new_val = "새채널||evasion_by" (|| 구분자)
         db.run("INSERT INTO bot_change_log (ts,owner,ign,field,old_val,new_val) VALUES (?,?,?,?,?,?)",
           [now, owner, ign, "cced_by_evasion", String(oldCh), `${String(newCh)}||${pendingEv.by}`]);
         _pendingEvasions.delete(evKey);
         console.log(`[CCED_BY_EVASION] ${ign}: CH${oldCh}→CH${newCh} by ${pendingEv.by}`);
       } else {
+        // 자연 CC (evasion 무관) — channel 행만 기록
         db.run("INSERT INTO bot_change_log (ts,owner,ign,field,old_val,new_val) VALUES (?,?,?,?,?,?)",
           [now, owner, ign, "channel", String(oldCh), String(newCh)]);
       }
@@ -224,8 +224,10 @@ router.post("/", (req, res) => {
 
   // ─────────────────────────────────────────────
   // 4) Evasion 이벤트 (on_evasion 콜백 결과)
-  //    클라이언트가 맵 전환 시 같은 detected 리스트로 콜백을 여러 번
-  //    트리거하는 경우가 있어 5초 dedupe 윈도우로 1회만 기록.
+  //    ★ CHANGED: raw `field='evasion'` 행을 더 이상 INSERT하지 않음.
+  //                evade는 사실상 곧 CC를 동반하므로, 채널 변경 시점에
+  //                cced_by_evasion 으로만 기록됨 (단일 행으로 표현).
+  //                5분 윈도우 내 채널 변경이 없으면 그냥 메모리에서 GC.
   // ─────────────────────────────────────────────
   // ── iiPudin 이베이전 로그 완전 무시 ──
   const EVASION_IGN_BLACKLIST = ['iiPudin'];
@@ -236,18 +238,14 @@ router.post("/", (req, res) => {
   if (evasion_by && !isBlacklistedEvasion) {
     if (shouldRecordEvasion(owner, ign, evasion_by)) {
       const evTs = Number(evasion_ts) || now;
-      db.run(
-        "INSERT INTO bot_change_log (ts,owner,ign,field,old_val,new_val) VALUES (?,?,?,?,?,?)",
-        [evTs, owner, ign, "evasion", "", String(evasion_by)]
-      );
-      // 60초 내 CC 오면 위 row를 DELETE하고 cced_by_evasion으로 머지
+      // ★ REMOVED: bot_change_log INSERT (field='evasion') — pending 메모리에만 등록
       const evKey = `${owner}|${ign}`;
-      _pendingEvasions.set(evKey, { ts: evTs, by: String(evasion_by), evasionLogTs: evTs });
-      // GC: 60초 초과 항목 정리
+      _pendingEvasions.set(evKey, { ts: evTs, by: String(evasion_by) });
+      // GC: 5분 + 5초 초과 항목 정리
       for (const [k, v] of _pendingEvasions) {
         if (now - v.ts > CCED_BY_EVASION_WINDOW_MS + 5000) _pendingEvasions.delete(k);
       }
-      console.log(`[EVASION] ${ign} evaded by: ${evasion_by} — pending CC merge (60s)`);
+      console.log(`[EVASION] ${ign} evaded by: ${evasion_by} — pending CC merge (${CCED_BY_EVASION_WINDOW_MS/1000}s)`);
     } else {
       console.log(`[EVASION] ${ign} by ${evasion_by} — duplicate within 5s, skipped`);
     }

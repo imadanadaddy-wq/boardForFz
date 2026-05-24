@@ -280,6 +280,13 @@ dbMod.getDb().then(() => {
     return res.json({ ok: true });
   });
 
+  // ★ NEW: 레거시 raw evasion 로그 정리 (v3.2 이전에 쌓인 별도 EVADE 행 일괄 삭제)
+  app.delete("/api/changelog/cleanup-evasion", requireAuth, (req, res) => {
+    const result = dbMod.run("DELETE FROM bot_change_log WHERE field='evasion'");
+    console.log(`[CLEANUP] removed raw evasion rows`);
+    return res.json({ ok: true });
+  });
+
   // ★★★ NEW: 봇 완전 삭제 (메소트래커 + 하트비트 + 메소히스토리 + PC태그 + 강제오프라인) ★★★
   app.delete("/api/bot/:ign", requireAuth, (req, res) => {
     const ign = req.params.ign;
@@ -292,7 +299,8 @@ dbMod.getDb().then(() => {
       dbMod.run("DELETE FROM forced_offline  WHERE ign=?", [ign]);
       dbMod.run("DELETE FROM bot_change_log  WHERE ign=?", [ign]);
       dbMod.run("DELETE FROM meso_alert_log  WHERE ign=?", [ign]);
-      dbMod.run("DELETE FROM active_bots     WHERE ign=?", [ign]);  // ★ NEW
+      // ★ CHANGED: active_bots는 보존 (영구 등록 의도). 봇이 다시 ONLINE 되면 즉시 active로 인식됨.
+      //            만약 사용자가 active 해제도 원하면 우클릭 메뉴에서 명시적으로 처리.
       console.log(`[BOT-DELETE] ✅ Removed all records for ign=${ign} by ${req.user?.username}`);
       return res.json({ ok: true, ign, deleted: true });
     } catch (e) {
