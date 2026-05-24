@@ -126,7 +126,10 @@ input::placeholder{color:#aaa;font-weight:normal}
 
 /* MESO CARDS */
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:20px}
-.ccard{background:var(--ms-panel);border-top:2px solid var(--ms-border-light);border-left:2px solid var(--ms-border-light);border-right:2px solid var(--ms-border-dark);border-bottom:2px solid var(--ms-border-dark);padding:15px;box-shadow:3px 3px 12px rgba(0,0,0,.1);position:relative;transition:opacity .2s}
+.ccard{background:var(--ms-panel);border-top:2px solid var(--ms-border-light);border-left:2px solid var(--ms-border-light);border-right:2px solid var(--ms-border-dark);border-bottom:2px solid var(--ms-border-dark);padding:15px;box-shadow:3px 3px 12px rgba(0,0,0,.1);position:relative;transition:opacity .2s;cursor:context-menu}
+.ccard.active-bot-card{border-top-color:#ffb300;border-left-color:#ffb300;box-shadow:3px 3px 12px rgba(255,179,0,.18),0 0 0 1px rgba(255,179,0,.4) inset}
+.active-bot-star{display:inline-block;margin-right:4px;font-size:14px;filter:drop-shadow(0 0 2px rgba(255,179,0,.6));animation:abstar-glow 3s ease-in-out infinite}
+@keyframes abstar-glow{0%,100%{filter:drop-shadow(0 0 1px rgba(255,179,0,.5))}50%{filter:drop-shadow(0 0 4px rgba(255,179,0,.9))}}
 .ccard.offline-card{opacity:.55}
 .ccard.offline-card .inv-section,.ccard.offline-card .consumable-bar,.ccard.offline-card .efficiency-bar,.ccard.offline-card .status-row,.ccard.offline-card .ccard-bottom-controls{filter:blur(3px);pointer-events:none;user-select:none;transition:filter .15s}
 .ccard.offline-card:hover .inv-section,.ccard.offline-card:hover .consumable-bar,.ccard.offline-card:hover .efficiency-bar,.ccard.offline-card:hover .status-row,.ccard.offline-card:hover .ccard-bottom-controls{filter:blur(0)}
@@ -689,6 +692,10 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
   <!-- TAB: MESO TRACKER -->
   <div class="tab-content" id="tab-meso">
     <div id="meso-content">
+      <div style="font-size:11px;color:#777;background:var(--ms-slot);border-left:3px solid var(--ms-accent);padding:8px 12px;border-radius:4px;margin-bottom:12px;line-height:1.6">
+        💡 봇 카드 <b>우클릭</b> → <b>🖥️ PC 지정</b> (예: PC1) / <b>⭐ Active Bot 지정</b> 가능.<br>
+        ⭐ Active Bot으로 표시된 봇만 <b>150M/hr 이하 메소부족 알람</b>·<b>오프라인 알람</b>·<b>아이템 매니지(CHARM/PET/FUEL/WAP/ALE)</b> 대상이 됩니다.
+      </div>
       <div id="meso-swipe-hint" style="display:none;text-align:center;font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1px;margin-bottom:6px">← Swipe to browse cards →</div>
       <div class="cards" id="meso-cards">
         <div style="grid-column:1/-1;text-align:center;padding:50px;color:#aaa">Loading data...</div>
@@ -855,7 +862,7 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 
     <!-- Meso/HR panel -->
     <div id="mgmt-panel-meso" style="display:none">
-      <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1.5px;margin-bottom:14px;text-transform:uppercase">📋 Meso/HR Alert Log (Lv.260+ · ONLINE · below 150M/hr · Discord alert after 15min)</div>
+      <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1.5px;margin-bottom:14px;text-transform:uppercase">📋 Meso/HR Alert Log (⭐ Active Bots Only · ONLINE · below 150M/hr · Discord alert after 30min)</div>
       <div id="mgmt-alert-log" style="display:flex;flex-direction:column;gap:8px">
         <div class="mgmt-empty">Loading...</div>
       </div>
@@ -1457,37 +1464,39 @@ function buildEventChip(row, nowMs) {
 
 function renderMgmtItems(data) {
   const grid = document.getElementById('mgmt-item-grid');
-  const MIN_LEVEL  = 221;
-  const CHARM_IGNS = new Set(['KIHAO2','scan2gaa','nggaCoFFE','peruCOFFEE','J2WCOFFEE']);
+  // ★ CHANGED: 레벨 필터(MIN_LEVEL=221)와 CHARM_IGNS 화이트리스트 제거 →
+  //            active_bots 에 등록된 봇만 매니지 대상으로 함.
+  //            모든 active bot은 CHARM / PET / FUEL / ALE 4종 모두 관리 필요.
   const CHARM_THR  = 2;
   const SLOT_DEFS = [
-    { label:'FUEL',  icon:ICON_MAP['연료'],         thr:100,  forAll:true,  finder:(it)=>findItem(it,'연료','에센스') },
-    { label:'PET',   icon:ICON_MAP['펫먹이'],       thr:1000, forAll:true,  finder:(it)=>findItem(it,'펫먹이') },
-    { label:'WAP',   icon:ICON_MAP['재획'],         thr:100,  forAll:true,  finder:(it)=>findItem(it,'재획') },
-    { label:'ALE',   icon:ICON_MAP['ale'],          thr:1000, forAll:true,  finder:(it)=>findItemById(it,2002023)||findItem(it,'ale') },
-    { label:'CHARM', icon:ICON_MAP['safety_charm'], thr:CHARM_THR,forAll:false,finder:(it)=>findItem(it,'safety_charm') },
+    { label:'CHARM', icon:ICON_MAP['safety_charm'], thr:CHARM_THR, finder:(it)=>findItem(it,'safety_charm') },
+    { label:'PET',   icon:ICON_MAP['펫먹이'],       thr:1000,      finder:(it)=>findItem(it,'펫먹이') },
+    { label:'FUEL',  icon:ICON_MAP['연료'],         thr:100,       finder:(it)=>findItem(it,'연료','에센스') },
+    { label:'WAP',   icon:ICON_MAP['재획'],         thr:100,       finder:(it)=>findItem(it,'재획') },
+    { label:'ALE',   icon:ICON_MAP['ale'],          thr:1000,      finder:(it)=>findItemById(it,2002023)||findItem(it,'ale') },
   ];
 
-  const online = data.filter(d => d.online);
-  if (!online.length) { grid.innerHTML=`<div class="mgmt-empty">No bots online</div>`; return; }
+  // online이면서 active_bots에 등록된 봇만 대상
+  const targets = data.filter(d => d.online && isActiveBot(d.ign));
+  if (!targets.length) {
+    grid.innerHTML = `<div class="mgmt-empty">활성 봇이 없습니다 — 메소트래커에서 봇을 우클릭하고 <b>⭐ Active Bot 지정</b>으로 등록하세요</div>`;
+    return;
+  }
 
   const nowMs = Date.now();
   const cards = [];
-  for (const d of online) {
+  for (const d of targets) {
     const items = d.items || [];
-    const ign   = d.ign   || '';
-    const level = d.level || 0;
-    const warnSlots = SLOT_DEFS.filter(s => {
-      if (s.forAll  && level < MIN_LEVEL)    return false;
-      if (!s.forAll && !CHARM_IGNS.has(ign)) return false;
+    const warnSlots = SLOT_DEFS.map(s => {
       const found = s.finder(items);
-      return (found ? found.count : 0) < s.thr;
-    }).map(s => { const found = s.finder(items); return { ...s, cnt: found ? found.count : 0 }; });
+      const cnt = found ? found.count : 0;
+      return { ...s, cnt, warn: cnt < s.thr };
+    }).filter(s => s.warn);
 
     if (warnSlots.length) cards.push({ d, warnSlots });
   }
 
-  if (!cards.length) { grid.innerHTML=`<div class="mgmt-empty">All items stocked ✅</div>`; return; }
+  if (!cards.length) { grid.innerHTML=`<div class="mgmt-empty">모든 active bot 보급품 충분 ✅</div>`; return; }
 
   grid.innerHTML = cards.map(({ d, warnSlots }) => {
     const slotHtml = warnSlots.map(s => {
@@ -1501,7 +1510,7 @@ function renderMgmtItems(data) {
     return `<div class="mgmt-item-card">
       <div class="mgmt-item-card-head">
         <div>
-          <div class="mgmt-item-ign">${d.ign}${getPcTag(d.ign) ? `<span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#0097a7;font-weight:800;margin-left:6px;background:rgba(0,151,167,.08);border:1px solid rgba(0,151,167,.3);padding:1px 6px;border-radius:3px">🖥️ ${getPcTag(d.ign)}</span>` : ''}</div>
+          <div class="mgmt-item-ign">⭐ ${d.ign}${getPcTag(d.ign) ? `<span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#0097a7;font-weight:800;margin-left:6px;background:rgba(0,151,167,.08);border:1px solid rgba(0,151,167,.3);padding:1px 6px;border-radius:3px">🖥️ ${getPcTag(d.ign)}</span>` : ''}</div>
           <div class="mgmt-item-lv">Lv.${d.level} · ${formatAgo(d.ago_sec)}</div>
         </div>
         <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:#e74c3c;font-weight:800">⚠️ ${warnSlots.length} item(s) low</span>
@@ -2090,13 +2099,19 @@ function renderMesoCards(data) {
     const row2 = [findItem(items,"flame","eternal_flame","black_flame"),findItem(items,"eternal_flame"),findItem(items,"black_flame")].map(it=>makeSlot(it)).join("");
     const row3 = [findItem(items,"arcane"),findItem(items,"cer_sac"),findItem(items,"arcus_sac"),findItem(items,"ordium_sac"),findItem(items,"shang_sac")].map(it=>makeSlot(it)).join("");
     const offlineCls = d.online ? '' : ' offline-card';
+    const activeCls  = isActiveBot(d.ign) ? ' active-bot-card' : '';   // ★ NEW
+    const activeStar = isActiveBot(d.ign)
+      ? `<span class="active-bot-star" title="Active Bot (메소부족·오프라인 알람 + 아이템 매니지 대상)">⭐</span>`
+      : '';                                                            // ★ NEW
     const deleteBtn = !d.online
       ? `<button class="ccard-delete-btn" onclick="deleteBot('${d.ign}', this, event)" title="Remove this bot from all records">🗑 DELETE</button>`
       : '';
-    return `<div class="ccard${offlineCls}">
+    // ★ NEW: 우클릭 컨텍스트 메뉴(PC지정/Active Bot 토글) — IGN은 일반적으로 영숫자라 단순 quote escape면 충분
+    const safeIgnAttr = (d.ign || '').replace(/'/g, "\\'");
+    return `<div class="ccard${offlineCls}${activeCls}" oncontextmenu="openBotContextMenu(event,'${safeIgnAttr}')">
       ${deleteBtn}
       <div class="ccard-head">
-        <div><div class="ign">${d.ign||'Unknown'} <span>Lv.${d.level||'?'}</span>${getPcTag(d.ign) ? `<span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#0097a7;font-weight:800;margin-left:6px;background:rgba(0,151,167,.08);border:1px solid rgba(0,151,167,.3);padding:1px 6px;border-radius:3px">🖥️ ${getPcTag(d.ign)}</span>` : ''}</div></div>
+        <div><div class="ign">${activeStar}${d.ign||'Unknown'} <span>Lv.${d.level||'?'}</span>${getPcTag(d.ign) ? `<span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#0097a7;font-weight:800;margin-left:6px;background:rgba(0,151,167,.08);border:1px solid rgba(0,151,167,.3);padding:1px 6px;border-radius:3px">🖥️ ${getPcTag(d.ign)}</span>` : ''}</div></div>
         <div class="${d.online?'ccard-online':'ccard-offline'}">${d.online?'ONLINE':'OFFLINE'}</div>
       </div>
       <div class="consumable-bar">${consRow}</div>
@@ -2331,12 +2346,14 @@ async function init() {
   await loadMapNames();
   await loadForcedOffline();
   await loadPcTags();
+  await loadActiveBots();           // ★ NEW
   autoRegisterDefault();
   fetchFC();
   renderSessions();
   fetchFzList();
   setInterval(()=>{ fetchFC(); if(isAuthed) fetchMeso(); }, 10000);
   setInterval(()=>loadForcedOffline().then(()=>renderBotTable()), 10000);
+  setInterval(()=>{ if(isAuthed) loadActiveBots(); }, 30000);  // ★ NEW: 다른 디바이스 동기화용 주기 갱신
   setInterval(fetchFzList, 15000);
 }
 
@@ -2829,6 +2846,135 @@ window.startPcTagEdit = function(ign, btn) {
   setTimeout(() => { const inp = document.getElementById(`pc-input-${ign.replace(/\W/g,'_')}`); if(inp){inp.focus();inp.select();} }, 30);
 };
 window.savePcTagFromCell = function(ign, val) { savePcTag(ign, val.trim()); };
+
+// ══════════════════════════════════════════════════════════════════
+// ★★★ NEW: ACTIVE BOT 시스템 (메소부족/오프라인 알람 + 아이템 매니지 대상) ★★★
+// ══════════════════════════════════════════════════════════════════
+let _activeBots = new Set();  // 활성 봇 ign 목록 (서버에 영구 저장)
+
+async function loadActiveBots() {
+  if (!isAuthed) return;
+  try {
+    const res = await fetch('/api/active-bots');
+    if (!res.ok) return;
+    const data = await res.json();
+    _activeBots = new Set((data || []).map(r => r.ign));
+    localStorage.setItem('ms_active_bots', JSON.stringify([..._activeBots]));
+  } catch(e) {
+    // localStorage 폴백
+    try { _activeBots = new Set(JSON.parse(localStorage.getItem('ms_active_bots') || '[]')); }
+    catch { _activeBots = new Set(); }
+  }
+}
+
+function isActiveBot(ign) { return _activeBots.has(ign); }
+
+async function toggleActiveBot(ign) {
+  const nextActive = !_activeBots.has(ign);
+  // 낙관적 업데이트
+  if (nextActive) _activeBots.add(ign); else _activeBots.delete(ign);
+  localStorage.setItem('ms_active_bots', JSON.stringify([..._activeBots]));
+  try {
+    await fetch('/api/active-bots', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ign, active: nextActive })
+    });
+  } catch(e) { console.warn('[active-bot] save failed', e); }
+  // UI 갱신
+  fetchMeso();
+  if (document.getElementById('tab-management')?.classList.contains('active')) fetchManagement();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ★★★ NEW: 메소트래커 카드 우클릭 컨텍스트 메뉴 ★★★
+//   - PC 지정 (예: "PC1") — bot_pc_tags 와 연동
+//   - Active Bot 토글 — active_bots 와 연동
+// ══════════════════════════════════════════════════════════════════
+function closeBotContextMenu() {
+  const m = document.getElementById('bot-context-menu');
+  if (m) m.remove();
+  document.removeEventListener('click', closeBotContextMenu);
+  document.removeEventListener('contextmenu', _closeMenuOnOutsideCtx, true);
+}
+function _closeMenuOnOutsideCtx(e) {
+  const m = document.getElementById('bot-context-menu');
+  if (m && !m.contains(e.target)) closeBotContextMenu();
+}
+
+window.openBotContextMenu = function(ev, ign) {
+  ev.preventDefault();
+  ev.stopPropagation();
+  closeBotContextMenu();
+
+  const curPc = getPcTag(ign);
+  const isAct = isActiveBot(ign);
+  const safeIgn = ign.replace(/'/g, "\\'");
+
+  const menu = document.createElement('div');
+  menu.id = 'bot-context-menu';
+  menu.style.cssText = `
+    position:fixed;z-index:9999;
+    background:var(--ms-panel);border:2px solid var(--ms-border-dark);
+    border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,.25);
+    min-width:200px;padding:6px;font-family:'MaplestoryOTFBold',sans-serif;
+    font-size:13px;color:var(--ms-text);user-select:none
+  `;
+  menu.innerHTML = `
+    <div style="padding:6px 10px;font-size:11px;color:#888;font-family:'JetBrains Mono',monospace;border-bottom:1px solid var(--ms-border-dark);margin-bottom:4px">
+      ${ign}
+    </div>
+    <div class="bot-ctx-item" data-act="pc"
+         style="padding:8px 10px;cursor:pointer;border-radius:4px;display:flex;align-items:center;gap:8px;transition:background .1s">
+      🖥️ <span style="flex:1">PC 지정 ${curPc ? `<b style="color:#0097a7">[${curPc}]</b>` : ''}</span>
+    </div>
+    <div class="bot-ctx-item" data-act="active"
+         style="padding:8px 10px;cursor:pointer;border-radius:4px;display:flex;align-items:center;gap:8px;transition:background .1s">
+      ${isAct ? '✅' : '⭐'} <span style="flex:1">${isAct ? 'Active Bot 해제' : 'Active Bot 지정'}</span>
+    </div>
+    ${curPc ? `
+      <div class="bot-ctx-item" data-act="pc-clear"
+           style="padding:8px 10px;cursor:pointer;border-radius:4px;display:flex;align-items:center;gap:8px;color:#c0392b;transition:background .1s">
+        🗑️ <span style="flex:1">PC 지정 해제</span>
+      </div>` : ''}
+  `;
+  document.body.appendChild(menu);
+
+  // 위치 조정 (뷰포트 클리핑)
+  const rect = menu.getBoundingClientRect();
+  const x = Math.min(ev.clientX, window.innerWidth  - rect.width  - 8);
+  const y = Math.min(ev.clientY, window.innerHeight - rect.height - 8);
+  menu.style.left = x + 'px';
+  menu.style.top  = y + 'px';
+
+  // 호버 효과
+  menu.querySelectorAll('.bot-ctx-item').forEach(el => {
+    el.addEventListener('mouseenter', () => { el.style.background = 'rgba(0,151,167,.1)'; });
+    el.addEventListener('mouseleave', () => { el.style.background = ''; });
+    el.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const act = el.dataset.act;
+      closeBotContextMenu();
+      if (act === 'pc') {
+        const next = prompt(`🖥️ "${ign}" 의 PC 번호 입력 (예: PC1, PC2 ...)\n빈 값으로 두면 해제`, curPc);
+        if (next === null) return;  // cancel
+        await savePcTag(ign, next.trim());
+        fetchMeso();
+      } else if (act === 'pc-clear') {
+        await savePcTag(ign, '');
+        fetchMeso();
+      } else if (act === 'active') {
+        await toggleActiveBot(ign);
+      }
+    });
+  });
+
+  // 외부 클릭 시 닫기
+  setTimeout(() => {
+    document.addEventListener('click', closeBotContextMenu, { once: true });
+    document.addEventListener('contextmenu', _closeMenuOnOutsideCtx, true);
+  }, 0);
+};
 
 
 
