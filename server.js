@@ -251,6 +251,35 @@ dbMod.getDb().then(() => {
     return res.json({ ok: true });
   });
 
+  // ════════════════════════════════════════════════════════════════
+  // ★★★ NEW: ACTIVE BOTS API ★★★
+  //   - 메소트래커에서 우클릭으로 "active bot" 토글
+  //   - 메소 부족 알람 / 오프라인 알람 / 아이템 매니지는 이 봇만 대상
+  //   - 기존 Lv.260+ 필터를 완전히 대체
+  // ════════════════════════════════════════════════════════════════
+  app.get("/api/active-bots", requireAuth, (req, res) => {
+    const rows = dbMod.all("SELECT ign, marked_at FROM active_bots ORDER BY ign");
+    return res.json(rows);
+  });
+  app.post("/api/active-bots", requireAuth, (req, res) => {
+    const { ign, active } = req.body || {};
+    if (!ign) return res.status(400).json({ error: "ign required" });
+    const now = Date.now();
+    if (active === false) {
+      dbMod.run("DELETE FROM active_bots WHERE ign=?", [ign]);
+      return res.json({ ok: true, ign, active: false });
+    }
+    dbMod.run(
+      "INSERT INTO active_bots (ign, marked_at) VALUES (?, ?) ON CONFLICT(ign) DO UPDATE SET marked_at=excluded.marked_at",
+      [ign, now]
+    );
+    return res.json({ ok: true, ign, active: true, marked_at: now });
+  });
+  app.delete("/api/active-bots/:ign", requireAuth, (req, res) => {
+    dbMod.run("DELETE FROM active_bots WHERE ign=?", [req.params.ign]);
+    return res.json({ ok: true });
+  });
+
   // ★★★ NEW: 봇 완전 삭제 (메소트래커 + 하트비트 + 메소히스토리 + PC태그 + 강제오프라인) ★★★
   app.delete("/api/bot/:ign", requireAuth, (req, res) => {
     const ign = req.params.ign;
@@ -263,6 +292,7 @@ dbMod.getDb().then(() => {
       dbMod.run("DELETE FROM forced_offline  WHERE ign=?", [ign]);
       dbMod.run("DELETE FROM bot_change_log  WHERE ign=?", [ign]);
       dbMod.run("DELETE FROM meso_alert_log  WHERE ign=?", [ign]);
+      dbMod.run("DELETE FROM active_bots     WHERE ign=?", [ign]);  // ★ NEW
       console.log(`[BOT-DELETE] ✅ Removed all records for ign=${ign} by ${req.user?.username}`);
       return res.json({ ok: true, ign, deleted: true });
     } catch (e) {

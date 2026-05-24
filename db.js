@@ -110,6 +110,14 @@ async function getDb() {
       last_seen        INTEGER NOT NULL,
       last_screenshot  INTEGER DEFAULT 0
     );
+    -- ★ NEW: Active Bot 지정 테이블
+    --   메소트래커 우클릭으로 "active bot"으로 표시한 봇만 등록.
+    --   메소 부족 알람 / 오프라인 알람 / 아이템 매니지(charm,pet,fuel,ale)는
+    --   이 테이블에 있는 봇만 대상으로 한다. (기존 Lv.260+ 필터를 대체)
+    CREATE TABLE IF NOT EXISTS active_bots (
+      ign        TEXT PRIMARY KEY,
+      marked_at  INTEGER NOT NULL
+    );
   `);
   // ── 기본 클라이언트 시드 (서버 재시작해도 항상 유지) ──
   const DEFAULT_CLIENTS = [
