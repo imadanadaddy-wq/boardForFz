@@ -4,18 +4,79 @@ const path    = require("path");
 const fs      = require("fs");
 const db      = require("../db");
 
-// ── 테이블 초기화 ──
+// ════════════════════════════════════════════════════════════
+// ★★★ 하드코딩 시드: Rudy 캐스팅 순서 1~15번 (변경 불가) ★★★
+//   - 서버 시작 시 fz_list 테이블에 강제 동기화 (sort_order 1..15, is_pinned=1)
+//   - Railway 재배포로 unified.db 가 날아가도 항상 복원됨
+//   - 순서/삭제 변경 불가, 16번 이후는 자유롭게 추가/제거
+// ════════════════════════════════════════════════════════════
+const SEED_FZ_IGNS = [
+  "911CHEBOL",     // 1
+  "EXHYEONG",      // 2
+  "EXKANNAo",      // 3
+  "FENDYEONG",     // 4
+  "perubianight", // 5
+  "J2WCOFFEE",     // 6
+  "peruCOFFEE",    // 7
+  "SANAnDANA",     // 8
+  "PaulGarrett",   // 9
+  "LukeJohnsono",  // 10
+  "EllenCraig",    // 11
+  "KaylaRussell",  // 12
+  "ChrlstopherV",  // 13
+  "JenniferDcke",  // 14
+  "DebraKlein",    // 15
+];
+const SEED_IGN_SET = new Set(SEED_FZ_IGNS);
+
+// ── 테이블 초기화 + 시드 동기화 ──
 function ensureTable() {
   db.run(`
     CREATE TABLE IF NOT EXISTS fz_list (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       ign        TEXT NOT NULL UNIQUE,
       sort_order INTEGER NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL
+      created_at INTEGER NOT NULL,
+      is_pinned  INTEGER NOT NULL DEFAULT 0
     )
   `);
+  // 기존 DB에 is_pinned 컬럼 없으면 추가 (마이그레이션)
+  try { db.run("ALTER TABLE fz_list ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0"); }
+  catch(e) { /* 이미 존재 */ }
 }
 ensureTable();
+
+// ── 시드 강제 동기화: 15명을 항상 sort_order 1~15에 고정 ──
+function syncSeedList() {
+  const now = Date.now();
+  // 1) 기존 unpinned 봇들의 최소 sort_order 확보 (16부터 시작하도록)
+  //    먼저 SEED IGN 들을 pinned 처리 (이미 존재하면 sort_order/is_pinned만 업데이트)
+  SEED_FZ_IGNS.forEach((ign, idx) => {
+    const pos = idx + 1;
+    const existing = db.get("SELECT id FROM fz_list WHERE ign=?", [ign]);
+    if (existing) {
+      db.run("UPDATE fz_list SET sort_order=?, is_pinned=1 WHERE ign=?", [pos, ign]);
+    } else {
+      try {
+        db.run(
+          "INSERT INTO fz_list (ign, sort_order, created_at, is_pinned) VALUES (?,?,?,1)",
+          [ign, pos, now]
+        );
+      } catch(e) { /* race condition 무시 */ }
+    }
+  });
+  // 2) seed에 없는 봇 중 sort_order가 1~15 사이로 잘못된 경우 16+ 로 재배치
+  const unpinned = db.all("SELECT id, ign, sort_order FROM fz_list WHERE is_pinned=0 ORDER BY sort_order ASC, id ASC");
+  let nextOrder = 16;
+  unpinned.forEach(r => {
+    if (r.sort_order !== nextOrder) {
+      db.run("UPDATE fz_list SET sort_order=? WHERE id=?", [nextOrder, r.id]);
+    }
+    nextOrder++;
+  });
+  console.log(`[FZ-SEED] synced ${SEED_FZ_IGNS.length} pinned bots + ${unpinned.length} user bots`);
+}
+syncSeedList();
 
 // mapnames.json 위치 (server.js와 동일 경로 규칙)
 const MAPNAMES_PATH = path.join(__dirname, "..", "public", "mapnames.json");
@@ -116,19 +177,23 @@ router.get("/status", (req, res) => {
   res.json(result);
 });
 
-// POST /api/fz — IGN 추가
+// POST /api/fz — IGN 추가 (unpinned only, sort_order는 항상 16+)
 router.post("/", (req, res) => {
   const { ign } = req.body;
   if (!ign) return res.status(400).json({ error: "ign required" });
+  const trimmed = ign.trim();
+  if (SEED_IGN_SET.has(trimmed)) {
+    return res.status(409).json({ error: "Pinned bot already exists at fixed position" });
+  }
 
-  // 현재 최대 sort_order + 1
+  // 현재 최대 sort_order + 1 (시드 15명이 있으므로 항상 16+)
   const maxRow = db.get("SELECT MAX(sort_order) as m FROM fz_list");
-  const nextOrder = (maxRow && maxRow.m != null) ? maxRow.m + 1 : 1;
+  const nextOrder = (maxRow && maxRow.m != null) ? maxRow.m + 1 : 16;
 
   try {
     db.run(
-      "INSERT INTO fz_list (ign, sort_order, created_at) VALUES (?,?,?)",
-      [ign.trim(), nextOrder, Date.now()]
+      "INSERT INTO fz_list (ign, sort_order, created_at, is_pinned) VALUES (?,?,?,0)",
+      [trimmed, nextOrder, Date.now()]
     );
     res.json({ ok: true });
   } catch(e) {
@@ -136,25 +201,35 @@ router.post("/", (req, res) => {
   }
 });
 
-// DELETE /api/fz/:ign — IGN 삭제
+// DELETE /api/fz/:ign — IGN 삭제 (★ pinned 보호)
 router.delete("/:ign", (req, res) => {
-  db.run("DELETE FROM fz_list WHERE ign=?", [req.params.ign]);
-  // 삭제 후 sort_order 재정렬
-  const rows = db.all("SELECT id FROM fz_list ORDER BY sort_order ASC, id ASC");
+  const ign = req.params.ign;
+  if (SEED_IGN_SET.has(ign)) {
+    return res.status(403).json({ error: "Cannot delete a pinned (seed) bot" });
+  }
+  db.run("DELETE FROM fz_list WHERE ign=? AND is_pinned=0", [ign]);
+  // unpinned 만 재정렬 (16부터)
+  const rows = db.all("SELECT id FROM fz_list WHERE is_pinned=0 ORDER BY sort_order ASC, id ASC");
   rows.forEach((r, i) => {
-    db.run("UPDATE fz_list SET sort_order=? WHERE id=?", [i + 1, r.id]);
+    db.run("UPDATE fz_list SET sort_order=? WHERE id=?", [16 + i, r.id]);
   });
   res.json({ ok: true });
 });
 
-// PUT /api/fz/reorder — 순서 일괄 업데이트
+// PUT /api/fz/reorder — 순서 일괄 업데이트 (★ pinned 1~15는 강제 유지)
 // body: { order: ["IGN1","IGN2",...] }
 router.put("/reorder", (req, res) => {
   const { order } = req.body;
   if (!Array.isArray(order)) return res.status(400).json({ error: "order array required" });
 
-  order.forEach((ign, i) => {
-    db.run("UPDATE fz_list SET sort_order=? WHERE ign=?", [i + 1, ign]);
+  // 입력 order에서 pinned 봇은 무시하고 unpinned 만 16+ 부터 순서대로 배치
+  const unpinnedOrder = order.filter(ign => !SEED_IGN_SET.has(ign));
+  unpinnedOrder.forEach((ign, i) => {
+    db.run("UPDATE fz_list SET sort_order=? WHERE ign=? AND is_pinned=0", [16 + i, ign]);
+  });
+  // pinned 는 항상 1~15 위치 강제
+  SEED_FZ_IGNS.forEach((ign, i) => {
+    db.run("UPDATE fz_list SET sort_order=?, is_pinned=1 WHERE ign=?", [i + 1, ign]);
   });
   res.json({ ok: true });
 });

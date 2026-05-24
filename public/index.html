@@ -131,8 +131,17 @@ input::placeholder{color:#aaa;font-weight:normal}
 .active-bot-star{display:inline-block;margin-right:4px;font-size:14px;filter:drop-shadow(0 0 2px rgba(255,179,0,.6));animation:abstar-glow 3s ease-in-out infinite}
 @keyframes abstar-glow{0%,100%{filter:drop-shadow(0 0 1px rgba(255,179,0,.5))}50%{filter:drop-shadow(0 0 4px rgba(255,179,0,.9))}}
 .ccard.offline-card{opacity:.55}
-.ccard.offline-card .inv-section,.ccard.offline-card .consumable-bar,.ccard.offline-card .efficiency-bar,.ccard.offline-card .status-row,.ccard.offline-card .ccard-bottom-controls{filter:blur(3px);pointer-events:none;user-select:none;transition:filter .15s}
-.ccard.offline-card:hover .inv-section,.ccard.offline-card:hover .consumable-bar,.ccard.offline-card:hover .efficiency-bar,.ccard.offline-card:hover .status-row,.ccard.offline-card:hover .ccard-bottom-controls{filter:blur(0)}
+.ccard.offline-card .inv-section,.ccard.offline-card .consumable-bar,.ccard.offline-card .efficiency-bar,.ccard.offline-card .status-row,.ccard.offline-card .ccard-bottom-controls,.ccard.offline-card .ccard-info-line{filter:blur(3px);pointer-events:none;user-select:none;transition:filter .15s}
+.ccard.offline-card:hover .inv-section,.ccard.offline-card:hover .consumable-bar,.ccard.offline-card:hover .efficiency-bar,.ccard.offline-card:hover .status-row,.ccard.offline-card:hover .ccard-bottom-controls,.ccard.offline-card:hover .ccard-info-line{filter:blur(0)}
+/* ★ NEW v2 card header: 2-line compact layout */
+.ccard-head-v2{margin-bottom:8px;padding-bottom:8px;border-bottom:1.5px solid var(--ms-border-dark)}
+.ccard-title-line{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.ccard-info-line{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-top:6px}
+.ccard-pill{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:800;padding:2px 7px;border-radius:3px;border:1px solid;letter-spacing:.3px;line-height:1.4;white-space:nowrap}
+.ccard-pill-online{color:var(--ms-green);border-color:var(--ms-green);background:rgba(46,160,67,.06)}
+.ccard-pill-offline{color:var(--ms-red);border-color:var(--ms-red);background:rgba(231,76,60,.06)}
+.ccard-pill-pc{color:#0097a7;border-color:rgba(0,151,167,.45);background:rgba(0,151,167,.08)}
+.ccard-pill-hr{color:#e67e22;border-color:rgba(230,126,34,.45);background:rgba(230,126,34,.06);margin-left:auto}
 .ccard-delete-btn{position:absolute;top:8px;right:8px;background:rgba(231,76,60,.1);border:1.5px solid rgba(231,76,60,.4);color:#c0392b;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:900;padding:3px 9px;border-radius:4px;cursor:pointer;opacity:0;transition:all .15s;z-index:5}
 .ccard:hover .ccard-delete-btn{opacity:1}
 .ccard-delete-btn:hover{background:#e74c3c;color:#fff}
@@ -915,7 +924,7 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
     </div>
 
     <div style="font-size:11px;color:#777;background:var(--ms-slot);border-left:3px solid var(--ms-accent);padding:8px 12px;border-radius:4px;margin-bottom:14px;line-height:1.6">
-      Bot casting order for Rudy. Order persists even when offline. Drag to reorder. Click the map name to edit it.
+      Bot casting order for Rudy. <b>📌 표시된 1~15번은 서버 하드코딩 순서</b>로 변경/삭제 불가 (재배포해도 자동 복원). 16번 이후만 드래그 reorder / 삭제 가능. Click map name to edit.
       <span id="fz-cc-help" style="display:none;margin-left:6px;color:#c0392b;font-weight:700">· 🔴 red border = CC'd within the last 15min</span>
     </div>
 
@@ -2099,10 +2108,19 @@ function renderMesoCards(data) {
   grid.innerHTML = sorted.map(d => {
     const items = d.items || [];
     const barW  = Math.min(100, ((d.meso_hr||0)/maxHr)*100);
+    // ★ 상단 consumable bar (관리용 5종) — 유지
     const consRow = [findItem(items,"재획"),findItem(items,"연료","에센스"),findItem(items,"펫먹이"),findItem(items,"safety_charm"),findItemById(items,2002023)||findItem(items,"ale")].map(it=>makeSlot(it,true)).join("");
-    const row1 = [findItem(items,"box"),findItem(items,"조각"),findItem(items,"주흔")].map(it=>makeSlot(it)).join("");
-    const row2 = [findItem(items,"flame","eternal_flame","black_flame"),findItem(items,"eternal_flame"),findItem(items,"black_flame")].map(it=>makeSlot(it)).join("");
-    const row3 = [findItem(items,"arcane"),findItem(items,"cer_sac"),findItem(items,"arcus_sac"),findItem(items,"ordium_sac"),findItem(items,"shang_sac")].map(it=>makeSlot(it)).join("");
+    // ★ CHANGED: 하단 추적 아이템 축소
+    //   기존: row1(box,조각,주흔) + row2(flame×3) + row3(arcane,cer,arcus,ordium,shang)
+    //   변경: 한 줄로 [조각(frag) + arcane + sacred×4] = 6개
+    const trackRow = [
+      findItem(items,"조각"),
+      findItem(items,"arcane"),
+      findItem(items,"cer_sac"),
+      findItem(items,"arcus_sac"),
+      findItem(items,"ordium_sac"),
+      findItem(items,"shang_sac")
+    ].map(it=>makeSlot(it)).join("");
     const offlineCls = d.online ? '' : ' offline-card';
     const activeCls  = isActiveBot(d.ign) ? ' active-bot-card' : '';   // ★ NEW
     const activeStar = isActiveBot(d.ign)
@@ -2114,17 +2132,32 @@ function renderMesoCards(data) {
       : '';
     // ★ NEW: 우클릭 컨텍스트 메뉴(PC지정/Active Bot 토글) — IGN은 일반적으로 영숫자라 단순 quote escape면 충분
     const safeIgnAttr = (d.ign || '').replace(/'/g, "\\'");
+    // ★ NEW LAYOUT:
+    //   줄1: ⭐ IGN Lv.NNN
+    //   줄2: ONLINE | 🖥️ PCx | 104.2M/hr  ← 한 줄, 라벨 텍스트 없이
+    //   가운데: 아이템 슬롯 (그대로)
+    //   하단: 💰 4.91B 만 (MESO/HR · TOTAL MESO 텍스트 제거)
+    const onlinePill = d.online
+      ? `<span class="ccard-pill ccard-pill-online">ONLINE</span>`
+      : `<span class="ccard-pill ccard-pill-offline">OFFLINE</span>`;
+    const pcPill = getPcTag(d.ign)
+      ? `<span class="ccard-pill ccard-pill-pc">🖥️ ${getPcTag(d.ign)}</span>`
+      : '';
+    const hrPill = `<span class="ccard-pill ccard-pill-hr">${fmt(d.meso_hr||0)}/hr</span>`;
+
     return `<div class="ccard${offlineCls}${activeCls}" oncontextmenu="openBotContextMenu(event,'${safeIgnAttr}')">
       ${deleteBtn}
-      <div class="ccard-head">
-        <div><div class="ign">${activeStar}${d.ign||'Unknown'} <span>Lv.${d.level||'?'}</span>${getPcTag(d.ign) ? `<span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#0097a7;font-weight:800;margin-left:6px;background:rgba(0,151,167,.08);border:1px solid rgba(0,151,167,.3);padding:1px 6px;border-radius:3px">🖥️ ${getPcTag(d.ign)}</span>` : ''}</div></div>
-        <div class="${d.online?'ccard-online':'ccard-offline'}">${d.online?'ONLINE':'OFFLINE'}</div>
+      <div class="ccard-head-v2">
+        <div class="ccard-title-line">
+          <div class="ign">${activeStar}${d.ign||'Unknown'} <span>Lv.${d.level||'?'}</span></div>
+        </div>
+        <div class="ccard-info-line">
+          ${onlinePill}${pcPill}${hrPill}
+        </div>
       </div>
       <div class="consumable-bar">${consRow}</div>
-      <div class="inv-section"><div class="inv-row">${row1}</div><div class="inv-row">${row2}</div><div class="inv-row">${row3}</div></div>
-      <div class="efficiency-bar" style="margin:8px 0 6px"><div class="bar-fill" style="width:${barW}%"></div></div>
-      <div class="status-row"><span>MESO/HR</span><span class="v" style="color:#e67e22">${fmt(d.meso_hr||0)}</span></div>
-      <div class="status-row"><span>TOTAL MESO</span><span class="v">${fmt(d.meso)}</span></div>
+      <div class="inv-section"><div class="inv-row">${trackRow}</div></div>
+      <div class="efficiency-bar" style="margin:10px 0 6px"><div class="bar-fill" style="width:${barW}%"></div></div>
       <div class="ccard-bottom-controls"><div class="ccard-money"><div class="money-pill"><img src="/images/meso.png" class="money-icon"><span class="money-val">${fmt(d.meso)}</span></div></div></div>
     </div>`;
   }).join("");
@@ -2480,7 +2513,9 @@ function renderFzList() {
     const isRecentCc = lastCcTs > 0 && (now - lastCcTs) < CC_HIGHLIGHT_MS;
 
     const row = document.createElement("div");
-    let rowStyle = "display:flex;align-items:stretch;border-bottom:1px solid #c4c4c4;cursor:grab;background:#fff;transition:opacity .15s,box-shadow .2s,outline-color .2s" + (isOnline ? "" : ";opacity:.5");
+    const isPinned = !!entry.is_pinned;  // ★ NEW: 시드 봇 여부
+    let rowStyle = "display:flex;align-items:stretch;border-bottom:1px solid #c4c4c4;background:#fff;transition:opacity .15s,box-shadow .2s,outline-color .2s" + (isOnline ? "" : ";opacity:.5");
+    rowStyle += isPinned ? ";cursor:default" : ";cursor:grab";  // ★ pinned는 grab 커서 X
     if (isRecentCc) {
       // 빨간 외곽선 + 부드러운 글로우 — outline-offset:-2px로 행 안쪽에 표시되어
       // 인접 행의 border-bottom과 겹치지 않음
@@ -2488,7 +2523,8 @@ function renderFzList() {
     }
     row.style.cssText = rowStyle;
     row.dataset.ign = entry.ign;
-    row.draggable = true;
+    row.dataset.pinned = isPinned ? "1" : "0";
+    row.draggable = !isPinned;  // ★ pinned는 드래그 불가
 
     // 셀 색상 — 채널만 연분홍, 나머지는 흰 배경 + 검정 글씨
     const idxBg     = "#fff";
@@ -2509,18 +2545,27 @@ function renderFzList() {
       ccBadgeHtml = `<span style="display:inline-block;margin-left:6px;background:#e74c3c;color:#fff;font-family:'JetBrains Mono',monospace;font-style:normal;font-weight:800;font-size:9px;padding:1px 5px;border-radius:3px;letter-spacing:.5px;vertical-align:middle">🔴 CC ${minsAgo}m</span>`;
     }
 
+    // ★ NEW: pinned 봇은 인덱스 셀에 회색 락 표시, 마지막 셀의 ×버튼 숨김
+    const idxCellHtml = isPinned
+      ? `<div style="width:42px;flex-shrink:0;background:#f0f0f0;color:#888;text-align:center;padding:11px 4px;font-family:Georgia,serif;font-style:normal;font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;border-right:1px solid #c4c4c4" title="📌 Pinned (서버 하드코딩 순서, 변경 불가)">📌${idx + 1}</div>`
+      : `<div style="width:42px;flex-shrink:0;background:${idxBg};color:${idxColor};text-align:center;padding:11px 4px;font-family:Georgia,serif;font-style:normal;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;border-right:1px solid #c4c4c4">${idx + 1}</div>`;
+
+    const deleteCellHtml = isPinned
+      ? `<div style="width:48px;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center;color:#bbb;font-style:normal;font-size:16px" title="Pinned bot — cannot delete">🔒</div>`
+      : `<div style="width:48px;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center">
+          <button onclick="event.stopPropagation();deleteFzEntry('${fzEscapeHtml(entry.ign)}')"
+            style="background:none;border:none;color:#b00020;font-size:20px;cursor:pointer;font-style:normal;font-weight:700;padding:2px 6px;line-height:1"
+            title="Delete">×</button>
+        </div>`;
+
     row.innerHTML = `
-      <div style="width:42px;flex-shrink:0;background:${idxBg};color:${idxColor};text-align:center;padding:11px 4px;font-family:Georgia,serif;font-style:normal;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;border-right:1px solid #c4c4c4">${idx + 1}</div>
+      ${idxCellHtml}
       <div style="flex:1;min-width:0;color:${ignColor};padding:11px 16px;border-right:1px solid #c4c4c4;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${ignDeco}">${fzEscapeHtml(entry.ign)}${ccBadgeHtml}</div>
       <div style="width:68px;flex-shrink:0;background:${chBg};color:${chColor};text-align:center;padding:11px 4px;border-right:1px solid #c4c4c4;font-size:18px;display:flex;align-items:center;justify-content:center">${ch != null ? ch : '-'}</div>
       <div class="fz-mapname" data-mapid="${mapId != null ? mapId : ''}"
         ${mapId != null ? `onclick="startFzMapEdit('${mapId}', this)" title="Click to edit"` : ''}
         style="flex:1.4;min-width:0;color:${mapColor};padding:11px 14px;border-right:1px solid #c4c4c4;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${mapId != null ? 'cursor:pointer' : ''}">${mapDisplay}</div>
-      <div style="width:48px;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center">
-        <button onclick="event.stopPropagation();deleteFzEntry('${fzEscapeHtml(entry.ign)}')"
-          style="background:none;border:none;color:#b00020;font-size:20px;cursor:pointer;font-style:normal;font-weight:700;padding:2px 6px;line-height:1"
-          title="Delete">×</button>
-      </div>
+      ${deleteCellHtml}
     `;
 
     // 드래그 앤 드롭 — FZ list 내부 reorder
@@ -2548,6 +2593,10 @@ function renderFzList() {
       }
       // 그렇지 않으면 → 기존 reorder
       if (!fzDragSrc || fzDragSrc === row) return;
+      // ★ NEW: pinned row 위/아래로 드롭 시도하면 거부 (서버에서도 막지만 UI에서 1차 차단)
+      if (row.dataset.pinned === "1") {
+        return;  // pinned row 위치는 변경 불가
+      }
       const allRows = [...table.querySelectorAll("[data-ign]")];
       const srcIdx  = allRows.indexOf(fzDragSrc);
       const dstIdx  = allRows.indexOf(row);
