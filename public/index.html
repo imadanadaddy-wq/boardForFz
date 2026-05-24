@@ -2513,18 +2513,13 @@ function renderFzList() {
     const isRecentCc = lastCcTs > 0 && (now - lastCcTs) < CC_HIGHLIGHT_MS;
 
     const row = document.createElement("div");
-    const isPinned = !!entry.is_pinned;  // ★ NEW: 시드 봇 여부
-    let rowStyle = "display:flex;align-items:stretch;border-bottom:1px solid #c4c4c4;background:#fff;transition:opacity .15s,box-shadow .2s,outline-color .2s" + (isOnline ? "" : ";opacity:.5");
-    rowStyle += isPinned ? ";cursor:default" : ";cursor:grab";  // ★ pinned는 grab 커서 X
+    let rowStyle = "display:flex;align-items:stretch;border-bottom:1px solid #c4c4c4;background:#fff;transition:opacity .15s,box-shadow .2s,outline-color .2s;cursor:grab" + (isOnline ? "" : ";opacity:.5");
     if (isRecentCc) {
-      // 빨간 외곽선 + 부드러운 글로우 — outline-offset:-2px로 행 안쪽에 표시되어
-      // 인접 행의 border-bottom과 겹치지 않음
       rowStyle += ";outline:2px solid #e74c3c;outline-offset:-2px;box-shadow:0 0 8px 1px rgba(231,76,60,.45);position:relative;z-index:1";
     }
     row.style.cssText = rowStyle;
     row.dataset.ign = entry.ign;
-    row.dataset.pinned = isPinned ? "1" : "0";
-    row.draggable = !isPinned;  // ★ pinned는 드래그 불가
+    row.draggable = true;
 
     // 셀 색상 — 채널만 연분홍, 나머지는 흰 배경 + 검정 글씨
     const idxBg     = "#fff";
@@ -2545,14 +2540,9 @@ function renderFzList() {
       ccBadgeHtml = `<span style="display:inline-block;margin-left:6px;background:#e74c3c;color:#fff;font-family:'JetBrains Mono',monospace;font-style:normal;font-weight:800;font-size:9px;padding:1px 5px;border-radius:3px;letter-spacing:.5px;vertical-align:middle">🔴 CC ${minsAgo}m</span>`;
     }
 
-    // ★ NEW: pinned 봇은 인덱스 셀에 회색 락 표시, 마지막 셀의 ×버튼 숨김
-    const idxCellHtml = isPinned
-      ? `<div style="width:42px;flex-shrink:0;background:#f0f0f0;color:#888;text-align:center;padding:11px 4px;font-family:Georgia,serif;font-style:normal;font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;border-right:1px solid #c4c4c4" title="📌 Pinned (서버 하드코딩 순서, 변경 불가)">📌${idx + 1}</div>`
-      : `<div style="width:42px;flex-shrink:0;background:${idxBg};color:${idxColor};text-align:center;padding:11px 4px;font-family:Georgia,serif;font-style:normal;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;border-right:1px solid #c4c4c4">${idx + 1}</div>`;
+    const idxCellHtml = `<div style="width:42px;flex-shrink:0;background:#fff;color:#000;text-align:center;padding:11px 4px;font-family:Georgia,serif;font-style:normal;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;border-right:1px solid #c4c4c4">${idx + 1}</div>`;
 
-    const deleteCellHtml = isPinned
-      ? `<div style="width:48px;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center;color:#bbb;font-style:normal;font-size:16px" title="Pinned bot — cannot delete">🔒</div>`
-      : `<div style="width:48px;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center">
+    const deleteCellHtml = `<div style="width:48px;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center">
           <button onclick="event.stopPropagation();deleteFzEntry('${fzEscapeHtml(entry.ign)}')"
             style="background:none;border:none;color:#b00020;font-size:20px;cursor:pointer;font-style:normal;font-weight:700;padding:2px 6px;line-height:1"
             title="Delete">×</button>
@@ -2593,10 +2583,6 @@ function renderFzList() {
       }
       // 그렇지 않으면 → 기존 reorder
       if (!fzDragSrc || fzDragSrc === row) return;
-      // ★ NEW: pinned row 위/아래로 드롭 시도하면 거부 (서버에서도 막지만 UI에서 1차 차단)
-      if (row.dataset.pinned === "1") {
-        return;  // pinned row 위치는 변경 불가
-      }
       const allRows = [...table.querySelectorAll("[data-ign]")];
       const srcIdx  = allRows.indexOf(fzDragSrc);
       const dstIdx  = allRows.indexOf(row);

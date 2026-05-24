@@ -1,6 +1,6 @@
 {
   "name": "hyeong-maple-unified",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Hyeong Maple Unified Dashboard (MesoBo + FrenzyCast) + Desktop Overlay",
   "main": "server.js",
   "scripts": {
@@ -8,11 +8,11 @@
     "overlay": "cd electron && npm install && npm start"
   },
   "dependencies": {
+    "better-sqlite3": "^9.4.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "express": "^4.18.2",
-    "jsonwebtoken": "^9.0.2",
-    "sql.js": "^1.10.2"
+    "jsonwebtoken": "^9.0.2"
   },
   "engines": {
     "node": ">=18.0.0"
