@@ -929,9 +929,15 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
     </div>
 
     <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start">
-      <!-- LEFT: existing FZ list (visible to everyone) -->
+      <!-- LEFT: slots 1~15 -->
       <div id="fz-list-container" style="display:flex;flex-direction:column;gap:6px;flex:1 1 480px;min-width:340px;max-width:640px">
         <div style="color:#666;font-size:12px;font-family:'JetBrains Mono',monospace">Loading...</div>
+      </div>
+
+      <!-- CENTER: slots 16+ (hidden when empty) -->
+      <div id="fz-extra-panel" style="display:none;flex:1 1 380px;min-width:300px;max-width:600px">
+        <div style="font-size:11px;font-weight:800;color:var(--ms-text);letter-spacing:1px;font-family:'JetBrains Mono',monospace;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid var(--ms-accent)">📋 FZ LIST — 16+</div>
+        <div id="fz-extra-container" style="display:flex;flex-direction:column;gap:0"></div>
       </div>
 
       <!-- RIGHT: My Bots panel — only visible when authed -->
@@ -2466,144 +2472,141 @@ function renderFzList() {
   const c = document.getElementById("fz-list-container");
   if (!c) return;
 
-  // 컨테이너 자체가 "My Bots에서 드래그한 봇 추가" 드롭타겟이 되도록 attach
   attachMyBotsDropHandler(c);
+
+  // 16+ 패널
+  const extraPanel = document.getElementById("fz-extra-panel");
+  const extraContainer = document.getElementById("fz-extra-container");
 
   if (!fzList.length) {
     c.innerHTML = '<div style="color:#666;font-size:12px;font-family:\'JetBrains Mono\',monospace;padding:10px;border:1px dashed #444;border-radius:6px">List is empty. Add an IGN, or drag a bot here from My Bots.</div>';
+    if (extraPanel) extraPanel.style.display = "none";
     return;
   }
 
   c.innerHTML = "";
+  if (extraContainer) extraContainer.innerHTML = "";
 
-  // Rudy 스타일 스프레드시트 컨테이너
-  const table = document.createElement("div");
-  table.style.cssText = "border:1px solid #888;background:#fff;font-family:Georgia,Cambria,'Times New Roman',serif;font-style:italic;font-weight:700;border-radius:2px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.25)";
+  const mainList  = fzList.slice(0, 15);
+  const extraList = fzList.slice(15);
+
+  // 16+ 패널 표시 여부
+  if (extraPanel) extraPanel.style.display = extraList.length ? "block" : "none";
 
   const now = Date.now();
-  const CC_HIGHLIGHT_MS = 15 * 60 * 1000;  // 15분
+  const CC_HIGHLIGHT_MS = 15 * 60 * 1000;
 
-  fzList.forEach((entry, idx) => {
-    const status = fzStatusMap[entry.ign];
-    const botEntry = (typeof botData !== "undefined" && botData)
-      ? botData.find(b => b.ign === entry.ign)
-      : null;
+  function buildTable(entries, startIdx, target) {
+    const table = document.createElement("div");
+    table.style.cssText = "border:1px solid #888;background:#fff;font-family:Georgia,Cambria,\'Times New Roman\',serif;font-style:italic;font-weight:700;border-radius:2px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.25)";
 
-    const isOnline =
-      status ? !!status.online :
-      botEntry ? true : false;
+    entries.forEach((entry, i) => {
+      const idx = startIdx + i;
+      const status = fzStatusMap[entry.ign];
+      const botEntry = (typeof botData !== "undefined" && botData)
+        ? botData.find(b => b.ign === entry.ign) : null;
 
-    const ch =
-      status && status.channel != null ? status.channel :
-      (botEntry && botEntry.channel != null ? botEntry.channel : null);
+      const isOnline = status ? !!status.online : botEntry ? true : false;
+      const ch = status && status.channel != null ? status.channel
+        : (botEntry && botEntry.channel != null ? botEntry.channel : null);
+      const mapId = (status && status.map_id != null) ? status.map_id
+        : (botEntry && botEntry.map_id != null ? botEntry.map_id : null);
 
-    const mapId =
-      (status && status.map_id != null) ? status.map_id :
-      (botEntry && botEntry.map_id != null ? botEntry.map_id : null);
+      let mapName = null;
+      if (status && status.map_name) mapName = status.map_name;
+      else if (mapId != null && typeof mapNames !== "undefined" && mapNames[String(mapId)])
+        mapName = mapNames[String(mapId)];
+      const mapShort = mapName ? mapName.replace(/^\[[^\]]+\]\s*/, "") : null;
 
-    let mapName = null;
-    if (status && status.map_name) mapName = status.map_name;
-    else if (mapId != null && typeof mapNames !== "undefined" && mapNames[String(mapId)]) {
-      mapName = mapNames[String(mapId)];
-    }
-    const mapShort = mapName ? mapName.replace(/^\[[^\]]+\]\s*/, '') : null;
+      const lastCcTs = status && status.last_cc_ts ? Number(status.last_cc_ts) : 0;
+      const isRecentCc = lastCcTs > 0 && (now - lastCcTs) < CC_HIGHLIGHT_MS;
 
-    // ── CC 강조: 15분 내 채널 변경이 있었던 봇 ──
-    const lastCcTs = status && status.last_cc_ts ? Number(status.last_cc_ts) : 0;
-    const isRecentCc = lastCcTs > 0 && (now - lastCcTs) < CC_HIGHLIGHT_MS;
+      const row = document.createElement("div");
+      let rowStyle = "display:flex;align-items:stretch;border-bottom:1px solid #c4c4c4;background:#fff;transition:opacity .15s,box-shadow .2s,outline-color .2s;cursor:grab" + (isOnline ? "" : ";opacity:.5");
+      if (isRecentCc)
+        rowStyle += ";outline:2px solid #e74c3c;outline-offset:-2px;box-shadow:0 0 8px 1px rgba(231,76,60,.45);position:relative;z-index:1";
+      row.style.cssText = rowStyle;
+      row.dataset.ign = entry.ign;
+      row.draggable = true;
 
-    const row = document.createElement("div");
-    let rowStyle = "display:flex;align-items:stretch;border-bottom:1px solid #c4c4c4;background:#fff;transition:opacity .15s,box-shadow .2s,outline-color .2s;cursor:grab" + (isOnline ? "" : ";opacity:.5");
-    if (isRecentCc) {
-      rowStyle += ";outline:2px solid #e74c3c;outline-offset:-2px;box-shadow:0 0 8px 1px rgba(231,76,60,.45);position:relative;z-index:1";
-    }
-    row.style.cssText = rowStyle;
-    row.dataset.ign = entry.ign;
-    row.draggable = true;
+      const ignColor  = isOnline ? "#000" : "#888";
+      const ignDeco   = isOnline ? "" : "text-decoration:line-through;";
+      const chBg      = (ch != null) ? "#ffc6dd" : "#fff";
+      const mapColor  = "#000";
+      const mapDisplay = mapShort
+        ? fzEscapeHtml(mapShort)
+        : (mapId != null ? `#${mapId}` : (isOnline ? "-" : "OFFLINE"));
 
-    // 셀 색상 — 채널만 연분홍, 나머지는 흰 배경 + 검정 글씨
-    const idxBg     = "#fff";
-    const idxColor  = "#000";
-    const ignColor  = isOnline ? "#000" : "#888";
-    const ignDeco   = isOnline ? "" : "text-decoration:line-through;";
-    const chBg      = (ch != null) ? "#ffc6dd" : "#fff";  // 연분홍
-    const chColor   = "#000";
-    const mapColor  = "#000";  // 검정으로 통일
-    const mapDisplay = mapShort
-      ? fzEscapeHtml(mapShort)
-      : (mapId != null ? `#${mapId}` : (isOnline ? '-' : 'OFFLINE'));
+      let ccBadgeHtml = "";
+      if (isRecentCc) {
+        const minsAgo = Math.max(1, Math.floor((now - lastCcTs) / 60000));
+        ccBadgeHtml = `<span style="display:inline-block;margin-left:6px;background:#e74c3c;color:#fff;font-family:\'JetBrains Mono\',monospace;font-style:normal;font-weight:800;font-size:9px;padding:1px 5px;border-radius:3px;letter-spacing:.5px;vertical-align:middle">🔴 CC ${minsAgo}m</span>`;
+      }
 
-    // CC 배지 — 최근 15분내 CC면 IGN 옆에 표시 (몇 분 전인지 같이)
-    let ccBadgeHtml = '';
-    if (isRecentCc) {
-      const minsAgo = Math.max(1, Math.floor((now - lastCcTs) / 60000));
-      ccBadgeHtml = `<span style="display:inline-block;margin-left:6px;background:#e74c3c;color:#fff;font-family:'JetBrains Mono',monospace;font-style:normal;font-weight:800;font-size:9px;padding:1px 5px;border-radius:3px;letter-spacing:.5px;vertical-align:middle">🔴 CC ${minsAgo}m</span>`;
-    }
-
-    const idxCellHtml = `<div style="width:42px;flex-shrink:0;background:#fff;color:#000;text-align:center;padding:11px 4px;font-family:Georgia,serif;font-style:normal;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;border-right:1px solid #c4c4c4">${idx + 1}</div>`;
-
-    const deleteCellHtml = `<div style="width:48px;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center">
-          <button onclick="event.stopPropagation();deleteFzEntry('${fzEscapeHtml(entry.ign)}')"
+      const idxCellHtml = `<div style="width:42px;flex-shrink:0;background:#fff;color:#000;text-align:center;padding:11px 4px;font-family:Georgia,serif;font-style:normal;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;border-right:1px solid #c4c4c4">${idx + 1}</div>`;
+      const deleteCellHtml = `<div style="width:48px;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center">
+          <button onclick="event.stopPropagation();deleteFzEntry(\'${fzEscapeHtml(entry.ign)}\')"
             style="background:none;border:none;color:#b00020;font-size:20px;cursor:pointer;font-style:normal;font-weight:700;padding:2px 6px;line-height:1"
             title="Delete">×</button>
         </div>`;
 
-    row.innerHTML = `
-      ${idxCellHtml}
-      <div style="flex:1;min-width:0;color:${ignColor};padding:11px 16px;border-right:1px solid #c4c4c4;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${ignDeco}">${fzEscapeHtml(entry.ign)}${ccBadgeHtml}</div>
-      <div style="width:68px;flex-shrink:0;background:${chBg};color:${chColor};text-align:center;padding:11px 4px;border-right:1px solid #c4c4c4;font-size:18px;display:flex;align-items:center;justify-content:center">${ch != null ? ch : '-'}</div>
-      <div class="fz-mapname" data-mapid="${mapId != null ? mapId : ''}"
-        ${mapId != null ? `onclick="startFzMapEdit('${mapId}', this)" title="Click to edit"` : ''}
-        style="flex:1.4;min-width:0;color:${mapColor};padding:11px 14px;border-right:1px solid #c4c4c4;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${mapId != null ? 'cursor:pointer' : ''}">${mapDisplay}</div>
-      ${deleteCellHtml}
-    `;
+      row.innerHTML = `
+        ${idxCellHtml}
+        <div style="flex:1;min-width:0;color:${ignColor};padding:11px 16px;border-right:1px solid #c4c4c4;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${ignDeco}">${fzEscapeHtml(entry.ign)}${ccBadgeHtml}</div>
+        <div style="width:68px;flex-shrink:0;background:${chBg};color:#000;text-align:center;padding:11px 4px;border-right:1px solid #c4c4c4;font-size:18px;display:flex;align-items:center;justify-content:center">${ch != null ? ch : "-"}</div>
+        <div class="fz-mapname" data-mapid="${mapId != null ? mapId : ""}"
+          ${mapId != null ? `onclick="startFzMapEdit(\'${mapId}\', this)" title="Click to edit"` : ""}
+          style="flex:1.4;min-width:0;color:${mapColor};padding:11px 14px;border-right:1px solid #c4c4c4;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${mapId != null ? "cursor:pointer" : ""}">${mapDisplay}</div>
+        ${deleteCellHtml}
+      `;
 
-    // 드래그 앤 드롭 — FZ list 내부 reorder
-    row.addEventListener("dragstart", e => {
-      fzDragSrc = row;
-      e.dataTransfer.effectAllowed = "move";
-      setTimeout(() => row.style.opacity = "0.3", 0);
-    });
-    row.addEventListener("dragend", () => {
-      row.style.opacity = isOnline ? "1" : "0.5";
-      fzDragSrc = null;
-    });
-    row.addEventListener("dragover", e => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-    });
-    row.addEventListener("drop", e => {
-      e.preventDefault();
-      e.stopPropagation();  // 컨테이너 드롭 핸들러로 버블링 방지
-      // My Bots에서 드래그된 봇이면 → FZ 추가 처리
-      const incomingIgn = e.dataTransfer.getData("application/x-bot-ign");
-      if (incomingIgn) {
-        addFzEntryByIgn(incomingIgn);
-        return;
-      }
-      // 그렇지 않으면 → 기존 reorder
-      if (!fzDragSrc || fzDragSrc === row) return;
-      const allRows = [...table.querySelectorAll("[data-ign]")];
-      const srcIdx  = allRows.indexOf(fzDragSrc);
-      const dstIdx  = allRows.indexOf(row);
-      if (srcIdx < dstIdx) {
-        row.after(fzDragSrc);
-      } else {
-        row.before(fzDragSrc);
-      }
-      saveFzOrder();
+      // drag & drop — reorder within same table
+      row.addEventListener("dragstart", e => {
+        fzDragSrc = row;
+        e.dataTransfer.effectAllowed = "move";
+        setTimeout(() => row.style.opacity = "0.3", 0);
+      });
+      row.addEventListener("dragend", () => {
+        row.style.opacity = isOnline ? "1" : "0.5";
+        fzDragSrc = null;
+      });
+      row.addEventListener("dragover", e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+      });
+      row.addEventListener("drop", e => {
+        e.preventDefault();
+        e.stopPropagation();
+        const incomingIgn = e.dataTransfer.getData("application/x-bot-ign");
+        if (incomingIgn) { addFzEntryByIgn(incomingIgn); return; }
+        if (!fzDragSrc || fzDragSrc === row) return;
+        const allRows = [...document.querySelectorAll("#fz-list-container [data-ign], #fz-extra-container [data-ign]")];
+        const srcIdx2 = allRows.indexOf(fzDragSrc);
+        const dstIdx2 = allRows.indexOf(row);
+        if (srcIdx2 < dstIdx2) row.after(fzDragSrc);
+        else row.before(fzDragSrc);
+        saveFzOrder();
+      });
+
+      table.appendChild(row);
     });
 
-    table.appendChild(row);
+    const lastRow = table.lastElementChild;
+    if (lastRow) lastRow.style.borderBottom = "none";
+    target.appendChild(table);
+  }
+
+  buildTable(mainList, 0, c);
+  if (extraList.length) buildTable(extraList, 15, extraContainer);
+
+  // cc help hint
+  const hasCc = fzList.some(e => {
+    const s = fzStatusMap[e.ign];
+    return s && s.last_cc_ts && (now - Number(s.last_cc_ts)) < CC_HIGHLIGHT_MS;
   });
-
-  // 마지막 행 border 제거
-  const lastRow = table.lastElementChild;
-  if (lastRow) lastRow.style.borderBottom = "none";
-
-  c.appendChild(table);
+  const ccHelp = document.getElementById("fz-cc-help");
+  if (ccHelp) ccHelp.style.display = hasCc ? "inline" : "none";
 }
-
 // ── FZ list 컨테이너 자체에 "My Bots 드롭" 처리 부착 ──
 // (행이 없을 때도, 빈 영역에 드롭해도 동작하도록)
 function attachMyBotsDropHandler(c) {
@@ -2636,10 +2639,11 @@ function attachMyBotsDropHandler(c) {
 }
 
 async function saveFzOrder() {
-  const c = document.getElementById("fz-list-container");
-  if (!c) return;
-  // table은 c의 첫 자식, row들은 그 안에 있음
-  const order = [...c.querySelectorAll("[data-ign]")].map(r => r.dataset.ign);
+  // 1~15(메인) + 16+(엑스트라) 양쪽 순서를 합쳐서 서버에 전송
+  const order = [
+    ...document.querySelectorAll("#fz-list-container [data-ign]"),
+    ...document.querySelectorAll("#fz-extra-container [data-ign]")
+  ].map(r => r.dataset.ign);
   try {
     await fetch("/api/fz/reorder", {
       method: "PUT",
