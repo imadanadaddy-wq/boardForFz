@@ -263,7 +263,6 @@ input::placeholder{color:#aaa;font-weight:normal}
 .mgmt-event-chip.ev-cced{background:linear-gradient(90deg,rgba(231,76,60,.12),rgba(0,151,167,.12));border-color:rgba(231,76,60,.5);color:#e74c3c;animation:pulse-evade 2s ease-in-out 3}
 .mgmt-event-chip.ev-map{background:rgba(230,126,34,.1);border-color:rgba(230,126,34,.4);color:#e67e22}
 .mgmt-event-chip.ev-death{background:rgba(155,89,182,.12);border-color:rgba(155,89,182,.5);color:#9b59b6;animation:pulse-dead 2.5s ease-in-out infinite}
-.mgmt-event-chip.ev-evade{background:rgba(231,76,60,.1);border-color:rgba(231,76,60,.45);color:#e74c3c;animation:pulse-evade 2.5s ease-in-out infinite}
 
 /* Logged-in user badge */
 #discord-user-badge{display:none;align-items:center;gap:7px;font-size:11px;color:rgba(255,255,255,.9);font-family:'JetBrains Mono',monospace;border:1px solid rgba(255,255,255,.35);padding:3px 10px;border-radius:4px;text-decoration:none}
@@ -1475,10 +1474,7 @@ function buildEventChip(row, nowMs) {
   if (type === 'cc') {
     return `<span class="mgmt-event-chip ev-cc" title="${row.old_val} → ${row.new_val}">📡 CC ${row.new_val} · ${agoStr}</span>`;
   }
-  if (type === 'evade') {
-    const byIgn = row.new_val || '?';
-    return `<span class="mgmt-event-chip ev-evade" title="evaded by ${byIgn}">🏃 EVADE by "${byIgn}" · ${agoStr}</span>`;
-  }
+
   if (type === 'map') {
     const newMap = mapNames[row.new_val] ? mapNames[row.new_val].replace(/^[^\]]+\] /, '') : row.new_val;
     return `<span class="mgmt-event-chip ev-map" title="${row.old_val} → ${row.new_val}">🗺 ${newMap.length > 18 ? newMap.slice(0,18)+'…' : newMap} · ${agoStr}</span>`;
@@ -3183,25 +3179,25 @@ const changeLogMarkersPlugin = {
       const type = getEventType(ev);
 
       // Color per event type
-      const color = type === 'cc'    ? '#0097a7'
-                  : '#888'
+      const color = type === 'cced'  ? '#ff6b35'
+                  : type === 'cc'    ? '#0097a7'
                   : type === 'map'   ? '#e67e22'
                   : type === 'death' ? '#9b59b6'
                   : '#888';
 
       // Short label text
-      const shortLabel = type === 'cc'    ? 'CC'
-                       : type === 'evade' ? 'E'
+      const shortLabel = type === 'cced'  ? 'EV'
+                       : type === 'cc'    ? 'CC'
                        : type === 'map'   ? 'M'
                        : type === 'death' ? 'D'
                        : '?';
 
-      const RADIUS = type === 'death' || type === 'evade' ? 16 : 14;
+      const RADIUS = type === 'death' || type === 'cced' ? 16 : 14;
 
       // Vertical dashed line
       ctx.strokeStyle = color + 'cc';
-      ctx.lineWidth = type === 'death' ? 2.5 : type === 'evade' ? 2.5 : 1.8;
-      ctx.setLineDash(type === 'death' || type === 'evade' ? [3,3] : [4,4]);
+      ctx.lineWidth = type === 'death' || type === 'cced' ? 2.5 : 1.8;
+      ctx.setLineDash(type === 'death' || type === 'cced' ? [3,3] : [4,4]);
       ctx.beginPath();
       ctx.moveTo(px, ca.top + RADIUS * 2 + 2);
       ctx.lineTo(px, ca.bottom);
@@ -3565,9 +3561,9 @@ function renderModalChangelog(ign) {
     const d       = new Date(r.ts);
     const timeStr = d.toLocaleTimeString('ko-KR', { hour12:false, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
 
-    const color   = type==='cced' ? '#e74c3c' : type==='cc' ? '#0097a7' : type==='evade' ? '#e74c3c' : type==='map' ? '#e67e22' : type==='death' ? '#9b59b6' : '#888';
-    const icon    = type==='cced' ? '🏃💥' : type==='cc' ? '📡' : type==='evade' ? '🏃' : type==='map' ? '🗺' : type==='death' ? '🪦' : '•';
-    const label   = type==='cced' ? (()=>{const p=(r.new_val||'').split('||');return`CCED CH${p[0]||'?'} by "${p[1]||'?'}" (prev: ${r.old_val})`;})() : type==='cc' ? `CC ${r.new_val} (prev: ${r.old_val})` : type==='evade' ? `Evasion by "${r.new_val||'?'}"` : type==='map' ? `MAP → ${mapNames[r.new_val]||r.new_val}` : type==='death' ? `Death detected` : `${r.field}: ${r.new_val}`;
+    const color   = type==='cced' ? '#ff6b35' : type==='cc' ? '#0097a7' : type==='map' ? '#e67e22' : type==='death' ? '#9b59b6' : '#888';
+    const icon    = type==='cced' ? '🏃💥' : type==='cc' ? '📡' : type==='map' ? '🗺' : type==='death' ? '🪦' : '•';
+    const label   = type==='cced' ? (()=>{const p=(r.new_val||'').split('||');return`EVADE CC: CH${p[0]||'?'} by "${p[1]||'?'}" (prev: CH${r.old_val})`;})() : type==='cc' ? `CC: CH${r.old_val}→CH${r.new_val}` : type==='map' ? `MAP → ${mapNames[r.new_val]||r.new_val}` : type==='death' ? `Death detected` : `${r.field}: ${r.new_val}`;
 
     return `<div style="display:flex;align-items:flex-start;gap:8px;padding:4px 0;border-bottom:1px solid rgba(0,0,0,.04)">
       <span style="font-size:13px;flex-shrink:0;margin-top:1px">${icon}</span>
