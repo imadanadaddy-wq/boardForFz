@@ -91,12 +91,22 @@ tr:hover .force-btn{display:inline-flex;align-items:center;gap:3px}
 .cell-changed{background:rgba(231,76,60,0.08)!important}
 .changed-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:900;color:#fff;background:var(--ms-red);padding:1px 5px;border-radius:3px;margin-left:5px;vertical-align:middle;letter-spacing:.5px;animation:pulse-badge .7s ease 4}
 @keyframes pulse-badge{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(1.15)}}
-.log-field-ch{color:#0097a7;font-weight:900;font-family:'JetBrains Mono',monospace;font-size:12px;border:1.5px solid #0097a7;padding:2px 7px;border-radius:3px}
-.log-field-map{color:#e67e22;font-weight:900;font-family:'JetBrains Mono',monospace;font-size:12px;border:1.5px solid #e67e22;padding:2px 7px;border-radius:3px}
-.log-field-evade{color:#e74c3c;font-weight:900;font-family:'JetBrains Mono',monospace;font-size:12px;border:1.5px solid #e74c3c;padding:2px 7px;border-radius:3px;animation:pulse-evade 1.8s ease-in-out 3}
+/* ── Change Log 배지 ── */
+.log-badge{font-weight:900;font-family:'JetBrains Mono',monospace;font-size:11px;border:1.5px solid;padding:1px 6px;border-radius:3px;white-space:nowrap;display:inline-block}
+.log-badge-cc   {color:#0097a7;border-color:#0097a7}
+.log-badge-evade{color:#ff6b35;border-color:#ff6b35;animation:pulse-evade 1.8s ease-in-out 3}
+.log-badge-map  {color:#e67e22;border-color:#e67e22}
+.log-badge-death{color:#9b59b6;border-color:#9b59b6;animation:pulse-death 2s ease-in-out 3}
+@keyframes pulse-death{0%,100%{box-shadow:0 0 0 0 rgba(155,89,182,0)}50%{box-shadow:0 0 6px 2px rgba(155,89,182,.4)}}
+/* ── Change Log 행 ── */
+.log-event{font-family:'JetBrains Mono',monospace;font-size:13px;vertical-align:middle}
+.log-event-ch  {color:var(--ms-text);font-weight:700}
+.log-event-from{color:#888;text-decoration:line-through;font-size:12px}
+.log-event-arr {color:#555;margin:0 4px}
+.log-event-to  {color:var(--ms-text);font-weight:800}
+.log-event-by  {color:#ff6b35;font-weight:700}
 @keyframes pulse-evade{0%,100%{box-shadow:0 0 0 0 rgba(231,76,60,0)}50%{box-shadow:0 0 6px 2px rgba(231,76,60,.45)}}
-.log-old{color:#bbb;font-family:'JetBrains Mono',monospace;font-size:13px;text-decoration:line-through}
-.log-new{color:var(--ms-text);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:800}
+
 .log-time{font-family:'JetBrains Mono',monospace;font-size:12px;color:#888;white-space:nowrap}
 .map-cell{display:flex;align-items:center;gap:6px;cursor:default}
 .map-cell .map-label{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ms-text)}
@@ -744,17 +754,17 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
             Lv.219+ only
           </label>
           <button class="btn" style="padding:5px 14px;font-size:11px" onclick="fetchChangelog()">↺ Refresh</button>
-          <button class="btn" style="padding:5px 14px;font-size:11px;background:linear-gradient(180deg,#ffa726,#fb8c00);border-color:#e65100" onclick="cleanupLegacyEvade()" title="레거시 raw EVADE 행 일괄 삭제 (v3.2 이전 데이터 정리)">🧹 Cleanup old EVADE</button>
+
           <button class="btn btn-red" style="padding:5px 14px;font-size:11px" onclick="clearChangelog()">Clear All</button>
         </div>
       </div>
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>Time</th><th>IGN</th><th>Field</th><th>From</th><th>→ To</th></tr>
+            <tr><th style="width:110px">Time</th><th style="width:180px">IGN</th><th>Event</th></tr>
           </thead>
           <tbody id="changelog-body">
-            <tr><td colspan="5"><div class="empty-state">No changes recorded yet</div></td></tr>
+            <tr><td colspan="3"><div class="empty-state">No changes recorded yet</div></td></tr>
           </tbody>
         </table>
       </div>
@@ -1424,18 +1434,16 @@ function getDropCause(ign, lowSinceTs) {
     return d <= WINDOW;
   }).sort((a, b) => Math.abs(new Date(a.ts).getTime() - ts) - Math.abs(new Date(b.ts).getTime() - ts));
 
-  // Priority: death > cced_by_evasion > evasion > cc > map > forced
-  const death  = near.find(r => r.field === 'buff_count' && r.new_val === '11');
-  const cced   = near.find(r => r.field === 'cced_by_evasion');
-  const evade  = near.find(r => r.field === 'evasion');
-  const cc     = near.find(r => r.field === 'channel');
-  const map    = near.find(r => r.field === 'map_id');
+  // Priority: death > cced_by_evasion > cc > map
+  const death = near.find(r => r.field === 'death');
+  const cced  = near.find(r => r.field === 'cced_by_evasion');
+  const cc    = near.find(r => r.field === 'cc');
+  const map   = near.find(r => r.field === 'map');
 
-  if (death)  return { type: 'death',  label: '🪦 Death',              shortLabel: 'D',    color: '#9b59b6', ev: death };
-  if (cced)   return { type: 'cced',   label: '🏃💥 CCed by Evasion', shortLabel: 'CCED', color: '#e74c3c', ev: cced  };
-  if (evade)  return { type: 'evade',  label: '🏃 Evasion',            shortLabel: 'E',    color: '#e74c3c', ev: evade };
-  if (cc)     return { type: 'cc',     label: '📡 CC Change',          shortLabel: 'CC',   color: '#0097a7', ev: cc    };
-  if (map)    return { type: 'map',    label: '🗺 Map Change',          shortLabel: 'M',    color: '#e67e22', ev: map   };
+  if (death) return { type: 'death', label: '🪦 Death',             shortLabel: 'D',  color: '#9b59b6', ev: death };
+  if (cced)  return { type: 'cced',  label: '🏃💥 CCed by Evasion', shortLabel: 'EV', color: '#ff6b35', ev: cced  };
+  if (cc)    return { type: 'cc',    label: '📡 CC Change',          shortLabel: 'CC', color: '#0097a7', ev: cc    };
+  if (map)   return { type: 'map',   label: '🗺 Map Change',          shortLabel: 'M',  color: '#e67e22', ev: map   };
 
   // Check if bot was forced offline around this time
   // (no specific event but check if forced flag exists)
@@ -1445,10 +1453,9 @@ function getDropCause(ign, lowSinceTs) {
 // Determine event type (based on field)
 function getEventType(row) {
   if (row.field === 'cced_by_evasion') return 'cced';
-  if (row.field === 'channel') return 'cc';
-  if (row.field === 'evasion') return 'evade';
-  if (row.field === 'map_id')  return 'map';
-  if (row.field === 'buff_count' && row.new_val === '11') return 'death';
+  if (row.field === 'cc')    return 'cc';
+  if (row.field === 'map')   return 'map';
+  if (row.field === 'death') return 'death';
   return 'other';
 }
 
@@ -1477,7 +1484,7 @@ function buildEventChip(row, nowMs) {
     return `<span class="mgmt-event-chip ev-map" title="${row.old_val} → ${row.new_val}">🗺 ${newMap.length > 18 ? newMap.slice(0,18)+'…' : newMap} · ${agoStr}</span>`;
   }
   if (type === 'death') {
-    return `<span class="mgmt-event-chip ev-death" title="buff_count=11 detected">🪦 DEATH · ${agoStr}</span>`;
+    return `<span class="mgmt-event-chip ev-death" title="death detected">🪦 DEATH · ${agoStr}</span>`;
   }
   return '';
 }
@@ -2291,10 +2298,7 @@ function renderChangelog(rows) {
     activeFiltered = before - rows.length;
   }
 
-  // ★ NEW: raw `field='evasion'` 행은 항상 숨김 (cced_by_evasion 으로만 표시되어야 함)
-  //         레거시 데이터 정리 전까지 화면에서 차폐. DB 자체는 Cleanup 버튼으로 일괄 삭제 가능.
-  const evadeHidden = rows.filter(r => r.field === 'evasion').length;
-  rows = rows.filter(r => r.field !== 'evasion');
+
 
   // ★ Level filter: hide entries from bots below Lv.219
   const filterLow = document.getElementById("log-filter-low-lv")?.checked ?? true;
@@ -2336,46 +2340,67 @@ function renderChangelog(rows) {
     const parts = [deduped.length + " entries"];
     if (activeFiltered) parts.push(`${activeFiltered} non-active hidden`);
     if (filteredCount) parts.push(`${filteredCount} low-lv hidden`);
-    if (evadeHidden) parts.push(`${evadeHidden} raw EVADE hidden`);
+
     countEl.textContent = parts.join(" · ");
   }
   if (!deduped.length) {
     let msg = "No changes recorded yet";
     if (filterActive && activeFiltered) msg = "Active Bot 필터로 모두 가려짐 — 우클릭으로 ⭐ Active 지정하세요";
     else if (filterLow && filteredCount) msg = "All hidden by Lv.219+ filter";
-    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">${msg}</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="3"><div class="empty-state">${msg}</div></td></tr>`;
     return;
   }
   tbody.innerHTML = deduped.map(r => {
+    // ── TIME: MM.DD HH:mm (초 없음) ──
     const d    = new Date(r.ts);
-    const time = d.toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"}) + " " + d.toLocaleTimeString("ko-KR",{hour12:false});
-    const isMap    = r.field === "map_id";
-    const isEvade  = r.field === "evasion";
-    const isCced   = r.field === "cced_by_evasion";
-    let fieldLabel, oldVal, newVal;
-    if (isCced) {
-      const parts   = (r.new_val || '').split('||');
-      const newCh   = parts[0] || '?';
-      const byIgn   = parts[1] || '?';
-      fieldLabel = `<span class="log-field-evade">CCED</span>`;
-      oldVal = r.old_val === 'null' ? '—' : `CH ${r.old_val}`;
-      newVal = `CH ${newCh} · cced by <b style="color:#e74c3c">"${byIgn}"</b>`;
-    } else if (isEvade) {
-      fieldLabel = `<span class="log-field-evade">EVADE</span>`;
-      oldVal = '—';
-      newVal = `evasion by <b style="color:#e74c3c">"${r.new_val || '?'}"</b>`;
-    } else if (isMap) {
-      fieldLabel = `<span class="log-field-map">MAP</span>`;
-      oldVal = mapNames[r.old_val] ? `${mapNames[r.old_val]} (${r.old_val})` : (r.old_val === 'null' ? '—' : r.old_val);
-      newVal = mapNames[r.new_val] ? `${mapNames[r.new_val]} (${r.new_val})` : (r.new_val === 'null' ? '—' : r.new_val);
+    const time = d.toLocaleDateString("ko-KR",{month:"2-digit",day:"2-digit"})
+               + " " + d.toLocaleTimeString("ko-KR",{hour12:false,hour:"2-digit",minute:"2-digit"});
+
+    // ── EVENT 셀 구성 ──
+    let badge = '', desc = '';
+
+    if (r.field === 'cced_by_evasion') {
+      const parts = (r.new_val || '').split('||');
+      const newCh = parts[0] || '?';
+      const byIgn = parts[1] || '?';
+      const oldCh = r.old_val === 'null' ? '?' : r.old_val;
+      badge = `<span class="log-badge log-badge-evade">EVADE CC</span>`;
+      desc  = `<span class="log-event-from">CH${oldCh}</span>`
+            + `<span class="log-event-arr">→</span>`
+            + `<span class="log-event-to">CH${newCh}</span>`
+            + ` <span style="color:#555">by</span> <span class="log-event-by">"${byIgn}"</span>`;
+    } else if (r.field === 'cc') {
+      const oldCh = r.old_val === 'null' ? '?' : r.old_val;
+      const newCh = r.new_val === 'null' ? '?' : r.new_val;
+      badge = `<span class="log-badge log-badge-cc">CC</span>`;
+      desc  = `<span class="log-event-from">CH${oldCh}</span>`
+            + `<span class="log-event-arr">→</span>`
+            + `<span class="log-event-to">CH${newCh}</span>`;
+    } else if (r.field === 'map') {
+      const oldMap = mapNames[r.old_val] || r.old_val || '?';
+      const newMap = mapNames[r.new_val] || r.new_val || '?';
+      badge = `<span class="log-badge log-badge-map">MAP</span>`;
+      desc  = `<span class="log-event-from">${oldMap}</span>`
+            + `<span class="log-event-arr">→</span>`
+            + `<span class="log-event-to">${newMap}</span>`;
+    } else if (r.field === 'death') {
+      badge = `<span class="log-badge log-badge-death">🪦 DEATH</span>`;
+      desc  = '';
     } else {
-      fieldLabel = `<span class="log-field-ch">CH</span>`;
-      oldVal = r.old_val === 'null' ? '—' : r.old_val;
-      newVal = r.new_val === 'null' ? '—' : r.new_val;
+      // 알 수 없는 field — 그냥 표시
+      const oldV = r.old_val === 'null' ? '?' : (r.old_val || '?');
+      const newV = r.new_val === 'null' ? '?' : (r.new_val || '?');
+      badge = `<span class="log-badge" style="color:#888;border-color:#888">${r.field}</span>`;
+      desc  = `<span class="log-event-from">${oldV}</span>`
+            + `<span class="log-event-arr">→</span>`
+            + `<span class="log-event-to">${newV}</span>`;
     }
-    const oldHtml = (isEvade || isCced) ? `<span style="color:#bbb">—</span>` : `<span class="log-old">${oldVal}</span>`;
-    const newHtml = `<span class="log-new">${newVal}</span>`;
-    return `<tr><td class="log-time">${time}</td><td class="td-ign">${r.ign}</td><td>${fieldLabel}</td><td>${oldHtml}</td><td>${newHtml}</td></tr>`;
+
+    return `<tr>
+      <td class="log-time">${time}</td>
+      <td class="td-ign">${r.ign}</td>
+      <td class="log-event">${badge} ${desc}</td>
+    </tr>`;
   }).join("");
 }
 
@@ -2386,18 +2411,7 @@ async function clearChangelog() {
   renderChangelog([]);
 }
 
-// ★ NEW: 레거시 raw EVADE 행 일괄 삭제 (cced_by_evasion 으로 머지되지 않고 남아있는 구버전 데이터)
-async function cleanupLegacyEvade() {
-  if (!confirm("DB에 남아있는 레거시 raw EVADE 행을 모두 삭제합니다.\n(cced_by_evasion 으로 머지된 정상 로그는 보존)\n계속할까요?")) return;
-  try {
-    const res = await fetch("/api/changelog/cleanup-evasion", { method: "DELETE" });
-    if (!res.ok) throw new Error("cleanup failed");
-    await fetchChangelog();
-    alert("✅ 레거시 EVADE 행 정리 완료");
-  } catch(e) {
-    alert("❌ 실패: " + e.message);
-  }
-}
+
 
 // ── REGISTER CLIENT ──
 async function registerClient() {
@@ -2864,7 +2878,7 @@ function startFzMapEdit(mapId, el) {
     else{offEl.innerHTML=offline.map((d,i)=>{const key=(d.owner||'Hyeong')+'|'+d.ign;const isForced=manualOffline.has(key);const isMapOff=d.online&&!isKnownMap(d.map_id);const pc=getPcTag(d.ign);const pcStr=pc?`<span style="font-size:9px;color:rgba(0,151,167,.7);border:1px solid rgba(0,151,167,.4);padding:0 4px;border-radius:2px;margin-left:3px">🖥️${pc}</span>`:'';const reasonBadge=isForced?`<span style="font-size:9px;color:#9b59b6;border:1px solid #9b59b6;padding:0 4px;border-radius:2px;margin-left:3px">FORCED</span>`:isMapOff?`<span style="font-size:9px;color:#ff9800;border:1px solid #ff9800;padding:0 4px;border-radius:2px;margin-left:3px">MAP</span>`:'';return`<div class="ov-row" style="opacity:.75;animation-delay:${i*25}ms"><div class="ov-ign">${d.ign||'Unknown'}${pcStr} <span class="ov-lv">Lv.${d.level||'?'}</span>${reasonBadge}<span class="ov-ago">${ovFmtAgo(d.ago_sec)}</span></div><span class="ov-badge-off">OFFLINE</span></div>`;}).join("");}
     const logEl=document.getElementById("ov-log-list");
     if(!logs||!logs.length){logEl.innerHTML='<div class="ov-empty">No change records</div>';}
-    else{logEl.innerHTML=logs.slice(0,20).map((l,i)=>{const t=new Date(l.ts).toLocaleTimeString("ko-KR",{hour12:false,hour:"2-digit",minute:"2-digit"});const isCced=l.field==="cced_by_evasion";const isEvade=l.field==="evasion";const fieldCls=isCced?"color:#e74c3c":l.field==="channel"?"color:#0097a7":"color:#e67e22";const fieldLabel=isCced?"CCED":isEvade?"EVADE":l.field==="channel"?"CH":"MAP";let displayVal=l.new_val??'—';if(isCced){const p=(l.new_val||'').split('||');displayVal=`CH${p[0]||'?'} by ${p[1]||'?'}`;}return`<div class="ov-row" style="animation-delay:${i*15}ms"><div class="ov-ign" style="gap:4px;flex-wrap:wrap;max-width:170px"><span style="font-size:10px;color:rgba(255,255,255,.25)">${t}</span><span style="font-size:12px">${l.ign||'?'}</span><span style="font-size:10px;font-weight:900;border:1px solid;padding:0 4px;border-radius:2px;${fieldCls}">${fieldLabel}</span></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px"><span style="font-size:10px;color:#888;text-decoration:line-through">${isCced||isEvade?'—':l.old_val??'—'}</span><span style="font-size:11px;font-weight:800;color:#e0f7fa">${displayVal}</span></div></div>`;}).join("");}
+    else{logEl.innerHTML=logs.slice(0,20).map((l,i)=>{const t=new Date(l.ts).toLocaleTimeString("ko-KR",{hour12:false,hour:"2-digit",minute:"2-digit"});const isCced=l.field==="cced_by_evasion";const isDeath=l.field==="death"||(l.field==="buff_count"&&l.new_val==="11");const fieldCls=isCced?"color:#ff6b35":isDeath?"color:#9b59b6":l.field==="cc"?"color:#0097a7":"color:#e67e22";const fieldLabel=isCced?"EVADE CC":isDeath?"🪦DEATH":l.field==="cc"?"CC":"MAP";let displayVal=l.new_val??'—';if(isCced){const p=(l.new_val||'').split('||');displayVal=`CH${p[0]||'?'} by ${p[1]||'?'}`;}else if(isDeath){displayVal='death';}else if(l.field==="cc"){displayVal=`CH${l.old_val??'?'}→CH${l.new_val??'?'}`; }return`<div class="ov-row" style="animation-delay:${i*15}ms"><div class="ov-ign" style="gap:4px;flex-wrap:wrap;max-width:170px"><span style="font-size:10px;color:rgba(255,255,255,.25)">${t}</span><span style="font-size:12px">${l.ign||'?'}</span><span style="font-size:10px;font-weight:900;border:1px solid;padding:0 4px;border-radius:2px;${fieldCls}">${fieldLabel}</span></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px"><span style="font-size:10px;color:#888;text-decoration:line-through">${isCced||isEvade?'—':l.old_val??'—'}</span><span style="font-size:11px;font-weight:800;color:#e0f7fa">${displayVal}</span></div></div>`;}).join("");}
   }
   try{const saved=localStorage.getItem("ov_opacity");if(saved){document.getElementById("ov-opacity").value=saved;window.ovSetOpacity(saved);}}catch(e){}
 })();
@@ -3170,7 +3184,7 @@ const changeLogMarkersPlugin = {
 
       // Color per event type
       const color = type === 'cc'    ? '#0097a7'
-                  : type === 'evade' ? '#e74c3c'
+                  : '#888'
                   : type === 'map'   ? '#e67e22'
                   : type === 'death' ? '#9b59b6'
                   : '#888';
