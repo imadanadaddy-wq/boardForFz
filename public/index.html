@@ -496,6 +496,15 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 .cced-title{font-size:16px;font-weight:900;color:#e74c3c;letter-spacing:1px;font-family:'JetBrains Mono',monospace}
 .cced-detail{font-size:12px;color:#c0392b;font-family:'JetBrains Mono',monospace;margin-top:3px;font-weight:800}
 .cced-timer{font-size:11px;color:#888;font-family:'JetBrains Mono',monospace;flex-shrink:0;text-align:right}
+
+/* ── MESO CARD INFO ROW ── */
+.ccard-info-row{display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding:5px 8px;background:rgba(0,0,0,.03);border:1px solid var(--ms-border-dark);border-radius:4px;gap:4px}
+.ccard-info-row .info-pc{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:800;color:#0097a7;white-space:nowrap}
+.ccard-info-row .info-hr{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800;color:#e67e22;white-space:nowrap}
+.ccard-info-row .info-meso{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:800;color:#004d40;display:flex;align-items:center;gap:3px;white-space:nowrap}
+/* ── FZ DUAL COLUMN ── */
+.fz-dual-wrap{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.fz-dual-col{flex:1 1 0;min-width:320px}
 </style>
 </head>
 <body>
@@ -2111,33 +2120,39 @@ function renderMesoCards(data) {
   grid.innerHTML = sorted.map(d => {
     const items = d.items || [];
     const barW  = Math.min(100, ((d.meso_hr||0)/maxHr)*100);
-    const consRow = [findWapEquiv(items),findItem(items,"연료","에센스"),findItem(items,"펫먹이"),findItem(items,"safety_charm"),findItemById(items,2002023)||findItem(items,"ale")].map(it=>makeSlot(it,true)).join("");
-    const row1 = [findItem(items,"box"),findItem(items,"조각"),findItem(items,"주흔")].map(it=>makeSlot(it)).join("");
-    const row2 = [findItem(items,"flame","eternal_flame","black_flame"),findItem(items,"eternal_flame"),findItem(items,"black_flame")].map(it=>makeSlot(it)).join("");
-    const row3 = [findItem(items,"arcane"),findItem(items,"cer_sac"),findItem(items,"arcus_sac"),findItem(items,"ordium_sac"),findItem(items,"shang_sac")].map(it=>makeSlot(it)).join("");
+    // 관리 5종 + 조각(frag)
+    const consRow = [
+      findWapEquiv(items),
+      findItem(items,"연료","에센스"),
+      findItem(items,"펫먹이"),
+      findItem(items,"safety_charm"),
+      findItemById(items,2002023)||findItem(items,"ale"),
+      findItem(items,"조각")
+    ].map(it=>makeSlot(it,true)).join("");
     const offlineCls = d.online ? '' : ' offline-card';
-    const activeCls  = isActiveBot(d.ign) ? ' active-bot-card' : '';   // ★ NEW
+    const activeCls  = isActiveBot(d.ign) ? ' active-bot-card' : '';
     const activeStar = isActiveBot(d.ign)
-      ? `<span class="active-bot-star" title="Active Bot (메소부족·오프라인 알람 + 아이템 매니지 대상)">⭐</span>`
-      : '';                                                            // ★ NEW
-    // ★ CHANGED: Active Bot은 DELETE 버튼 숨김 (실수로 active 상태 + 모든 기록 날아가는 거 방지)
+      ? `<span class="active-bot-star" title="Active Bot">⭐</span>`
+      : '';
     const deleteBtn = (!d.online && !isActiveBot(d.ign))
       ? `<button class="ccard-delete-btn" onclick="deleteBot('${d.ign}', this, event)" title="Remove this bot from all records">🗑 DELETE</button>`
       : '';
-    // ★ NEW: 우클릭 컨텍스트 메뉴(PC지정/Active Bot 토글) — IGN은 일반적으로 영숫자라 단순 quote escape면 충분
-    const safeIgnAttr = (d.ign || '').replace(/'/g, "\\'");
+    const safeIgnAttr = (d.ign || '').replace(/'/g, "\\'")
+;    const pcTag  = getPcTag(d.ign);
+    const pcStr  = pcTag ? `🖥️ ${pcTag}` : '—';
+    const totalB = d.meso >= 1e9 ? (d.meso/1e9).toFixed(2)+'B' : fmt(d.meso);
     return `<div class="ccard${offlineCls}${activeCls}" oncontextmenu="openBotContextMenu(event,'${safeIgnAttr}')">
       ${deleteBtn}
       <div class="ccard-head">
-        <div><div class="ign">${activeStar}${d.ign||'Unknown'} <span>Lv.${d.level||'?'}</span>${getPcTag(d.ign) ? `<span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#0097a7;font-weight:800;margin-left:6px;background:rgba(0,151,167,.08);border:1px solid rgba(0,151,167,.3);padding:1px 6px;border-radius:3px">🖥️ ${getPcTag(d.ign)}</span>` : ''}</div></div>
+        <div><div class="ign">${activeStar}${d.ign||'Unknown'} <span>Lv.${d.level||'?'}</span></div></div>
         <div class="${d.online?'ccard-online':'ccard-offline'}">${d.online?'ONLINE':'OFFLINE'}</div>
       </div>
       <div class="consumable-bar">${consRow}</div>
-      <div class="inv-section"><div class="inv-row">${row1}</div><div class="inv-row">${row2}</div><div class="inv-row">${row3}</div></div>
-      <div class="efficiency-bar" style="margin:8px 0 6px"><div class="bar-fill" style="width:${barW}%"></div></div>
-      <div class="status-row"><span>MESO/HR</span><span class="v" style="color:#e67e22">${fmt(d.meso_hr||0)}</span></div>
-      <div class="status-row"><span>TOTAL MESO</span><span class="v">${fmt(d.meso)}</span></div>
-      <div class="ccard-bottom-controls"><div class="ccard-money"><div class="money-pill"><img src="/images/meso.png" class="money-icon"><span class="money-val">${fmt(d.meso)}</span></div></div></div>
+      <div class="ccard-info-row">
+        <span class="info-pc">${pcStr}</span>
+        <span class="info-hr">${fmt(d.meso_hr||0)}/hr</span>
+        <span class="info-meso"><img src="/images/meso.png" style="width:14px;height:14px;image-rendering:pixelated;vertical-align:middle;margin-right:2px">${totalB}</span>
+      </div>
     </div>`;
   }).join("");
 
@@ -2441,144 +2456,98 @@ function fzEscapeHtml(s) {
     ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
+// ── FZ 테이블 블록 빌더 ──
+function buildFzTable(entries, startIdx) {
+  const table = document.createElement("div");
+  table.style.cssText = "border:1px solid #888;background:#fff;font-family:Georgia,Cambria,'Times New Roman',serif;font-style:italic;font-weight:700;border-radius:2px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.25)";
+  const now = Date.now();
+  const CC_HIGHLIGHT_MS = 15 * 60 * 1000;
+  entries.forEach((entry, i) => {
+    const idx = startIdx + i;
+    const status = fzStatusMap[entry.ign];
+    const botEntry = (typeof botData !== "undefined" && botData)
+      ? botData.find(b => b.ign === entry.ign) : null;
+    const isOnline = status ? !!status.online : botEntry ? true : false;
+    const ch = status && status.channel != null ? status.channel :
+      (botEntry && botEntry.channel != null ? botEntry.channel : null);
+    const mapId = (status && status.map_id != null) ? status.map_id :
+      (botEntry && botEntry.map_id != null ? botEntry.map_id : null);
+    let mapName = null;
+    if (status && status.map_name) mapName = status.map_name;
+    else if (mapId != null && typeof mapNames !== "undefined" && mapNames[String(mapId)])
+      mapName = mapNames[String(mapId)];
+    const mapShort = mapName ? mapName.replace(/^\[[^\]]+\]\s*/, '') : null;
+    const lastCcTs = status && status.last_cc_ts ? Number(status.last_cc_ts) : 0;
+    const isRecentCc = lastCcTs > 0 && (now - lastCcTs) < CC_HIGHLIGHT_MS;
+    const row = document.createElement("div");
+    let rowStyle = "display:flex;align-items:stretch;border-bottom:1px solid #c4c4c4;cursor:grab;background:#fff;transition:opacity .15s,box-shadow .2s,outline-color .2s" + (isOnline ? "" : ";opacity:.5");
+    if (isRecentCc) rowStyle += ";outline:2px solid #e74c3c;outline-offset:-2px;box-shadow:0 0 8px 1px rgba(231,76,60,.45);position:relative;z-index:1";
+    row.style.cssText = rowStyle;
+    row.dataset.ign = entry.ign;
+    row.draggable = true;
+    const idxBg="#fff",idxColor="#000";
+    const ignColor=isOnline?"#000":"#888";
+    const ignDeco=isOnline?"":"text-decoration:line-through;";
+    const chBg=(ch!=null)?"#ffc6dd":"#fff",chColor="#000",mapColor="#000";
+    const mapDisplay=mapShort?fzEscapeHtml(mapShort):(mapId!=null?`#${mapId}`:(isOnline?'-':'OFFLINE'));
+    let ccBadgeHtml='';
+    if(isRecentCc){const minsAgo=Math.max(1,Math.floor((now-lastCcTs)/60000));ccBadgeHtml=`<span style="display:inline-block;margin-left:6px;background:#e74c3c;color:#fff;font-family:'JetBrains Mono',monospace;font-style:normal;font-weight:800;font-size:9px;padding:1px 5px;border-radius:3px;letter-spacing:.5px;vertical-align:middle">🔴 CC ${minsAgo}m</span>`;}
+    row.innerHTML=`
+      <div style="width:42px;flex-shrink:0;background:${idxBg};color:${idxColor};text-align:center;padding:11px 4px;font-family:Georgia,serif;font-style:normal;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;border-right:1px solid #c4c4c4">${idx+1}</div>
+      <div style="flex:1;min-width:0;color:${ignColor};padding:11px 16px;border-right:1px solid #c4c4c4;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${ignDeco}">${fzEscapeHtml(entry.ign)}${ccBadgeHtml}</div>
+      <div style="width:68px;flex-shrink:0;background:${chBg};color:${chColor};text-align:center;padding:11px 4px;border-right:1px solid #c4c4c4;font-size:18px;display:flex;align-items:center;justify-content:center">${ch!=null?ch:'-'}</div>
+      <div class="fz-mapname" data-mapid="${mapId!=null?mapId:''}"
+        ${mapId!=null?`onclick="startFzMapEdit('${mapId}',this)" title="Click to edit"`:''}
+        style="flex:1.4;min-width:0;color:${mapColor};padding:11px 14px;border-right:1px solid #c4c4c4;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${mapId!=null?'cursor:pointer':''}">${mapDisplay}</div>
+      <div style="width:48px;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center">
+        <button onclick="event.stopPropagation();deleteFzEntry('${fzEscapeHtml(entry.ign)}')"
+          style="background:none;border:none;color:#b00020;font-size:20px;cursor:pointer;font-style:normal;font-weight:700;padding:2px 6px;line-height:1" title="Delete">×</button>
+      </div>`;
+    row.addEventListener("dragstart",e=>{fzDragSrc=row;e.dataTransfer.effectAllowed="move";setTimeout(()=>row.style.opacity="0.3",0);});
+    row.addEventListener("dragend",()=>{row.style.opacity=isOnline?"1":"0.5";fzDragSrc=null;});
+    row.addEventListener("dragover",e=>{e.preventDefault();e.dataTransfer.dropEffect="move";});
+    row.addEventListener("drop",e=>{
+      e.preventDefault();e.stopPropagation();
+      const incomingIgn=e.dataTransfer.getData("application/x-bot-ign");
+      if(incomingIgn){addFzEntryByIgn(incomingIgn);return;}
+      if(!fzDragSrc||fzDragSrc===row)return;
+      const allRows=[...table.querySelectorAll("[data-ign]")];
+      const srcIdx=allRows.indexOf(fzDragSrc);const dstIdx=allRows.indexOf(row);
+      if(srcIdx<dstIdx)row.after(fzDragSrc);else row.before(fzDragSrc);
+      saveFzOrder();
+    });
+    table.appendChild(row);
+  });
+  const lastRow=table.lastElementChild;
+  if(lastRow)lastRow.style.borderBottom="none";
+  return table;
+}
+
 function renderFzList() {
   const c = document.getElementById("fz-list-container");
   if (!c) return;
-
-  // 컨테이너 자체가 "My Bots에서 드래그한 봇 추가" 드롭타겟이 되도록 attach
   attachMyBotsDropHandler(c);
-
   if (!fzList.length) {
     c.innerHTML = '<div style="color:#666;font-size:12px;font-family:\'JetBrains Mono\',monospace;padding:10px;border:1px dashed #444;border-radius:6px">List is empty. Add an IGN, or drag a bot here from My Bots.</div>';
     return;
   }
-
   c.innerHTML = "";
-
-  // Rudy 스타일 스프레드시트 컨테이너
-  const table = document.createElement("div");
-  table.style.cssText = "border:1px solid #888;background:#fff;font-family:Georgia,Cambria,'Times New Roman',serif;font-style:italic;font-weight:700;border-radius:2px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.25)";
-
-  const now = Date.now();
-  const CC_HIGHLIGHT_MS = 15 * 60 * 1000;  // 15분
-
-  fzList.forEach((entry, idx) => {
-    const status = fzStatusMap[entry.ign];
-    const botEntry = (typeof botData !== "undefined" && botData)
-      ? botData.find(b => b.ign === entry.ign)
-      : null;
-
-    const isOnline =
-      status ? !!status.online :
-      botEntry ? true : false;
-
-    const ch =
-      status && status.channel != null ? status.channel :
-      (botEntry && botEntry.channel != null ? botEntry.channel : null);
-
-    const mapId =
-      (status && status.map_id != null) ? status.map_id :
-      (botEntry && botEntry.map_id != null ? botEntry.map_id : null);
-
-    let mapName = null;
-    if (status && status.map_name) mapName = status.map_name;
-    else if (mapId != null && typeof mapNames !== "undefined" && mapNames[String(mapId)]) {
-      mapName = mapNames[String(mapId)];
-    }
-    const mapShort = mapName ? mapName.replace(/^\[[^\]]+\]\s*/, '') : null;
-
-    // ── CC 강조: 15분 내 채널 변경이 있었던 봇 ──
-    const lastCcTs = status && status.last_cc_ts ? Number(status.last_cc_ts) : 0;
-    const isRecentCc = lastCcTs > 0 && (now - lastCcTs) < CC_HIGHLIGHT_MS;
-
-    const row = document.createElement("div");
-    let rowStyle = "display:flex;align-items:stretch;border-bottom:1px solid #c4c4c4;cursor:grab;background:#fff;transition:opacity .15s,box-shadow .2s,outline-color .2s" + (isOnline ? "" : ";opacity:.5");
-    if (isRecentCc) {
-      // 빨간 외곽선 + 부드러운 글로우 — outline-offset:-2px로 행 안쪽에 표시되어
-      // 인접 행의 border-bottom과 겹치지 않음
-      rowStyle += ";outline:2px solid #e74c3c;outline-offset:-2px;box-shadow:0 0 8px 1px rgba(231,76,60,.45);position:relative;z-index:1";
-    }
-    row.style.cssText = rowStyle;
-    row.dataset.ign = entry.ign;
-    row.draggable = true;
-
-    // 셀 색상 — 채널만 연분홍, 나머지는 흰 배경 + 검정 글씨
-    const idxBg     = "#fff";
-    const idxColor  = "#000";
-    const ignColor  = isOnline ? "#000" : "#888";
-    const ignDeco   = isOnline ? "" : "text-decoration:line-through;";
-    const chBg      = (ch != null) ? "#ffc6dd" : "#fff";  // 연분홍
-    const chColor   = "#000";
-    const mapColor  = "#000";  // 검정으로 통일
-    const mapDisplay = mapShort
-      ? fzEscapeHtml(mapShort)
-      : (mapId != null ? `#${mapId}` : (isOnline ? '-' : 'OFFLINE'));
-
-    // CC 배지 — 최근 15분내 CC면 IGN 옆에 표시 (몇 분 전인지 같이)
-    let ccBadgeHtml = '';
-    if (isRecentCc) {
-      const minsAgo = Math.max(1, Math.floor((now - lastCcTs) / 60000));
-      ccBadgeHtml = `<span style="display:inline-block;margin-left:6px;background:#e74c3c;color:#fff;font-family:'JetBrains Mono',monospace;font-style:normal;font-weight:800;font-size:9px;padding:1px 5px;border-radius:3px;letter-spacing:.5px;vertical-align:middle">🔴 CC ${minsAgo}m</span>`;
-    }
-
-    row.innerHTML = `
-      <div style="width:42px;flex-shrink:0;background:${idxBg};color:${idxColor};text-align:center;padding:11px 4px;font-family:Georgia,serif;font-style:normal;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;border-right:1px solid #c4c4c4">${idx + 1}</div>
-      <div style="flex:1;min-width:0;color:${ignColor};padding:11px 16px;border-right:1px solid #c4c4c4;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${ignDeco}">${fzEscapeHtml(entry.ign)}${ccBadgeHtml}</div>
-      <div style="width:68px;flex-shrink:0;background:${chBg};color:${chColor};text-align:center;padding:11px 4px;border-right:1px solid #c4c4c4;font-size:18px;display:flex;align-items:center;justify-content:center">${ch != null ? ch : '-'}</div>
-      <div class="fz-mapname" data-mapid="${mapId != null ? mapId : ''}"
-        ${mapId != null ? `onclick="startFzMapEdit('${mapId}', this)" title="Click to edit"` : ''}
-        style="flex:1.4;min-width:0;color:${mapColor};padding:11px 14px;border-right:1px solid #c4c4c4;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${mapId != null ? 'cursor:pointer' : ''}">${mapDisplay}</div>
-      <div style="width:48px;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center">
-        <button onclick="event.stopPropagation();deleteFzEntry('${fzEscapeHtml(entry.ign)}')"
-          style="background:none;border:none;color:#b00020;font-size:20px;cursor:pointer;font-style:normal;font-weight:700;padding:2px 6px;line-height:1"
-          title="Delete">×</button>
-      </div>
-    `;
-
-    // 드래그 앤 드롭 — FZ list 내부 reorder
-    row.addEventListener("dragstart", e => {
-      fzDragSrc = row;
-      e.dataTransfer.effectAllowed = "move";
-      setTimeout(() => row.style.opacity = "0.3", 0);
-    });
-    row.addEventListener("dragend", () => {
-      row.style.opacity = isOnline ? "1" : "0.5";
-      fzDragSrc = null;
-    });
-    row.addEventListener("dragover", e => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-    });
-    row.addEventListener("drop", e => {
-      e.preventDefault();
-      e.stopPropagation();  // 컨테이너 드롭 핸들러로 버블링 방지
-      // My Bots에서 드래그된 봇이면 → FZ 추가 처리
-      const incomingIgn = e.dataTransfer.getData("application/x-bot-ign");
-      if (incomingIgn) {
-        addFzEntryByIgn(incomingIgn);
-        return;
-      }
-      // 그렇지 않으면 → 기존 reorder
-      if (!fzDragSrc || fzDragSrc === row) return;
-      const allRows = [...table.querySelectorAll("[data-ign]")];
-      const srcIdx  = allRows.indexOf(fzDragSrc);
-      const dstIdx  = allRows.indexOf(row);
-      if (srcIdx < dstIdx) {
-        row.after(fzDragSrc);
-      } else {
-        row.before(fzDragSrc);
-      }
-      saveFzOrder();
-    });
-
-    table.appendChild(row);
-  });
-
-  // 마지막 행 border 제거
-  const lastRow = table.lastElementChild;
-  if (lastRow) lastRow.style.borderBottom = "none";
-
-  c.appendChild(table);
+  const SPLIT_AT = 15;
+  if (fzList.length > SPLIT_AT) {
+    const wrap = document.createElement("div");
+    wrap.className = "fz-dual-wrap";
+    const leftCol = document.createElement("div");
+    leftCol.className = "fz-dual-col";
+    leftCol.appendChild(buildFzTable(fzList.slice(0, SPLIT_AT), 0));
+    const rightCol = document.createElement("div");
+    rightCol.className = "fz-dual-col";
+    rightCol.appendChild(buildFzTable(fzList.slice(SPLIT_AT), SPLIT_AT));
+    wrap.appendChild(leftCol);
+    wrap.appendChild(rightCol);
+    c.appendChild(wrap);
+  } else {
+    c.appendChild(buildFzTable(fzList, 0));
+  }
 }
 
 // ── FZ list 컨테이너 자체에 "My Bots 드롭" 처리 부착 ──
