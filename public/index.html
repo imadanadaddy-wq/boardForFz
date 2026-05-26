@@ -217,6 +217,13 @@ input::placeholder{color:#aaa;font-weight:normal}
 .mgmt-slot.warn .ws-label{color:#e74c3c}
 .mgmt-slot .ws-count{font-size:15px;font-family:'JetBrains Mono',monospace;font-weight:800;color:var(--ms-text)}
 .mgmt-slot.warn .ws-count{color:#c0392b}
+/* ── MGMT TABLE ── */
+.mgmt-tbl{width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace}
+.mgmt-tbl-row{border-bottom:1px solid var(--ms-border-dark)}
+.mgmt-tbl-row:last-child{border-bottom:none}
+.mgmt-tbl-ign{padding:8px 12px 8px 4px;font-size:13px;font-weight:800;color:#004d40;font-family:'MaplestoryOTFBold',sans-serif;white-space:nowrap;vertical-align:middle;width:1%;min-width:160px}
+.mgmt-tbl-items{padding:7px 4px;vertical-align:middle}
+.mgmt-tbl-items>span{margin-right:6px;margin-bottom:4px}
 .mgmt-log-card{padding:12px 16px;border-radius:6px;border-left:4px solid;font-family:'JetBrains Mono',monospace;display:flex;flex-direction:column;gap:6px;transition:all .3s}
 .mgmt-log-card.log-active-short{background:rgba(145,214,80,.08);border-left-color:#91d650;}
 .mgmt-log-card.log-active-long{background:rgba(231,76,60,.09);border-left-color:#e74c3c;}
@@ -869,7 +876,7 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 
     <!-- Item panel -->
     <div id="mgmt-panel-item">
-      <div id="mgmt-item-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px">
+      <div id="mgmt-item-grid" style="background:var(--ms-panel);border-top:2px solid #fff;border-left:2px solid #fff;border-right:2px solid var(--ms-border-dark);border-bottom:2px solid var(--ms-border-dark);padding:4px 12px">
         <div class="mgmt-empty">Loading...</div>
       </div>
     </div>
@@ -1512,26 +1519,23 @@ function renderMgmtItems(data) {
 
   if (!cards.length) { grid.innerHTML=`<div class="mgmt-empty">모든 active bot 보급품 충분 ✅</div>`; return; }
 
-  grid.innerHTML = cards.map(({ d, warnSlots }) => {
-    const slotHtml = warnSlots.map(s => {
+  const rowsHtml = cards.map(({ d, warnSlots }) => {
+    const pcTag = getPcTag(d.ign);
+    const pcBadge = pcTag ? `<span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#0097a7;font-weight:800;margin-left:5px;background:rgba(0,151,167,.08);border:1px solid rgba(0,151,167,.3);padding:1px 5px;border-radius:3px">🖥️ ${pcTag}</span>` : '';
+    const itemsHtml = warnSlots.map(s => {
       const cStr = s.cnt >= 1000 ? (s.cnt/1000).toFixed(1)+'K' : String(s.cnt);
-      return `<div class="mgmt-slot warn">
-        ${s.icon ? `<img src="${s.icon}" alt="${s.label}" onerror="this.style.display='none'">` : `<div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:18px">${s.label==='CHARM'?'🧿':'📦'}</div>`}
-        <span class="ws-label">${s.label}</span><span class="ws-count">${cStr}</span>
-      </div>`;
+      const iconHtml = s.icon
+        ? `<img src="${s.icon}" alt="${s.label}" onerror="this.style.display='none'" style="width:20px;height:20px;object-fit:contain;image-rendering:pixelated;vertical-align:middle">`
+        : `<span style="font-size:14px;vertical-align:middle">${s.label==='CHARM'?'🧿':'📦'}</span>`;
+      return `<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.4);border-radius:4px;padding:2px 7px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800;color:#c0392b;white-space:nowrap">${iconHtml} ${s.label} <span style="color:#888;font-weight:600;font-size:11px">${cStr}</span></span>`;
     }).join('');
-
-    return `<div class="mgmt-item-card">
-      <div class="mgmt-item-card-head">
-        <div>
-          <div class="mgmt-item-ign">⭐ ${d.ign}${getPcTag(d.ign) ? `<span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#0097a7;font-weight:800;margin-left:6px;background:rgba(0,151,167,.08);border:1px solid rgba(0,151,167,.3);padding:1px 6px;border-radius:3px">🖥️ ${getPcTag(d.ign)}</span>` : ''}</div>
-          <div class="mgmt-item-lv">Lv.${d.level} · ${formatAgo(d.ago_sec)}</div>
-        </div>
-        <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:#e74c3c;font-weight:800">⚠️ ${warnSlots.length} item(s) low</span>
-      </div>
-      <div class="mgmt-item-slots" style="display:flex;gap:10px;flex-wrap:nowrap">${slotHtml}</div>
-    </div>`;
+    return `<tr class="mgmt-tbl-row">
+      <td class="mgmt-tbl-ign">⭐ ${d.ign}${pcBadge}<div style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace;font-weight:400;margin-top:1px">Lv.${d.level} · ${formatAgo(d.ago_sec)}</div></td>
+      <td class="mgmt-tbl-items">${itemsHtml}</td>
+    </tr>`;
   }).join('');
+
+  grid.innerHTML = `<table class="mgmt-tbl"><tbody>${rowsHtml}</tbody></table>`;
 }
 
 function renderMgmtAlerts(data) {
