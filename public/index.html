@@ -872,6 +872,7 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
     <div style="display:flex;gap:0;margin-bottom:18px;border-bottom:2px solid var(--ms-border-dark)">
       <button class="mgmt-tab-btn active" id="mgmt-tab-item" onclick="switchMgmtTab('item')">📦 Items</button>
       <button class="mgmt-tab-btn"        id="mgmt-tab-meso" onclick="switchMgmtTab('meso')">💰 Meso/HR Alerts</button>
+      <button class="mgmt-tab-btn"        id="mgmt-tab-stock" onclick="switchMgmtTab('stock')">📊 Stock</button>
     </div>
 
     <!-- Item panel -->
@@ -885,6 +886,14 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
     <div id="mgmt-panel-meso" style="display:none">
       <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1.5px;margin-bottom:14px;text-transform:uppercase">📋 Meso/HR Alert Log (⭐ Active Bots Only · ONLINE · below 150M/hr · Discord alert after 30min)</div>
       <div id="mgmt-alert-log" style="display:flex;flex-direction:column;gap:8px">
+        <div class="mgmt-empty">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Stock panel — 메소 판매용: 봇 이름 + 메소 보유량만 표시 -->
+    <div id="mgmt-panel-stock" style="display:none">
+      <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1.5px;margin-bottom:14px;text-transform:uppercase">📊 Meso Stock (메소 보유량 내림차순 · 판매용)</div>
+      <div id="mgmt-stock-grid" style="background:var(--ms-panel);border-top:2px solid #fff;border-left:2px solid #fff;border-right:2px solid var(--ms-border-dark);border-bottom:2px solid var(--ms-border-dark);padding:4px 12px">
         <div class="mgmt-empty">Loading...</div>
       </div>
     </div>
@@ -1389,8 +1398,10 @@ function switchMgmtTab(tab) {
   _mgmtTab = tab;
   document.getElementById('mgmt-tab-item').classList.toggle('active', tab === 'item');
   document.getElementById('mgmt-tab-meso').classList.toggle('active', tab === 'meso');
+  document.getElementById('mgmt-tab-stock').classList.toggle('active', tab === 'stock');
   document.getElementById('mgmt-panel-item').style.display = tab === 'item' ? '' : 'none';
   document.getElementById('mgmt-panel-meso').style.display = tab === 'meso' ? '' : 'none';
+  document.getElementById('mgmt-panel-stock').style.display = tab === 'stock' ? '' : 'none';
 }
 
 async function fetchManagement() {
@@ -1398,6 +1409,7 @@ async function fetchManagement() {
   try {
     const data = await (await fetch("/api/tracker")).json();
     renderMgmtItems(data);
+    renderMgmtStock(data);
   } catch(e) { console.warn("[mgmt] tracker", e); }
   try {
     const mgmt = await (await fetch("/api/management/alerts")).json();
@@ -1536,6 +1548,50 @@ function renderMgmtItems(data) {
   }).join('');
 
   grid.innerHTML = `<table class="mgmt-tbl"><tbody>${rowsHtml}</tbody></table>`;
+}
+
+// ── Stock 탭: 메소 판매용 — 봇 이름 + 메소 보유량만 표시 ──
+// data: /api/tracker 응답 (private_data 기반, meso/meso_hr/online 등 포함)
+function renderMgmtStock(data) {
+  const grid = document.getElementById('mgmt-stock-grid');
+
+  // meso 보유량이 있는 봇만, 보유량 내림차순 (많은 순 → 판매 우선)
+  const rows = (data || [])
+    .map(d => ({ ign: d.ign, meso: Number(d.meso) || 0, online: !!d.online }))
+    .filter(d => d.meso > 0)
+    .sort((a, b) => b.meso - a.meso);
+
+  if (!rows.length) {
+    grid.innerHTML = `<div class="mgmt-empty">메소 보유 봇이 없습니다</div>`;
+    return;
+  }
+
+  const total = rows.reduce((sum, d) => sum + d.meso, 0);
+
+  // 본문 행: 이름 | 메소 보유량 (compact + 정확한 수치)
+  const rowsHtml = rows.map(d => {
+    const dot = d.online
+      ? '<span style="color:var(--ms-green)">●</span>'
+      : '<span style="color:#bbb">○</span>';
+    return `<tr class="mgmt-tbl-row">
+      <td class="mgmt-tbl-ign">${dot} ${d.ign}</td>
+      <td class="mgmt-tbl-items" style="text-align:right;font-weight:800;color:#004d40">
+        ${fmtBig(d.meso)}
+        <span style="color:#999;font-weight:400;font-size:11px;margin-left:6px">${d.meso.toLocaleString()}</span>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // 합계 행
+  const totalHtml = `<tr style="border-top:2px solid var(--ms-border-dark)">
+    <td class="mgmt-tbl-ign" style="color:#888">합계 (${rows.length}봇)</td>
+    <td class="mgmt-tbl-items" style="text-align:right;font-weight:800;color:var(--ms-accent)">
+      ${fmtBig(total)}
+      <span style="color:#999;font-weight:400;font-size:11px;margin-left:6px">${total.toLocaleString()}</span>
+    </td>
+  </tr>`;
+
+  grid.innerHTML = `<table class="mgmt-tbl"><tbody>${rowsHtml}${totalHtml}</tbody></table>`;
 }
 
 function renderMgmtAlerts(data) {
@@ -3581,16 +3637,36 @@ async function fetchTotalGraph() {
 
     // Collect all timestamps and sum by interval bucket
     const intervalMs = parseInt(document.getElementById('total-graph-interval')?.value || 60) * 60 * 1000;
-    const buckets = {};
+
+    // ★ FIX: 한 버킷(예: 60분) 안에 같은 봇의 샘플이 2개 이상 들어가면
+    //        (히스토리는 30분마다 기록됨) 기존 코드는 그 봇의 meso/hr을
+    //        버킷 합계에 중복으로 더해 "동시간대 총합"을 과대 표기했음.
+    //        → 버킷별로 봇마다 먼저 평균을 낸 뒤, 봇 평균들을 합산한다.
+
+    // 1) (버킷 → ign → {sum,count}) 로 봇별 누적
+    const perBot = {}; // { bucketKey: { ign: { sum, count } } }
     for (const [ign, points] of Object.entries(histData)) {
       if (!isOnlineBot(ign)) continue;
       for (const p of points) {
         if (!p.meso_hr || p.meso_hr <= 0) continue;
         const key = Math.floor(p.ts / intervalMs) * intervalMs;
-        if (!buckets[key]) buckets[key] = { sum: 0, count: 0 };
-        buckets[key].sum   += p.meso_hr;
-        buckets[key].count += 1;
+        (perBot[key] ||= {});
+        (perBot[key][ign] ||= { sum: 0, count: 0 });
+        perBot[key][ign].sum   += p.meso_hr;
+        perBot[key][ign].count += 1;
       }
+    }
+
+    // 2) 버킷마다 "봇별 평균"을 합산 → 동시간대 총 meso/hr (봇 중복 제거)
+    //    count = 해당 버킷에 집계된 봇 수 (샘플 수 아님)
+    const buckets = {};
+    for (const [key, bots] of Object.entries(perBot)) {
+      let sum = 0, count = 0;
+      for (const b of Object.values(bots)) {
+        sum   += b.sum / b.count; // 같은 봇의 여러 샘플은 평균 1회만 반영
+        count += 1;
+      }
+      buckets[key] = { sum, count };
     }
 
     totalGraphData = buckets;
