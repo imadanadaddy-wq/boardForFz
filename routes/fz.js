@@ -222,4 +222,51 @@ router.post("/mapname", (req, res) => {
   res.json({ ok: true, map_id: String(map_id), map_name: obj[String(map_id)] });
 });
 
+// ── GET /api/fz/all — 전체 FZ 목록 (그룹 불문, 관리자용) ─────────
+// server.js 에서 requireAuth 로 보호
+router.get("/all", (req, res) => {
+  const rows = db.all("SELECT * FROM fz_list ORDER BY grp, sort_order ASC, id ASC");
+  res.json(rows);
+});
+
+// ── PUT /api/fz/:ign/assign — 봇 그룹 배정/해제 ─────────────────
+// grp: 'rudy' | 'gabi' | 'none' (none이면 fz_list에서 삭제)
+router.put("/:ign/assign", (req, res) => {
+  const ign = req.params.ign;
+  const grp = (req.body.grp || "").trim().toLowerCase();
+
+  // 'none' = 해제
+  if (grp === "none" || grp === "") {
+    db.run("DELETE FROM fz_list WHERE ign=?", [ign]);
+    return res.json({ ok: true, ign, grp: "none" });
+  }
+
+  const meta = getGroup(grp);
+  if (!meta) return res.status(404).json({ error: "unknown group" });
+
+  // 슬롯 캡 — 이미 같은 그룹이면 카운트 제외
+  const existing = db.get("SELECT grp FROM fz_list WHERE ign=?", [ign]);
+  if (!(existing && existing.grp === grp)) {
+    const cur = db.get("SELECT COUNT(*) AS n FROM fz_list WHERE grp=?", [grp]).n;
+    if (meta.max_slots > 0 && cur >= meta.max_slots) {
+      return res.status(409).json({ error: `${meta.label || grp} max ${meta.max_slots}` });
+    }
+  }
+
+  const maxRow = db.get("SELECT MAX(sort_order) as m FROM fz_list WHERE grp=?", [grp]);
+  const nextOrder = (maxRow && maxRow.m != null) ? maxRow.m + 1 : 1;
+
+  if (existing) {
+    db.run("UPDATE fz_list SET grp=?, sort_order=? WHERE ign=?", [grp, nextOrder, ign]);
+  } else {
+    try {
+      db.run("INSERT INTO fz_list (ign, sort_order, created_at, grp) VALUES (?,?,?,?)",
+        [ign, nextOrder, Date.now(), grp]);
+    } catch(e) {
+      return res.status(409).json({ error: "IGN conflict" });
+    }
+  }
+  res.json({ ok: true, ign, grp });
+});
+
 module.exports = router;

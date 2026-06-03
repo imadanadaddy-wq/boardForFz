@@ -269,8 +269,15 @@ dbMod.getDb().then(() => {
   app.use("/api/seller",         requireAuth, require("./routes/seller"));
   app.use("/api/forced-offline", requireAuth, require("./routes/forced"));
   app.use("/api/management",     require("./routes/management").router);
-  // ★ NEW: 그룹 키 노출/회전은 인증 필요 (그 외 /api/fz/* 는 그룹키로 자체 보호)
+  // ★ 그룹 키 노출/회전은 인증 필요
   app.use("/api/fz/groups",      requireAuth);
+  // ★ 전체 배정 조회 (마스터 테이블용)
+  app.use("/api/fz/all",         requireAuth);
+  // ★ FZ 쓰기(추가/삭제/정렬/배정)는 인증 필요 — GET만 공개(그룹키로 자체 보호)
+  app.use("/api/fz", (req, res, next) => {
+    if (req.method !== "GET") return requireAuth(req, res, next);
+    next();
+  });
   app.use("/api/fz",             require("./routes/fz"));
 
   // ★★★ NEW: PC 태그 API ★★★
@@ -411,6 +418,16 @@ dbMod.getDb().then(() => {
   // ════════════════════════════════════════════════════════════════
   const GABI_HTML_PATH = path.join(__dirname, "public", "gabi.html");
   app.get(["/gabi", "/gabi.html"], (req, res) => serveGabiPage(res));
+
+  // ★ NEW: RUDY 전용 읽기전용 페이지 (공개 — 키 불필요)
+  const RUDY_HTML_PATH = path.join(__dirname, "public", "rudy.html");
+  app.get(["/rudy", "/rudy.html"], (req, res) => {
+    let html = "";
+    try { html = fs.readFileSync(RUDY_HTML_PATH, "utf8"); }
+    catch { return res.status(500).send("rudy.html missing"); }
+    res.set("Content-Type", "text/html; charset=utf-8");
+    res.send(html);
+  });
 
   // Catch-all
   app.get("*", (req, res) => {

@@ -928,38 +928,27 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 
   <!-- TAB: FZ LIST -->
   <div class="tab-content active" id="tab-fzlist">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
-      <div class="section-title" style="margin-bottom:0">📋 FZ List</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input id="fz-add-input" type="text" placeholder="Enter IGN..."
-          style="background:var(--ms-slot);border:1px solid var(--ms-border-dark);color:var(--ms-text);padding:6px 12px;border-radius:4px;font-size:12px;font-family:'JetBrains Mono',monospace;width:160px"
-          onkeydown="if(event.key==='Enter')addFzEntry()"
-        />
-        <button class="btn" style="padding:6px 16px;font-size:12px" onclick="addFzEntry()">+ Add</button>
-      </div>
-    </div>
+    <!-- Header -->
+    <div class="section-title" style="margin-bottom:12px">📋 FZ Management</div>
 
-    <div style="font-size:11px;color:#777;background:var(--ms-slot);border-left:3px solid var(--ms-accent);padding:8px 12px;border-radius:4px;margin-bottom:14px;line-height:1.6">
-      FZ casting order. Order persists even when offline. Drag to reorder. Click the map name to edit it.
-      <span id="fz-cc-help" style="display:none;margin-left:6px;color:#c0392b;font-weight:700">· 🔴 red border = CC'd within the last 15min</span>
-    </div>
-
-    <!-- ★ NEW: 그룹 전환 (Rudy / Gabi) -->
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
-      <span style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace">PROVIDER</span>
-      <button id="fz-grp-rudy" class="btn" style="padding:5px 16px;font-size:12px;font-family:'JetBrains Mono',monospace" onclick="setFzGrp('rudy')">Rudy</button>
-      <button id="fz-grp-gabi" class="btn" style="padding:5px 16px;font-size:12px;font-family:'JetBrains Mono',monospace;opacity:.55" onclick="setFzGrp('gabi')">Gabi</button>
+    <!-- Sub-tabs: Assign | Rudy Order | Gabi Order -->
+    <div style="display:flex;gap:4px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+      <button id="fz-grp-assign" class="btn" style="padding:5px 16px;font-size:12px;font-family:'JetBrains Mono',monospace" onclick="setFzGrp('assign')">🔀 Assign</button>
+      <button id="fz-grp-rudy" class="btn" style="padding:5px 16px;font-size:12px;font-family:'JetBrains Mono',monospace;opacity:.55" onclick="setFzGrp('rudy')">📋 Rudy</button>
+      <button id="fz-grp-gabi" class="btn" style="padding:5px 16px;font-size:12px;font-family:'JetBrains Mono',monospace;opacity:.55" onclick="setFzGrp('gabi')">📋 Gabi</button>
       <span id="fz-grp-count" style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace"></span>
     </div>
 
-    <!-- ★ NEW: Gabi 전용 사이트/키 패널 (인증 + Gabi 그룹 선택 시 표시) -->
+    <!-- Gabi 전용 키 패널 (Assign 뷰에서만 표시) -->
     <div id="fz-gabi-panel" style="display:none;background:var(--ms-slot);border:1px solid var(--ms-border-dark);border-radius:8px;padding:12px;margin-bottom:14px;max-width:660px">
       <div style="font-size:12px;font-weight:800;letter-spacing:1px;font-family:'JetBrains Mono',monospace;margin-bottom:8px">🔑 GABI ACCESS</div>
       <div style="font-size:11px;color:#888;line-height:1.6;margin-bottom:8px">
-        Gabi 더미 사이트(읽기전용):
+        Gabi 읽기전용 사이트:
         <a id="fz-gabi-link" href="/gabi" target="_blank" style="color:var(--ms-accent);font-family:'JetBrains Mono',monospace">/gabi</a>
-        <br>외부 대시보드 직접 연동용 API:
-        <code style="color:#bbb;font-family:'JetBrains Mono',monospace">GET /api/fz?grp=gabi&amp;key=…</code> (또는 헤더 <code style="color:#bbb">x-fz-key</code>)
+        &nbsp;|&nbsp; Rudy 읽기전용 사이트:
+        <a href="/rudy" target="_blank" style="color:var(--ms-accent);font-family:'JetBrains Mono',monospace">/rudy</a>
+        <br>Gabi 외부 연동 API:
+        <code style="color:#bbb;font-family:'JetBrains Mono',monospace">GET /api/fz?grp=gabi&amp;key=…</code>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <input id="fz-gabi-key" readonly value="" style="flex:1;min-width:220px;background:#0d0f12;border:1px solid var(--ms-border-dark);color:#9fe;padding:6px 10px;border-radius:4px;font-size:11px;font-family:'JetBrains Mono',monospace">
@@ -968,30 +957,56 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
       </div>
     </div>
 
-    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start">
-      <!-- LEFT: existing FZ list (visible to everyone) -->
-      <div id="fz-list-container" style="display:flex;flex-direction:column;gap:6px;min-width:340px;max-width:640px">
-        <div style="color:#666;font-size:12px;font-family:'JetBrains Mono',monospace">Loading...</div>
+    <!-- ═══ ASSIGN VIEW: 전체 봇 마스터 테이블 ═══ -->
+    <div id="fz-master-wrap">
+      <div style="font-size:11px;color:#777;background:var(--ms-slot);border-left:3px solid var(--ms-accent);padding:8px 12px;border-radius:4px;margin-bottom:14px;line-height:1.6">
+        클릭하면 그룹 순환: <b>None → Rudy → Gabi → None</b> · 각 그룹 최대 10개
+      </div>
+      <div id="fz-master-table" style="max-width:900px">
+        <div style="color:#666;font-size:12px;font-family:'JetBrains Mono',monospace;padding:10px">Loading...</div>
+      </div>
+    </div>
+
+    <!-- ═══ ORDER VIEW: 기존 FZ 리스트 (드래그 정렬) ═══ -->
+    <div id="fz-order-wrap" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="fz-add-input" type="text" placeholder="Enter IGN..."
+            style="background:var(--ms-slot);border:1px solid var(--ms-border-dark);color:var(--ms-text);padding:6px 12px;border-radius:4px;font-size:12px;font-family:'JetBrains Mono',monospace;width:160px"
+            onkeydown="if(event.key==='Enter')addFzEntry()"
+          />
+          <button class="btn" style="padding:6px 16px;font-size:12px" onclick="addFzEntry()">+ Add</button>
+        </div>
       </div>
 
-      <!-- RIGHT: My Bots panel — only visible when authed -->
-      <div id="fz-mybots-panel" style="display:none;flex:0 0 280px;background:var(--ms-slot);border:1px solid var(--ms-border-dark);border-radius:8px;padding:12px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <div style="font-size:12px;font-weight:800;color:var(--ms-text);letter-spacing:1px;font-family:'JetBrains Mono',monospace">🤖 MY BOTS</div>
-          <div style="display:flex;gap:4px">
-            <button id="fz-mybots-sort-lv" class="btn" style="padding:2px 8px;font-size:10px;font-family:'JetBrains Mono',monospace" onclick="setMyBotsSort('lv')" title="Sort by level">LV</button>
-            <button id="fz-mybots-sort-name" class="btn" style="padding:2px 8px;font-size:10px;font-family:'JetBrains Mono',monospace;opacity:.55" onclick="setMyBotsSort('name')" title="Sort by name">A-Z</button>
+      <div style="font-size:11px;color:#777;background:var(--ms-slot);border-left:3px solid var(--ms-accent);padding:8px 12px;border-radius:4px;margin-bottom:14px;line-height:1.6">
+        FZ casting order. Drag to reorder. Click map name to edit.
+        <span id="fz-cc-help" style="display:none;margin-left:6px;color:#c0392b;font-weight:700">· 🔴 red border = CC'd within 15min</span>
+      </div>
+
+      <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start">
+        <div id="fz-list-container" style="display:flex;flex-direction:column;gap:6px;min-width:340px;max-width:640px">
+          <div style="color:#666;font-size:12px;font-family:'JetBrains Mono',monospace">Loading...</div>
+        </div>
+        <div id="fz-mybots-panel" style="display:none;flex:0 0 280px;background:var(--ms-slot);border:1px solid var(--ms-border-dark);border-radius:8px;padding:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="font-size:12px;font-weight:800;color:var(--ms-text);letter-spacing:1px;font-family:'JetBrains Mono',monospace">🤖 MY BOTS</div>
+            <div style="display:flex;gap:4px">
+              <button id="fz-mybots-sort-lv" class="btn" style="padding:2px 8px;font-size:10px;font-family:'JetBrains Mono',monospace" onclick="setMyBotsSort('lv')" title="Sort by level">LV</button>
+              <button id="fz-mybots-sort-name" class="btn" style="padding:2px 8px;font-size:10px;font-family:'JetBrains Mono',monospace;opacity:.55" onclick="setMyBotsSort('name')" title="Sort by name">A-Z</button>
+            </div>
           </div>
-        </div>
-        <div style="font-size:10px;color:#888;margin-bottom:8px;line-height:1.5">
-          Click or drag a bot into the FZ list to add it. Bots already in the FZ list are dimmed.
-        </div>
-        <div id="fz-mybots-container" style="display:flex;flex-direction:column;gap:3px;max-height:560px;overflow-y:auto">
-          <div style="color:#666;font-size:11px;font-family:'JetBrains Mono',monospace">Loading...</div>
+          <div style="font-size:10px;color:#888;margin-bottom:8px;line-height:1.5">
+            Click or drag a bot into the FZ list to add it. Bots already in list are dimmed.
+          </div>
+          <div id="fz-mybots-container" style="display:flex;flex-direction:column;gap:3px;max-height:560px;overflow-y:auto">
+            <div style="color:#666;font-size:11px;font-family:'JetBrains Mono',monospace">Loading...</div>
+          </div>
         </div>
       </div>
     </div>
   </div>
+
 
 </main>
 </div>
@@ -1331,8 +1346,9 @@ function applyAuth() {
   fetchChangelog();
   // 첫 렌더 (botData가 이미 있을 수도 있음)
   renderMyBotsPanel();
-  // ★ NEW: 그룹(키) 메타 로드 → Gabi 패널/카운트 활성화
+  // 그룹(키) 메타 로드 → assign 뷰 활성화
   loadFzGroups();
+  setFzGrp('assign');
 }
 
 // ── SIDEBAR AUTO-HIDE ──
@@ -2502,11 +2518,12 @@ async function init() {
   autoRegisterDefault();
   fetchFC();
   renderSessions();
-  fetchFzList();
+  // FZ: authed면 assign 뷰, 아니면 rudy order
+  if (isAuthed) { fetchFzAll(); } else { fzView='rudy'; fzGrp='rudy'; fetchFzList(); document.getElementById('fz-master-wrap').style.display='none'; document.getElementById('fz-order-wrap').style.display=''; }
   setInterval(()=>{ fetchFC(); if(isAuthed) fetchMeso(); }, 10000);
   setInterval(()=>loadForcedOffline().then(()=>renderBotTable()), 10000);
-  setInterval(()=>{ if(isAuthed) loadActiveBots(); }, 30000);  // ★ NEW: 다른 디바이스 동기화용 주기 갱신
-  setInterval(fetchFzList, 15000);
+  setInterval(()=>{ if(isAuthed) loadActiveBots(); }, 30000);
+  setInterval(()=>{ if(fzView==='assign' && isAuthed) fetchFzAll(); else fetchFzList(); }, 15000);
 }
 
 // ══════════════════════════════════════
@@ -2514,8 +2531,10 @@ async function init() {
 // ══════════════════════════════════════
 
 let fzList       = [];          // [{id, ign, sort_order, ...}]
-let fzGrp        = 'rudy';      // ★ NEW: 현재 보고있는 그룹 (rudy | gabi)
-let fzGroupsMeta = [];          // ★ NEW: [{grp,label,api_key,is_public,max_slots,count}]
+let fzGrp        = 'rudy';      // 현재 Order 뷰에서 보는 그룹
+let fzView       = 'assign';    // 현재 FZ 서브뷰: 'assign' | 'rudy' | 'gabi'
+let fzGroupsMeta = [];          // [{grp,label,api_key,is_public,max_slots,count}]
+let fzAllAssign  = [];          // [{ign, grp, sort_order, ...}] — 전체 배정 목록
 let fzStatusMap  = {};          // ign -> {online, channel, map_id, map_name, ago_sec}
 let fzDragSrc    = null;
 
@@ -2713,17 +2732,15 @@ async function deleteFzEntry(ign) {
 }
 
 // ══════════════════════════════════════
-// ★ NEW: FZ 그룹 (Rudy / Gabi) 관리
+// FZ 그룹/서브뷰/마스터 테이블 관리
 // ══════════════════════════════════════
 
-// gabi 그룹 조회 시 캐시된 키를 쿼리스트링으로 붙인다 (rudy면 빈 문자열)
 function fzGabiKeyQS() {
   if (fzGrp !== "gabi") return "";
   const g = fzGroupsMeta.find(x => x.grp === "gabi");
   return (g && g.api_key) ? `&key=${encodeURIComponent(g.api_key)}` : "";
 }
 
-// 인증된 관리자만 그룹 메타(키 포함)를 가져온다
 async function loadFzGroups() {
   if (!isAuthed) return;
   try {
@@ -2732,29 +2749,51 @@ async function loadFzGroups() {
   } catch(e) {}
 }
 
-function setFzGrp(grp) {
-  if (grp === "gabi" && !isAuthed) { alert("🔒 Gabi 리스트는 인증 후 관리할 수 있습니다."); return; }
-  fzGrp = grp;
+// ── 서브뷰 전환: assign / rudy / gabi ──
+function setFzGrp(view) {
+  if (view !== "assign" && view === "gabi" && !isAuthed) { alert("🔒 Auth required"); return; }
+  if (view === "assign" && !isAuthed) { alert("🔒 Auth required"); return; }
+
+  fzView = view;
+  const isAssign = (view === "assign");
+  const masterWrap = document.getElementById("fz-master-wrap");
+  const orderWrap  = document.getElementById("fz-order-wrap");
+  if (masterWrap) masterWrap.style.display = isAssign ? "" : "none";
+  if (orderWrap)  orderWrap.style.display  = isAssign ? "none" : "";
+
+  // 버튼 하이라이트
+  const ab = document.getElementById("fz-grp-assign");
   const rb = document.getElementById("fz-grp-rudy");
   const gb = document.getElementById("fz-grp-gabi");
-  if (rb) rb.style.opacity = (grp === "rudy" ? "1" : ".55");
-  if (gb) gb.style.opacity = (grp === "gabi" ? "1" : ".55");
+  if (ab) ab.style.opacity = (view === "assign" ? "1" : ".55");
+  if (rb) rb.style.opacity = (view === "rudy"   ? "1" : ".55");
+  if (gb) gb.style.opacity = (view === "gabi"   ? "1" : ".55");
+
+  if (isAssign) {
+    fetchFzAll();
+  } else {
+    fzGrp = view;
+    fetchFzList();
+  }
   updateGabiPanel();
   updateGrpCount();
-  fetchFzList();
 }
 
 function updateGrpCount() {
   const el = document.getElementById("fz-grp-count");
-  if (!el) return;
-  const g = fzGroupsMeta.find(x => x.grp === fzGrp);
-  el.textContent = g ? `· ${g.count}/${g.max_slots}` : "";
+  if (!el || !fzGroupsMeta.length) { if(el) el.textContent=""; return; }
+  const rg = fzGroupsMeta.find(x => x.grp === "rudy");
+  const gg = fzGroupsMeta.find(x => x.grp === "gabi");
+  const parts = [];
+  if (rg) parts.push(`R:${rg.count}/${rg.max_slots}`);
+  if (gg) parts.push(`G:${gg.count}/${gg.max_slots}`);
+  el.textContent = "· " + parts.join("  ");
 }
 
 function updateGabiPanel() {
   const panel = document.getElementById("fz-gabi-panel");
   if (!panel) return;
-  const show = isAuthed && fzGrp === "gabi";
+  const show = isAuthed && fzView === "assign";
   panel.style.display = show ? "block" : "none";
   if (show) {
     const g = fzGroupsMeta.find(x => x.grp === "gabi");
@@ -2773,12 +2812,136 @@ function copyGabiKey() {
 }
 
 async function rotateGabiKey() {
-  if (!confirm("Gabi API 키를 재발급할까요? 기존 키로 연동된 외부 대시보드는 즉시 끊깁니다.")) return;
+  if (!confirm("Gabi API 키를 재발급할까요?")) return;
   try {
     const res = await fetch("/api/fz/groups/gabi/rotate", { method: "POST" });
     const j = await res.json();
-    if (j.ok) { await loadFzGroups(); fetchFzList(); alert("새 키가 발급되었습니다."); }
+    if (j.ok) { await loadFzGroups(); alert("새 키가 발급되었습니다."); }
     else alert(j.error || "rotate failed");
+  } catch(e) { alert(e.message); }
+}
+
+// ── 마스터 테이블: 전체 봇 + 그룹 배정 ──
+async function fetchFzAll() {
+  try {
+    const res = await fetch("/api/fz/all");
+    if (res.ok) fzAllAssign = await res.json();
+    await loadFzGroups();
+    renderMasterTable();
+  } catch(e) {}
+}
+
+function fmtVal(n) {
+  if (n == null) return "-";
+  if (n >= 1e9) return (n / 1e9).toFixed(1) + "B";
+  if (n >= 1e6) return (n / 1e6).toFixed(0) + "M";
+  if (n >= 1e3) return (n / 1e3).toFixed(0) + "K";
+  return String(n);
+}
+
+function renderMasterTable() {
+  const c = document.getElementById("fz-master-table");
+  if (!c) return;
+  if (typeof botData === "undefined" || !botData || !botData.length) {
+    c.innerHTML = '<div style="color:#666;font-size:12px;font-family:\'JetBrains Mono\',monospace;padding:10px;border:1px dashed #444;border-radius:6px">Waiting for bot heartbeats...</div>';
+    return;
+  }
+
+  // 배정 맵: ign → grp
+  const assignMap = {};
+  for (const a of fzAllAssign) assignMap[a.ign] = a.grp;
+
+  // CC 맵: ign → last CC timestamp
+  const ccMap = {};
+  const now = Date.now();
+  const CC_MS = 15 * 60 * 1000;
+  if (typeof _changeLogCache !== "undefined") {
+    for (const r of _changeLogCache) {
+      if (r.field === "channel" || r.field === "cced_by_evasion") {
+        if (!ccMap[r.ign] || r.ts > ccMap[r.ign]) ccMap[r.ign] = r.ts;
+      }
+    }
+  }
+
+  // 맵 이름
+  const mn = (typeof mapNames !== "undefined") ? mapNames : {};
+
+  // 정렬: 배정된 봇 먼저 (rudy→gabi), 그 다음 미배정 (레벨 내림차순)
+  const sorted = [...botData].sort((a, b) => {
+    const ga = assignMap[a.ign] || "zzz";
+    const gb2 = assignMap[b.ign] || "zzz";
+    if (ga !== gb2) return ga < gb2 ? -1 : 1;
+    return (b.level || 0) - (a.level || 0);
+  });
+
+  const esc = s => String(s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+  // 테이블 빌드 (스크린샷 스타일: Georgia serif italic)
+  let html = '<div style="border:1px solid #888;background:#fff;border-radius:3px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.35);font-family:Georgia,Cambria,serif;font-style:italic;font-weight:700">';
+  // 헤더
+  html += '<div style="display:flex;background:#f5f5f5;border-bottom:2px solid #888;font-style:normal;font-weight:800;font-size:11px;color:#333;font-family:\'JetBrains Mono\',monospace">';
+  html += '<div style="width:34px;text-align:center;padding:8px 2px">#</div>';
+  html += '<div style="flex:1.2;padding:8px 10px">IGN</div>';
+  html += '<div style="width:44px;text-align:center;padding:8px 2px">LV</div>';
+  html += '<div style="width:38px;text-align:center;padding:8px 2px">CH</div>';
+  html += '<div style="flex:1;padding:8px 10px">Map</div>';
+  html += '<div style="width:60px;text-align:right;padding:8px 6px">Meso</div>';
+  html += '<div style="width:52px;text-align:right;padding:8px 6px">M/HR</div>';
+  html += '<div style="width:70px;text-align:center;padding:8px 4px">Group</div>';
+  html += '</div>';
+
+  sorted.forEach((b, i) => {
+    const grp = assignMap[b.ign] || "none";
+    const isOnline = b._online !== undefined ? b._online : true;
+    const ch = (b.channel != null) ? b.channel : null;
+    const mapId = b.map_id;
+    const mapFull = (mapId != null && mn[String(mapId)]) ? mn[String(mapId)] : null;
+    const mapShort = mapFull ? mapFull.replace(/^\[[^\]]+\]\s*/, "") : (mapId != null ? "#" + mapId : "-");
+    const ccTs = ccMap[b.ign] || 0;
+    const isCc = ccTs > 0 && (now - ccTs) < CC_MS;
+    const ccBadge = isCc ? ' <span style="display:inline-block;background:#e74c3c;color:#fff;font-family:\'JetBrains Mono\',monospace;font-style:normal;font-weight:800;font-size:8px;padding:1px 4px;border-radius:3px;vertical-align:middle">CC</span>' : "";
+
+    const opacity = isOnline ? "1" : ".5";
+    const ignDeco = isOnline ? "" : "text-decoration:line-through;color:#888;";
+    const chBg = (ch != null) ? "#ffc6dd" : "#fff";
+
+    // 그룹 뱃지
+    let badgeColor, badgeText;
+    if (grp === "rudy") { badgeColor = "#e91e63"; badgeText = "Rudy"; }
+    else if (grp === "gabi") { badgeColor = "#00bcd4"; badgeText = "Gabi"; }
+    else { badgeColor = "#666"; badgeText = "None"; }
+
+    const rowBorder = isCc ? "outline:2px solid #e74c3c;outline-offset:-2px;position:relative;z-index:1;" : "";
+
+    html += `<div style="display:flex;align-items:stretch;border-bottom:1px solid #c4c4c4;background:#fff;opacity:${opacity};${rowBorder}">`;
+    html += `<div style="width:34px;text-align:center;padding:10px 2px;font-style:normal;font-size:13px;border-right:1px solid #ddd;color:#555">${i + 1}</div>`;
+    html += `<div style="flex:1.2;padding:10px 10px;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid #ddd;${ignDeco}">${esc(b.ign)}${ccBadge}</div>`;
+    html += `<div style="width:44px;text-align:center;padding:10px 2px;font-style:normal;font-size:13px;border-right:1px solid #ddd;font-family:'JetBrains Mono',monospace">${b.level || "-"}</div>`;
+    html += `<div style="width:38px;text-align:center;padding:10px 2px;font-size:15px;background:${chBg};border-right:1px solid #ddd">${ch != null ? ch : "-"}</div>`;
+    html += `<div style="flex:1;padding:10px 10px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid #ddd">${esc(mapShort)}</div>`;
+    html += `<div style="width:60px;text-align:right;padding:10px 6px;font-style:normal;font-size:12px;font-family:'JetBrains Mono',monospace;border-right:1px solid #ddd;color:#2e7d32">${fmtVal(b.meso)}</div>`;
+    html += `<div style="width:52px;text-align:right;padding:10px 6px;font-style:normal;font-size:12px;font-family:'JetBrains Mono',monospace;border-right:1px solid #ddd;color:#1565c0">${fmtVal(b.meso_hr)}</div>`;
+    html += `<div style="width:70px;display:flex;align-items:center;justify-content:center;padding:4px">`;
+    html += `<button onclick="assignBot('${esc(b.ign)}','${grp}')" style="background:${badgeColor};color:#fff;border:none;border-radius:12px;padding:3px 10px;font-size:10px;font-weight:800;cursor:pointer;font-family:'JetBrains Mono',monospace;font-style:normal;letter-spacing:.5px;transition:background .15s">${badgeText}</button>`;
+    html += `</div></div>`;
+  });
+
+  html += '</div>';
+  c.innerHTML = html;
+}
+
+async function assignBot(ign, currentGrp) {
+  const cycle = { none: "rudy", rudy: "gabi", gabi: "none" };
+  const newGrp = cycle[currentGrp] || "rudy";
+  try {
+    const res = await fetch(`/api/fz/${encodeURIComponent(ign)}/assign`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ grp: newGrp })
+    });
+    const j = await res.json();
+    if (!res.ok) { alert(j.error || "Failed"); return; }
+    await fetchFzAll();
   } catch(e) { alert(e.message); }
 }
 
