@@ -630,7 +630,6 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
     <option value="changelog">📋 Change Log</option>
     <option value="meso">💰 Meso Tracker</option>
     <option value="mesoGraph">📈 Meso Graph</option>
-    <option value="totalGraph">🔢 Total Meso/HR</option>
     <option value="management">🔔 Bot Management</option>
     <option value="pcs">🖥️ PC Status</option>
   </select>
@@ -655,7 +654,6 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
   <div class="sidebar-section-label">MESO</div>
   <button class="sidebar-item locked-tab" id="sb-meso"       onclick="switchTab('meso',this)">💰 Meso Tracker <span class="tab-lock-icon">🔒</span></button>
   <button class="sidebar-item locked-tab" id="sb-mesoGraph"  onclick="switchTab('mesoGraph',this)">📈 Meso Graph <span class="tab-lock-icon">🔒</span></button>
-  <button class="sidebar-item locked-tab" id="sb-totalGraph" onclick="switchTab('totalGraph',this)">🔢 Total Meso/HR <span class="tab-lock-icon">🔒</span></button>
 
   <div class="sidebar-divider"></div>
 
@@ -839,28 +837,6 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
   </div>
 
   <!-- TAB: TOTAL MESO/HR GRAPH -->
-  <div class="tab-content" id="tab-totalGraph">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
-      <div class="section-title" style="margin-bottom:0">🔢 Total Meso/HR — All Bots Combined (Pure ONLINE only)</div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <label style="font-size:12px;color:#888">Interval:</label>
-        <select id="total-graph-interval" style="padding:4px 10px;font-size:12px;width:auto;background:var(--ms-slot);border:1px solid var(--ms-border-dark);color:var(--ms-text);font-family:'JetBrains Mono',monospace;font-weight:800;outline:none" onchange="renderTotalGraph()">
-          <option value="30">30min</option>
-          <option value="60" selected>1 hour</option>
-          <option value="120">2 hours</option>
-        </select>
-        <button class="btn" style="padding:5px 14px;font-size:11px" onclick="fetchTotalGraph()">↺ Refresh</button>
-      </div>
-    </div>
-    <div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 2px 12px rgba(0,0,0,.08);margin-bottom:20px">
-      <div id="total-graph-stats" style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap"></div>
-      <canvas id="total-graph-canvas" style="width:100%;max-height:460px"></canvas>
-    </div>
-    <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1px;text-align:center">
-      ※ Excludes forced offline & map offline bots. Shows sum of pure ONLINE bots only.
-    </div>
-  </div>
-
   <!-- TAB: BOT MANAGEMENT (MESO category) -->
   <div class="tab-content" id="tab-management">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
@@ -1045,6 +1021,7 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 const OWNER_PW = "7678";
 let isAuthed    = false;
 let botData     = [];
+let mesoMap     = {};           // ign → {meso, meso_hr} — fetchMeso에서 채움
 let prevBotMap  = {};
 let changedCells = {};
 let currentSort = 'default';
@@ -1414,7 +1391,7 @@ function injectOwnerSellerPanel() {
 }
 
 // ── TABS ──
-const LOCKED_TABS = ['meso','mesoGraph','totalGraph','management','pcs','seller','register'];
+const LOCKED_TABS = ['meso','mesoGraph','management','pcs','seller','register'];
 function switchTab(name, btn) {
   if (LOCKED_TABS.includes(name) && !isAuthed) {
     // Flash the secret button to hint where to auth
@@ -2194,6 +2171,9 @@ async function fetchMeso() {
   try {
     const data = await (await fetch("/api/tracker")).json();
     data.forEach(d => { d.meso_hr = calcMesoHr(d.ign, d.meso, d.meso_hr); });
+    // ★ 마스터 테이블용 meso 맵 갱신
+    mesoMap = {};
+    data.forEach(d => { mesoMap[d.ign] = { meso: d.meso, meso_hr: d.meso_hr }; });
     let tFrag = 0, tMeso = 0, tHr = 0, online = 0;
     data.forEach(d => {
       tMeso += (Number(d.meso) || 0);
@@ -2824,8 +2804,17 @@ async function rotateGabiKey() {
 // ── 마스터 테이블: 전체 봇 + 그룹 배정 ──
 async function fetchFzAll() {
   try {
-    const res = await fetch("/api/fz/all");
-    if (res.ok) fzAllAssign = await res.json();
+    const [fzRes, mesoRes] = await Promise.all([
+      fetch("/api/fz/all"),
+      fetch("/api/tracker")
+    ]);
+    if (fzRes.ok) fzAllAssign = await fzRes.json();
+    if (mesoRes.ok) {
+      const md = await mesoRes.json();
+      md.forEach(d => { d.meso_hr = (typeof calcMesoHr==='function') ? calcMesoHr(d.ign, d.meso, d.meso_hr) : d.meso_hr; });
+      mesoMap = {};
+      md.forEach(d => { mesoMap[d.ign] = { meso: d.meso, meso_hr: d.meso_hr }; });
+    }
     await loadFzGroups();
     renderMasterTable();
   } catch(e) {}
@@ -2901,6 +2890,9 @@ function renderMasterTable() {
     const isCc = ccTs > 0 && (now - ccTs) < CC_MS;
     const ccBadge = isCc ? ' <span style="display:inline-block;background:#e74c3c;color:#fff;font-family:\'JetBrains Mono\',monospace;font-style:normal;font-weight:800;font-size:8px;padding:1px 4px;border-radius:3px;vertical-align:middle">CC</span>' : "";
 
+    // meso 데이터 (fetchMeso → mesoMap)
+    const md = mesoMap[b.ign] || {};
+
     const opacity = isOnline ? "1" : ".5";
     const ignDeco = isOnline ? "" : "text-decoration:line-through;color:#888;";
     const chBg = (ch != null) ? "#ffc6dd" : "#fff";
@@ -2919,8 +2911,8 @@ function renderMasterTable() {
     html += `<div style="width:44px;text-align:center;padding:10px 2px;font-style:normal;font-size:13px;border-right:1px solid #ddd;font-family:'JetBrains Mono',monospace">${b.level || "-"}</div>`;
     html += `<div style="width:38px;text-align:center;padding:10px 2px;font-size:15px;background:${chBg};border-right:1px solid #ddd">${ch != null ? ch : "-"}</div>`;
     html += `<div style="flex:1;padding:10px 10px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid #ddd">${esc(mapShort)}</div>`;
-    html += `<div style="width:60px;text-align:right;padding:10px 6px;font-style:normal;font-size:12px;font-family:'JetBrains Mono',monospace;border-right:1px solid #ddd;color:#2e7d32">${fmtVal(b.meso)}</div>`;
-    html += `<div style="width:52px;text-align:right;padding:10px 6px;font-style:normal;font-size:12px;font-family:'JetBrains Mono',monospace;border-right:1px solid #ddd;color:#1565c0">${fmtVal(b.meso_hr)}</div>`;
+    html += `<div style="width:60px;text-align:right;padding:10px 6px;font-style:normal;font-size:12px;font-family:'JetBrains Mono',monospace;border-right:1px solid #ddd;color:#2e7d32">${fmtVal(md.meso)}</div>`;
+    html += `<div style="width:52px;text-align:right;padding:10px 6px;font-style:normal;font-size:12px;font-family:'JetBrains Mono',monospace;border-right:1px solid #ddd;color:#1565c0">${fmtVal(md.meso_hr)}</div>`;
     html += `<div style="width:70px;display:flex;align-items:center;justify-content:center;padding:4px">`;
     html += `<button onclick="assignBot('${esc(b.ign)}','${grp}')" style="background:${badgeColor};color:#fff;border:none;border-radius:12px;padding:3px 10px;font-size:10px;font-weight:800;cursor:pointer;font-family:'JetBrains Mono',monospace;font-style:normal;letter-spacing:.5px;transition:background .15s">${badgeText}</button>`;
     html += `</div></div>`;
@@ -3855,140 +3847,9 @@ function closeGraphModal() {
 document.getElementById('graph-modal').addEventListener('click',function(e){if(e.target===this)closeGraphModal();});
 
 const _origSwitchTab=window.switchTab;
-window.switchTab=function(tab,btn){_origSwitchTab&&_origSwitchTab(tab,btn);if(tab==='mesoGraph')fetchAllGraphs();if(tab==='totalGraph')fetchTotalGraph();};
+window.switchTab=function(tab,btn){_origSwitchTab&&_origSwitchTab(tab,btn);if(tab==='mesoGraph')fetchAllGraphs();};
 
-// ══════════════════════════════════════
-// TOTAL MESO/HR GRAPH
-// ══════════════════════════════════════
-let totalChartInst = null;
-let totalGraphData = {}; // { ts: totalMesoHr }
 
-async function fetchTotalGraph() {
-  try {
-    const [histRes, curRes] = await Promise.all([
-      fetch('/api/tracker/history'),
-      fetch('/api/tracker')
-    ]);
-    const histData = await histRes.json(); // { ign: [{ts, meso_hr, ...}] }
-    const curData  = curRes.ok ? await curRes.json() : [];
-
-    // Exclusion criteria (forced/map offline): based on botData
-    const forcedKeys = manualOffline;
-    const isOnlineBot = (ign) => {
-      const b = botData.find(x => x.ign === ign);
-      if (!b) return true; // Include if in history but not in current data
-      if (!b.online) return false; // offline bot — exclude entirely
-      const key = (b.owner||'Hyeong') + '|' + b.ign;
-      if (forcedKeys.has(key)) return false;
-      if (b.online && !isKnownMap(b.map_id)) return false; // map offline
-      return true;
-    };
-
-    // Collect all timestamps and bucket by interval
-    const intervalMs = parseInt(document.getElementById('total-graph-interval')?.value || 60) * 60 * 1000;
-    const nowTs = Date.now();
-
-    // ★ FIX v2: 그래프의 각 포인트 = "그 시각의 동시 가동 총 meso/hr".
-    //   - 봇 중복 제거: 한 버킷 안 같은 봇의 여러 샘플 중 "가장 최근(ts 최대)" 1개만 사용
-    //     (이전엔 합산 → 6.57B처럼 과대, 그다음 평균 → 3.2B처럼 과소 표기되던 문제)
-    //   - 현재(진행 중) 버킷은 실시간 스냅샷(curData)을 그대로 반영 →
-    //     상단 헤더 MESO/HR(현재 동시 가동 합계)과 최신 포인트가 일치하게 함.
-
-    // (버킷 → ign → {meso_hr, ts}) : 버킷 내 봇별 "최신" 샘플만 유지
-    const perBot = {};
-    const putSample = (ign, meso_hr, ts) => {
-      if (!ign || !isOnlineBot(ign) || !meso_hr || meso_hr <= 0) return;
-      const key = Math.floor(ts / intervalMs) * intervalMs;
-      (perBot[key] ||= {});
-      const cur = perBot[key][ign];
-      if (!cur || ts >= cur.ts) perBot[key][ign] = { meso_hr, ts }; // 최신값으로 갱신
-    };
-
-    // 1) 서버 히스토리 반영
-    for (const [ign, points] of Object.entries(histData)) {
-      for (const p of points) putSample(ign, p.meso_hr, p.ts);
-    }
-    // 2) 실시간 스냅샷을 현재 버킷에 무조건 반영 (헤더와 동일한 최신 rate)
-    for (const d of curData) putSample(d.ign, d.meso_hr, nowTs);
-
-    // 3) 버킷마다 봇별 최신값을 합산 → 동시 가동 총 meso/hr
-    //    count = 해당 버킷에 집계된 봇 수
-    const buckets = {};
-    for (const [key, bots] of Object.entries(perBot)) {
-      let sum = 0, count = 0;
-      for (const b of Object.values(bots)) { sum += b.meso_hr; count += 1; }
-      buckets[key] = { sum, count };
-    }
-
-    totalGraphData = buckets;
-    renderTotalGraphFromBuckets(buckets);
-  } catch(e) { console.error('totalGraph fetch', e); }
-}
-
-// renderTotalGraph re-runs fetchTotalGraph (handles interval changes)
-window.renderTotalGraph = function() { fetchTotalGraph(); };
-
-function renderTotalGraphFromBuckets(buckets) {
-  function fmtB(v) {
-    if (!v || isNaN(v)) return '0B';
-    return (v / 1e9).toFixed(2) + 'B';
-  }
-  const rawPoints = Object.entries(buckets)
-    .map(([k, v]) => ({ x: new Date(parseInt(k)), y: Math.round(v.sum) }))
-    .sort((a,b) => a.x - b.x);
-
-  // ── IQR spike filter: remove points > Q3 + 3*IQR ──
-  function iqrFilter(pts) {
-    if (pts.length < 4) return pts;
-    const sorted = [...pts].sort((a, b) => a.y - b.y);
-    const q1 = sorted[Math.floor(sorted.length * 0.25)].y;
-    const q3 = sorted[Math.floor(sorted.length * 0.75)].y;
-    const iqr = q3 - q1;
-    const upper = q3 + 3 * iqr;
-    return pts.filter(p => p.y <= upper);
-  }
-  const points = iqrFilter(rawPoints);
-
-  const vals = points.map(p => p.y);
-  const avg  = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
-  const maxV = vals.length ? Math.max(...vals) : 0;
-  const minV = vals.length ? Math.min(...vals) : 0;
-
-  const statsEl = document.getElementById('total-graph-stats');
-  if (statsEl) statsEl.innerHTML = `
-    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px 20px;text-align:center"><div style="font-size:10px;color:#888;letter-spacing:1px">AVG</div><div style="font-size:20px;font-weight:800;color:#0097a7;font-family:'JetBrains Mono',monospace">${fmtB(avg)}/hr</div></div>
-    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 20px;text-align:center"><div style="font-size:10px;color:#888;letter-spacing:1px">MAX</div><div style="font-size:20px;font-weight:800;color:#16a34a;font-family:'JetBrains Mono',monospace">${fmtB(maxV)}/hr</div></div>
-    <div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:10px;padding:12px 20px;text-align:center"><div style="font-size:10px;color:#888;letter-spacing:1px">MIN</div><div style="font-size:20px;font-weight:800;color:#e74c3c;font-family:'JetBrains Mono',monospace">${fmtB(minV)}/hr</div></div>
-    <div style="background:#fafafa;border:1px solid #e5e7eb;border-radius:10px;padding:12px 20px;text-align:center"><div style="font-size:10px;color:#888;letter-spacing:1px">RECORDS</div><div style="font-size:20px;font-weight:800;color:#555;font-family:'JetBrains Mono',monospace">${points.length}</div></div>`;
-
-  const canvas = document.getElementById('total-graph-canvas');
-  if (!canvas) return;
-  if (totalChartInst) { totalChartInst.destroy(); totalChartInst = null; }
-  totalChartInst = new Chart(canvas, {
-    type: 'line',
-    data: { datasets: [{
-      label: 'Total Meso/HR',
-      data: points,
-      borderColor: '#f59e0b',
-      backgroundColor: '#f59e0b22',
-      borderWidth: 2.5,
-      pointRadius: 4,
-      tension: 0.3,
-      fill: true,
-    }]},
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: ctx => ` Total: ${fmtB(ctx.parsed.y)}/hr` } }
-      },
-      scales: {
-        x: { type:'time', time:{tooltipFormat:'MM/dd HH:mm',displayFormats:{hour:'HH:mm'}}, ticks:{color:'#555',maxTicksLimit:12}, grid:{color:'rgba(0,0,0,.07)'} },
-        y: { ticks:{color:'#555',callback:v=>fmtB(v)}, grid:{color:'rgba(0,0,0,.07)'} }
-      }
-    }
-  });
-}
 </script>
 <script>window.onload = init;</script>
 </body>
