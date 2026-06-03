@@ -2137,31 +2137,38 @@ function makeSlot(item, small=false) {
 }
 
 const _mesoHistory = {};
-const SAMPLE_COUNT  = 5;            // 10→5: 빠른 반응
+const SAMPLE_COUNT  = 9;            // 안정성 우선 (median과 함께)
 const MAX_DIFF_MESO = 15_000_000;
 const MAX_DT_MS     = 120_000;
-const STALE_MS      = 120_000;      // 2분간 유효 샘플 없으면 클리어
+const STALE_MS      = 150_000;      // 2.5분간 유효 샘플 없으면 클리어
+const DT_TOLERANCE  = 1.5;          // 정상 간격 × 1.5 초과 = 멈춤 낀 샘플, 제외
+
+function _median(arr){const s=[...arr].sort((a,b)=>a-b);const n=s.length;if(!n)return 0;return n%2?s[(n-1)/2]:Math.floor((s[n/2-1]+s[n/2])/2);}
 
 function calcMesoHr(ign, meso, serverMesoHr) {
   const key = ign; const now = Date.now(); const mesoNum = Number(meso) || 0;
-  if (!_mesoHistory[key]) _mesoHistory[key] = { samples: [], lastMeso: null, lastTs: null, lastValidTs: 0 };
+  if (!_mesoHistory[key]) _mesoHistory[key] = { samples: [], dtSamples: [], lastMeso: null, lastTs: null, lastValidTs: 0 };
   const h = _mesoHistory[key];
   if (h.lastMeso != null && h.lastTs != null) {
     const dt_ms = now - h.lastTs; const diff = mesoNum - h.lastMeso;
+    // 정상 간격 자동 학습 → 멈춤 낀 비정상 간격 샘플 제외
+    const normalDt = h.dtSamples.length >= 3 ? _median(h.dtSamples) : null;
+    const dtOk = normalDt == null ? (dt_ms <= 20000) : (dt_ms <= normalDt * DT_TOLERANCE);
     if (dt_ms > MAX_DT_MS) { h.samples = []; }
-    // ★ diff > 0: meso 변동 없는 구간은 "데이터 없음" 처리 (0 샘플 안 넣음)
-    else if (dt_ms > 0 && diff > 0 && diff < MAX_DIFF_MESO) {
+    // diff>0 (멈춤 제외) + dtOk (멈춤 낀 구간 제외)
+    else if (dt_ms > 0 && diff > 0 && diff < MAX_DIFF_MESO && dtOk) {
       h.samples.push(Math.floor((diff / dt_ms) * 3_600_000));
       if (h.samples.length > SAMPLE_COUNT) h.samples.shift();
       h.lastValidTs = now;
     }
+    if (dt_ms > 0 && dt_ms <= 40000) { h.dtSamples.push(dt_ms); if (h.dtSamples.length > 15) h.dtSamples.shift(); }
   }
   h.lastMeso = mesoNum; h.lastTs = now;
-  // Staleness: 유효 샘플 2분 이상 없으면 클리어
   if (h.lastValidTs && (now - h.lastValidTs) > STALE_MS) { h.samples = []; }
   // 서버값 신뢰 (있으면)
   if (serverMesoHr && serverMesoHr > 0) return serverMesoHr;
-  return h.samples.length > 0 ? Math.floor(h.samples.reduce((a,b)=>a+b,0)/h.samples.length) : 0;
+  // 폴백도 median (바운스 억제)
+  return h.samples.length >= 3 ? _median(h.samples) : 0;
 }
 
 async function fetchMeso() {

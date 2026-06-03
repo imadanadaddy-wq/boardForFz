@@ -8,11 +8,20 @@ const HISTORY_INTERVAL  = 30 * 60 * 1000;
 
 // ── server-side meso/hr verification ──
 const _svrHistory     = {};
-const SVR_MAX_DIFF    = 8_000_000;
-const SVR_MAX_DT_MS   = 90_000;
-const SVR_STALE_MS    = 120_000;    // 2분간 유효 샘플 없으면 클리어
-const SVR_WINDOW      = 5;          // 12→5: 빠른 반응
+const SVR_MAX_DIFF    = 8_000_000;   // 한 샘플 최대 메소 증가분 (튐 방지)
+const SVR_MAX_DT_MS   = 90_000;      // 90초 이상 공백 → 윈도우 클리어
+const SVR_STALE_MS    = 150_000;     // 2.5분간 유효 샘플 없으면 클리어
+const SVR_WINDOW      = 9;           // 안정성 우선 (median과 함께)
+const SVR_DT_TOLERANCE = 1.5;        // 정상 간격의 1.5배 초과 시 "멈춤 낀 샘플"로 제외
 const SVR_MESO_HR_CAP = 400_000_000;
+
+// 중앙값: 튀는 샘플(뭉텅이 드랍/빈 구간)을 자동으로 걸러 바운스 억제
+function medianOf(arr) {
+  const s = [...arr].sort((a, b) => a - b);
+  const n = s.length;
+  if (n === 0) return 0;
+  return n % 2 ? s[(n - 1) / 2] : Math.floor((s[n / 2 - 1] + s[n / 2]) / 2);
+}
 
 // ── evasion dedupe: 같은 (bot, by) 5초 내 재발생 무시 ──
 const _evasionDedupe    = new Map();
@@ -39,39 +48,42 @@ function shouldRecordEvasion(owner, ign, by) {
 function svrCalcMesoHr(owner, ign, meso) {
   const key = owner + "|" + ign;
   const now = Date.now();
-  if (!_svrHistory[key]) _svrHistory[key] = { samples: [], lastMeso: null, lastTs: null, lastValidTs: 0, pendDir: 0, pendCnt: 0 };
+  if (!_svrHistory[key]) _svrHistory[key] = { samples: [], dtSamples: [], lastMeso: null, lastTs: null, lastValidTs: 0 };
   const h = _svrHistory[key];
   if (h.lastMeso != null && h.lastTs != null) {
     const dt_ms = now - h.lastTs;
     const diff  = meso - h.lastMeso;
+
+    // 정상 하트비트 간격 학습 (최근 15개 dt의 중앙값) — 봇/환경마다 10s든 15s든 자동 적응
+    const normalDt = h.dtSamples.length >= 3 ? medianOf(h.dtSamples) : null;
+    const dtOk = normalDt == null
+      ? (dt_ms <= 20_000)                       // 학습 전: 20초 이내면 정상 취급
+      : (dt_ms <= normalDt * SVR_DT_TOLERANCE); // 학습 후: 정상간격 × 1.5 이내
+
     if (dt_ms > SVR_MAX_DT_MS) {
-      h.samples = []; h.pendDir = 0; h.pendCnt = 0;
-    } else if (dt_ms > 0 && diff > 0 && diff < SVR_MAX_DIFF) {
+      h.samples = [];                           // 큰 공백(로그오프 등) → 윈도우 클리어
+    } else if (dt_ms > 0 && diff > 0 && diff < SVR_MAX_DIFF && dtOk) {
+      // diff>0 (멈춤 제외) + dtOk (멈춤 낀 비정상 간격 샘플 제외)
       const rate = Math.floor((diff / dt_ms) * 3_600_000);
-      // ★ 레짐 변화 감지: 현재 샘플이 윈도우 평균 대비 60%+ 급변하면(FZ 토글 의심)
-      //   같은 방향 2연속 시 윈도우를 리셋 → 옛 구간 섞이지 않고 새 rate로 즉시 수렴
-      if (h.samples.length >= 2) {
-        const avg = h.samples.reduce((a, b) => a + b, 0) / h.samples.length;
-        const ratio = rate / Math.max(avg, 1);
-        if (ratio >= 1.6 || ratio <= 0.6) {
-          const dir = ratio >= 1 ? 1 : -1;
-          if (h.pendDir === dir) h.pendCnt++; else { h.pendDir = dir; h.pendCnt = 1; }
-          if (h.pendCnt >= 2) { h.samples = []; h.pendDir = 0; h.pendCnt = 0; }
-        } else { h.pendDir = 0; h.pendCnt = 0; }
-      }
       h.samples.push(rate);
       while (h.samples.length > SVR_WINDOW) h.samples.shift();
       h.lastValidTs = now;
     }
+
+    // dt 학습 큐 갱신: 너무 큰 공백(로그오프/긴 멈춤)은 정상 간격 학습에서 제외
+    if (dt_ms > 0 && dt_ms <= 40_000) {
+      h.dtSamples.push(dt_ms);
+      while (h.dtSamples.length > 15) h.dtSamples.shift();
+    }
   }
   h.lastMeso = meso;
   h.lastTs   = now;
-  // Staleness: 유효 샘플이 2분 이상 없으면 윈도우 클리어
+  // Staleness: 유효 샘플이 오래 없으면(멈춤) 윈도우 클리어
   if (h.lastValidTs && (now - h.lastValidTs) > SVR_STALE_MS) {
-    h.samples = []; h.pendDir = 0; h.pendCnt = 0;
+    h.samples = [];
   }
-  if (h.samples.length < 2) return null;
-  return Math.floor(h.samples.reduce((a, b) => a + b, 0) / h.samples.length);
+  if (h.samples.length < 3) return null;   // 최소 3개 모여야 median 신뢰
+  return medianOf(h.samples);              // 평균 대신 중앙값 — 바운스 억제
 }
 
 function ensureManualReleasedTable() {
