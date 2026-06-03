@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>RudyFZ Maple Dash</title>
+<title>HyeongFZ Maple Dash</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@800&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
@@ -501,7 +501,7 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 <body>
 <header>
   <div class="header-logo"></div>
-  <div class="header-title">RudyFZ Maple Dash</div>
+  <div class="header-title">HyeongFZ Maple Dash</div>
   <div class="header-nav">
     <a id="discord-user-badge" href="/auth/logout" title="Logout"></a>
     <span id="auth-badge">OWNER</span>
@@ -561,7 +561,7 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
 <div id="site-lock-overlay" style="display:none">
   <div class="site-lock-box">
     <div id="cat-logo-click" style="width:72px;height:72px;border-radius:50%;border:3px solid var(--ms-accent);background:#0d0d0d url('/images/cat-logo.png') no-repeat center/contain;margin:0 auto 18px;cursor:pointer;user-select:none" title=""></div>
-    <div style="font-size:20px;font-weight:800;color:var(--ms-text);margin-bottom:6px">RudyFZ Maple Dash</div>
+    <div style="font-size:20px;font-weight:800;color:var(--ms-text);margin-bottom:6px">HyeongFZ Maple Dash</div>
     <div style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace;letter-spacing:1px;margin-bottom:28px">Sign in with your Discord account</div>
     <a href="/auth/discord" class="discord-btn">
       <svg width="20" height="20" viewBox="0 0 71 55" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -915,7 +915,7 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
     </div>
 
     <div style="font-size:11px;color:#777;background:var(--ms-slot);border-left:3px solid var(--ms-accent);padding:8px 12px;border-radius:4px;margin-bottom:14px;line-height:1.6">
-      Bot casting order for Rudy. Order persists even when offline. Drag to reorder. Click the map name to edit it.
+      FZ casting order. Order persists even when offline. Drag to reorder. Click the map name to edit it.
       <span id="fz-cc-help" style="display:none;margin-left:6px;color:#c0392b;font-weight:700">· 🔴 red border = CC'd within the last 15min</span>
     </div>
 
@@ -1334,7 +1334,7 @@ function injectOwnerSellerPanel() {
     <div class="panel-box">
       <div class="section-title">Add Payment Record</div>
       <div class="form-row">
-        <div class="form-group"><label>Seller Name</label><input type="text" id="s-name" placeholder="e.g. Rudy"/></div>
+        <div class="form-group"><label>Seller Name</label><input type="text" id="s-name" placeholder="e.g. Seller"/></div>
         <div class="form-group"><label>Start Date</label><input type="datetime-local" id="s-start"/></div>
         <div class="form-group"><label>End Date</label><input type="datetime-local" id="s-end"/></div>
         <div class="form-group"><label>Price per Hour (Meso)</label><input type="number" id="s-price" placeholder="e.g. 50000000"/></div>
@@ -2374,7 +2374,7 @@ async function registerClient() {
 async function autoRegisterDefault() {
   const DEFAULT_OWNER = "Hyeong";
   const DEFAULT_TOKEN = "b4e8a2f1c9d3705e6b2c4a8f1d5e9a7c3b6e2f4d8a0c5e1b9f3a7c2d6e4b8f0";
-  const FZ_BASE       = "https://rudy-hyeong-fz-board.up.railway.app";
+  const FZ_BASE       = "https://hyeongfz.up.railway.app";
   try { const check = await fetch("/api/clients"); if (check.ok) { const data = await check.json(); const exists = Array.isArray(data) && data.some(c => c.owner === DEFAULT_OWNER); if (!exists) { await fetch("/api/clients", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({owner:DEFAULT_OWNER,token:DEFAULT_TOKEN}) }); } } } catch(e){}
   try { const check = await fetch(`${FZ_BASE}/api/clients`); if (check.ok) { const data = await check.json(); const exists = Array.isArray(data) && data.some(c => c.owner === DEFAULT_OWNER); if (exists) return; } await fetch(`${FZ_BASE}/api/clients`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({owner:DEFAULT_OWNER,token:DEFAULT_TOKEN}) }); } catch(e){}
 }
@@ -2443,7 +2443,7 @@ function renderFzList() {
 
   c.innerHTML = "";
 
-  // Rudy 스타일 스프레드시트 컨테이너
+  // FZ 스타일 스프레드시트 컨테이너
   const table = document.createElement("div");
   table.style.cssText = "border:1px solid #888;background:#fff;font-family:Georgia,Cambria,'Times New Roman',serif;font-style:italic;font-weight:700;border-radius:2px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.25)";
 
