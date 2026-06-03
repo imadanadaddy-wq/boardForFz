@@ -936,7 +936,7 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
     <!-- ═══ ASSIGN VIEW: 전체 봇 마스터 테이블 ═══ -->
     <div id="fz-master-wrap">
       <div style="font-size:11px;color:#777;background:var(--ms-slot);border-left:3px solid var(--ms-accent);padding:8px 12px;border-radius:4px;margin-bottom:14px;line-height:1.6">
-        클릭하면 그룹 순환: <b>None → Rudy → Gabi → None</b> · 각 그룹 최대 10개
+        클릭하면 그룹 순환: <b>None → Rudy → Gabi → None</b>
       </div>
       <div id="fz-master-table" style="max-width:900px">
         <div style="color:#666;font-size:12px;font-family:'JetBrains Mono',monospace;padding:10px">Loading...</div>
@@ -2765,8 +2765,8 @@ function updateGrpCount() {
   const rg = fzGroupsMeta.find(x => x.grp === "rudy");
   const gg = fzGroupsMeta.find(x => x.grp === "gabi");
   const parts = [];
-  if (rg) parts.push(`R:${rg.count}/${rg.max_slots}`);
-  if (gg) parts.push(`G:${gg.count}/${gg.max_slots}`);
+  if (rg) parts.push(`R:${rg.count}${rg.max_slots?'/'+rg.max_slots:''}`);
+  if (gg) parts.push(`G:${gg.count}${gg.max_slots?'/'+gg.max_slots:''}`);
   el.textContent = "· " + parts.join("  ");
 }
 

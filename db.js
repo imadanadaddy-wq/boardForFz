@@ -135,7 +135,7 @@ db.exec(`
     label      TEXT NOT NULL DEFAULT '',  -- 화면 표시용 이름
     api_key    TEXT,                      -- 그룹 전용 스코프 키 (rudy는 공개라 NULL 허용)
     is_public  INTEGER NOT NULL DEFAULT 0,-- 1이면 키 없이 조회 가능 (rudy=1)
-    max_slots  INTEGER NOT NULL DEFAULT 10,-- 그룹 최대 FZ 개수 (rudy=10)
+    max_slots  INTEGER NOT NULL DEFAULT 0, -- 0=무제한
     created_at INTEGER NOT NULL
   );
 `);
@@ -157,11 +157,13 @@ const now0 = Date.now();
 db.prepare(
   `INSERT OR IGNORE INTO fz_groups (grp, label, api_key, is_public, max_slots, created_at)
    VALUES (?,?,?,?,?,?)`
-).run("rudy", "Rudy", null, 1, 10, now0);
+).run("rudy", "Rudy", null, 1, 0, now0);
 db.prepare(
   `INSERT OR IGNORE INTO fz_groups (grp, label, api_key, is_public, max_slots, created_at)
    VALUES (?,?,?,?,?,?)`
-).run("gabi", "Gabi", crypto.randomBytes(24).toString("hex"), 0, 10, now0);
+).run("gabi", "Gabi", crypto.randomBytes(24).toString("hex"), 0, 0, now0);
+// 상한 해제: 기존 max_slots=10 → 0
+db.prepare("UPDATE fz_groups SET max_slots=0 WHERE max_slots=10").run();
 // gabi 키가 비어있으면(과거 데이터 보정) 새로 발급
 {
   const g = db.prepare("SELECT api_key FROM fz_groups WHERE grp='gabi'").get();
