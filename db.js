@@ -129,15 +129,46 @@ db.exec(`
     sort_order INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL
   );
+  -- ★ NEW: FZ 그룹(공급자) — rudy / gabi 등 리스트를 분리하고 그룹별 전용 API 키를 둔다
+  CREATE TABLE IF NOT EXISTS fz_groups (
+    grp        TEXT PRIMARY KEY,          -- 'rudy' | 'gabi' ...
+    label      TEXT NOT NULL DEFAULT '',  -- 화면 표시용 이름
+    api_key    TEXT,                      -- 그룹 전용 스코프 키 (rudy는 공개라 NULL 허용)
+    is_public  INTEGER NOT NULL DEFAULT 0,-- 1이면 키 없이 조회 가능 (rudy=1)
+    max_slots  INTEGER NOT NULL DEFAULT 10,-- 그룹 최대 FZ 개수 (rudy=10)
+    created_at INTEGER NOT NULL
+  );
 `);
 
 // 마이그레이션 (기존 DB 호환)
 const migrations = [
   "ALTER TABLE private_data ADD COLUMN buff_count INTEGER DEFAULT NULL",
   "ALTER TABLE fz_list ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0",
+  // ★ NEW: 기존 fz_list 행은 전부 'rudy' 그룹으로 귀속
+  "ALTER TABLE fz_list ADD COLUMN grp TEXT NOT NULL DEFAULT 'rudy'",
 ];
 for (const sql of migrations) {
   try { db.exec(sql); } catch(e) { /* 이미 존재 */ }
+}
+
+// ★ NEW: FZ 그룹 시드 — rudy(공개), gabi(전용 키)
+const crypto = require("crypto");
+const now0 = Date.now();
+db.prepare(
+  `INSERT OR IGNORE INTO fz_groups (grp, label, api_key, is_public, max_slots, created_at)
+   VALUES (?,?,?,?,?,?)`
+).run("rudy", "Rudy", null, 1, 10, now0);
+db.prepare(
+  `INSERT OR IGNORE INTO fz_groups (grp, label, api_key, is_public, max_slots, created_at)
+   VALUES (?,?,?,?,?,?)`
+).run("gabi", "Gabi", crypto.randomBytes(24).toString("hex"), 0, 10, now0);
+// gabi 키가 비어있으면(과거 데이터 보정) 새로 발급
+{
+  const g = db.prepare("SELECT api_key FROM fz_groups WHERE grp='gabi'").get();
+  if (g && !g.api_key) {
+    db.prepare("UPDATE fz_groups SET api_key=? WHERE grp='gabi'")
+      .run(crypto.randomBytes(24).toString("hex"));
+  }
 }
 
 // 기본 클라이언트 시드

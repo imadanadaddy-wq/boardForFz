@@ -2,9 +2,10 @@ const express = require("express");
 const router  = express.Router();
 const path    = require("path");
 const fs      = require("fs");
+const crypto  = require("crypto");
 const db      = require("../db");
 
-// ── fz_list 테이블 초기화 ──
+// ── 테이블 보강 (db.js에서 이미 생성하지만 단독 동작 안전망) ──
 db.run(`
   CREATE TABLE IF NOT EXISTS fz_list (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -13,6 +14,29 @@ db.run(`
     created_at INTEGER NOT NULL
   )
 `);
+try { db.run("ALTER TABLE fz_list ADD COLUMN grp TEXT NOT NULL DEFAULT 'rudy'"); } catch(e) {}
+
+// ── 그룹 해석 / 키 검증 ──────────────────────────────────────────
+// grp 결정: query.grp → body.grp → 기본 'rudy'
+function resolveGrp(req) {
+  const g = (req.query.grp || req.body?.grp || "rudy").toString().trim().toLowerCase();
+  return g || "rudy";
+}
+// 그룹 메타 조회
+function getGroup(grp) {
+  return db.get("SELECT * FROM fz_groups WHERE grp=?", [grp]);
+}
+// 그룹 접근 허용 여부:
+//  - is_public=1 (rudy) → 키 없이 OK
+//  - 그 외(gabi 등)   → query.key 또는 헤더 x-fz-key 가 그룹 api_key 와 일치해야 OK
+function checkGroupAccess(req, grp) {
+  const meta = getGroup(grp);
+  if (!meta) return { ok: false, code: 404, error: "unknown group" };
+  if (meta.is_public) return { ok: true, meta };
+  const key = (req.query.key || req.headers["x-fz-key"] || "").toString();
+  if (key && meta.api_key && key === meta.api_key) return { ok: true, meta };
+  return { ok: false, code: 401, error: "invalid or missing fz key" };
+}
 
 // mapnames.json
 const MAPNAMES_PATH = path.join(__dirname, "..", "public", "mapnames.json");
@@ -29,15 +53,26 @@ function saveMapNames(obj) {
   } catch(e) { console.error("[fz/mapnames] save error:", e.message); }
 }
 
-// GET /api/fz — 전체 목록 (순서대로)
+// ── GET /api/fz — 그룹별 목록 ───────────────────────────────────
+// rudy: 공개 / gabi: ?key= 또는 x-fz-key 필요
 router.get("/", (req, res) => {
-  const rows = db.all("SELECT * FROM fz_list ORDER BY sort_order ASC, id ASC");
+  const grp = resolveGrp(req);
+  const acc = checkGroupAccess(req, grp);
+  if (!acc.ok) return res.status(acc.code).json({ error: acc.error });
+  const rows = db.all(
+    "SELECT * FROM fz_list WHERE grp=? ORDER BY sort_order ASC, id ASC",
+    [grp]
+  );
   res.json(rows);
 });
 
-// GET /api/fz/status — FZ 봇들의 온라인 상태 (인증 불필요)
+// ── GET /api/fz/status — 그룹별 온라인 상태 ─────────────────────
 router.get("/status", (req, res) => {
-  const fzRows = db.all("SELECT ign FROM fz_list");
+  const grp = resolveGrp(req);
+  const acc = checkGroupAccess(req, grp);
+  if (!acc.ok) return res.status(acc.code).json({ error: acc.error });
+
+  const fzRows = db.all("SELECT ign FROM fz_list WHERE grp=?", [grp]);
   const fzIgns = fzRows.map(r => r.ign);
   if (!fzIgns.length) return res.json([]);
 
@@ -100,19 +135,51 @@ router.get("/status", (req, res) => {
   res.json(result);
 });
 
-// POST /api/fz — IGN 추가
+// ── GET /api/fz/groups — 그룹/키 메타 (메인 대시보드 표시용) ──────
+// 주의: 키 노출 엔드포인트이므로 server.js 에서 requireAuth 로 감싸 사용
+router.get("/groups", (req, res) => {
+  const rows = db.all("SELECT grp, label, api_key, is_public, max_slots FROM fz_groups ORDER BY grp");
+  const out = rows.map(g => ({
+    ...g,
+    count: db.get("SELECT COUNT(*) AS n FROM fz_list WHERE grp=?", [g.grp]).n,
+  }));
+  res.json(out);
+});
+
+// ── POST /api/fz/groups/:grp/rotate — gabi 키 재발급 (auth 권장) ──
+router.post("/groups/:grp/rotate", (req, res) => {
+  const grp = req.params.grp.toLowerCase();
+  const meta = getGroup(grp);
+  if (!meta) return res.status(404).json({ error: "unknown group" });
+  if (meta.is_public) return res.status(400).json({ error: "public group has no key" });
+  const key = crypto.randomBytes(24).toString("hex");
+  db.run("UPDATE fz_groups SET api_key=? WHERE grp=?", [key, grp]);
+  res.json({ ok: true, grp, api_key: key });
+});
+
+// ── POST /api/fz — IGN 추가 (그룹별, max_slots 캡 적용) ──────────
 router.post("/", (req, res) => {
   const { ign } = req.body;
+  const grp = resolveGrp(req);
   if (!ign) return res.status(400).json({ error: "ign required" });
+  const meta = getGroup(grp);
+  if (!meta) return res.status(404).json({ error: "unknown group" });
+
   const trimmed = ign.trim();
 
-  const maxRow = db.get("SELECT MAX(sort_order) as m FROM fz_list");
+  // 슬롯 캡 검사 (rudy=10, gabi=10)
+  const cur = db.get("SELECT COUNT(*) AS n FROM fz_list WHERE grp=?", [grp]).n;
+  if (meta.max_slots > 0 && cur >= meta.max_slots) {
+    return res.status(409).json({ error: `${meta.label || grp} 그룹은 최대 ${meta.max_slots}개까지입니다.` });
+  }
+
+  const maxRow = db.get("SELECT MAX(sort_order) as m FROM fz_list WHERE grp=?", [grp]);
   const nextOrder = (maxRow && maxRow.m != null) ? maxRow.m + 1 : 1;
 
   try {
     db.run(
-      "INSERT INTO fz_list (ign, sort_order, created_at) VALUES (?,?,?)",
-      [trimmed, nextOrder, Date.now()]
+      "INSERT INTO fz_list (ign, sort_order, created_at, grp) VALUES (?,?,?,?)",
+      [trimmed, nextOrder, Date.now(), grp]
     );
     res.json({ ok: true });
   } catch(e) {
@@ -120,31 +187,30 @@ router.post("/", (req, res) => {
   }
 });
 
-// DELETE /api/fz/:ign — IGN 삭제
+// ── DELETE /api/fz/:ign — 삭제 후 동일 그룹 재정렬 ───────────────
 router.delete("/:ign", (req, res) => {
   const ign = req.params.ign;
+  const row = db.get("SELECT grp FROM fz_list WHERE ign=?", [ign]);
   db.run("DELETE FROM fz_list WHERE ign=?", [ign]);
-  // 삭제 후 sort_order 재정렬
-  const rows = db.all("SELECT id FROM fz_list ORDER BY sort_order ASC, id ASC");
-  rows.forEach((r, i) => {
-    db.run("UPDATE fz_list SET sort_order=? WHERE id=?", [i + 1, r.id]);
-  });
+  if (row) {
+    const rows = db.all("SELECT id FROM fz_list WHERE grp=? ORDER BY sort_order ASC, id ASC", [row.grp]);
+    rows.forEach((r, i) => db.run("UPDATE fz_list SET sort_order=? WHERE id=?", [i + 1, r.id]));
+  }
   res.json({ ok: true });
 });
 
-// PUT /api/fz/reorder — 순서 일괄 업데이트
-// body: { order: ["IGN1","IGN2",...] }
+// ── PUT /api/fz/reorder — 그룹 내 순서 일괄 업데이트 ─────────────
+// body: { order: ["IGN1","IGN2",...], grp?: "rudy"|"gabi" }
 router.put("/reorder", (req, res) => {
   const { order } = req.body;
   if (!Array.isArray(order)) return res.status(400).json({ error: "order array required" });
-
   order.forEach((ign, i) => {
     db.run("UPDATE fz_list SET sort_order=? WHERE ign=?", [i + 1, ign]);
   });
   res.json({ ok: true });
 });
 
-// POST /api/fz/mapname — 맵이름 수정 (인증 불필요)
+// ── POST /api/fz/mapname — 맵이름 수정 (공개) ───────────────────
 router.post("/mapname", (req, res) => {
   const { map_id, map_name } = req.body;
   if (!map_id || !map_name) {

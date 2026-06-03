@@ -944,6 +944,30 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
       <span id="fz-cc-help" style="display:none;margin-left:6px;color:#c0392b;font-weight:700">· 🔴 red border = CC'd within the last 15min</span>
     </div>
 
+    <!-- ★ NEW: 그룹 전환 (Rudy / Gabi) -->
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <span style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace">PROVIDER</span>
+      <button id="fz-grp-rudy" class="btn" style="padding:5px 16px;font-size:12px;font-family:'JetBrains Mono',monospace" onclick="setFzGrp('rudy')">Rudy</button>
+      <button id="fz-grp-gabi" class="btn" style="padding:5px 16px;font-size:12px;font-family:'JetBrains Mono',monospace;opacity:.55" onclick="setFzGrp('gabi')">Gabi</button>
+      <span id="fz-grp-count" style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace"></span>
+    </div>
+
+    <!-- ★ NEW: Gabi 전용 사이트/키 패널 (인증 + Gabi 그룹 선택 시 표시) -->
+    <div id="fz-gabi-panel" style="display:none;background:var(--ms-slot);border:1px solid var(--ms-border-dark);border-radius:8px;padding:12px;margin-bottom:14px;max-width:660px">
+      <div style="font-size:12px;font-weight:800;letter-spacing:1px;font-family:'JetBrains Mono',monospace;margin-bottom:8px">🔑 GABI ACCESS</div>
+      <div style="font-size:11px;color:#888;line-height:1.6;margin-bottom:8px">
+        Gabi 더미 사이트(읽기전용):
+        <a id="fz-gabi-link" href="/gabi" target="_blank" style="color:var(--ms-accent);font-family:'JetBrains Mono',monospace">/gabi</a>
+        <br>외부 대시보드 직접 연동용 API:
+        <code style="color:#bbb;font-family:'JetBrains Mono',monospace">GET /api/fz?grp=gabi&amp;key=…</code> (또는 헤더 <code style="color:#bbb">x-fz-key</code>)
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input id="fz-gabi-key" readonly value="" style="flex:1;min-width:220px;background:#0d0f12;border:1px solid var(--ms-border-dark);color:#9fe;padding:6px 10px;border-radius:4px;font-size:11px;font-family:'JetBrains Mono',monospace">
+        <button class="btn" style="padding:5px 12px;font-size:11px" onclick="copyGabiKey()">Copy</button>
+        <button class="btn" style="padding:5px 12px;font-size:11px;background:#5a2222;border-color:#7a3333" onclick="rotateGabiKey()" title="키 노출 시 재발급">Rotate</button>
+      </div>
+    </div>
+
     <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start">
       <!-- LEFT: existing FZ list (visible to everyone) -->
       <div id="fz-list-container" style="display:flex;flex-direction:column;gap:6px;min-width:340px;max-width:640px">
@@ -1307,6 +1331,8 @@ function applyAuth() {
   fetchChangelog();
   // 첫 렌더 (botData가 이미 있을 수도 있음)
   renderMyBotsPanel();
+  // ★ NEW: 그룹(키) 메타 로드 → Gabi 패널/카운트 활성화
+  loadFzGroups();
 }
 
 // ── SIDEBAR AUTO-HIDE ──
@@ -2488,15 +2514,17 @@ async function init() {
 // ══════════════════════════════════════
 
 let fzList       = [];          // [{id, ign, sort_order, ...}]
+let fzGrp        = 'rudy';      // ★ NEW: 현재 보고있는 그룹 (rudy | gabi)
+let fzGroupsMeta = [];          // ★ NEW: [{grp,label,api_key,is_public,max_slots,count}]
 let fzStatusMap  = {};          // ign -> {online, channel, map_id, map_name, ago_sec}
 let fzDragSrc    = null;
 
 async function fetchFzList() {
   try {
-    // 두 엔드포인트 병렬 호출 — 둘 다 인증 없이 동작
+    // 두 엔드포인트 병렬 호출 — rudy는 공개, gabi는 키 필요(메인은 인증 세션이라 표시는 별도)
     const [listRes, statusRes] = await Promise.all([
-      fetch("/api/fz"),
-      fetch("/api/fz/status"),
+      fetch(`/api/fz?grp=${fzGrp}${fzGabiKeyQS()}`),
+      fetch(`/api/fz/status?grp=${fzGrp}${fzGabiKeyQS()}`),
     ]);
     fzList = await listRes.json();
 
@@ -2652,7 +2680,7 @@ async function saveFzOrder() {
     await fetch("/api/fz/reorder", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ order })
+      body: JSON.stringify({ order, grp: fzGrp })
     });
     await fetchFzList();
   } catch(e) {}
@@ -2666,7 +2694,7 @@ async function addFzEntry() {
     const res = await fetch("/api/fz", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ign })
+      body: JSON.stringify({ ign, grp: fzGrp })
     });
     if (res.ok) {
       input.value = "";
@@ -2682,6 +2710,76 @@ async function deleteFzEntry(ign) {
   if (!confirm(`Remove ${ign} from the list?`)) return;
   await fetch(`/api/fz/${encodeURIComponent(ign)}`, { method: "DELETE" });
   await fetchFzList();
+}
+
+// ══════════════════════════════════════
+// ★ NEW: FZ 그룹 (Rudy / Gabi) 관리
+// ══════════════════════════════════════
+
+// gabi 그룹 조회 시 캐시된 키를 쿼리스트링으로 붙인다 (rudy면 빈 문자열)
+function fzGabiKeyQS() {
+  if (fzGrp !== "gabi") return "";
+  const g = fzGroupsMeta.find(x => x.grp === "gabi");
+  return (g && g.api_key) ? `&key=${encodeURIComponent(g.api_key)}` : "";
+}
+
+// 인증된 관리자만 그룹 메타(키 포함)를 가져온다
+async function loadFzGroups() {
+  if (!isAuthed) return;
+  try {
+    const res = await fetch("/api/fz/groups");
+    if (res.ok) { fzGroupsMeta = await res.json(); updateGabiPanel(); updateGrpCount(); }
+  } catch(e) {}
+}
+
+function setFzGrp(grp) {
+  if (grp === "gabi" && !isAuthed) { alert("🔒 Gabi 리스트는 인증 후 관리할 수 있습니다."); return; }
+  fzGrp = grp;
+  const rb = document.getElementById("fz-grp-rudy");
+  const gb = document.getElementById("fz-grp-gabi");
+  if (rb) rb.style.opacity = (grp === "rudy" ? "1" : ".55");
+  if (gb) gb.style.opacity = (grp === "gabi" ? "1" : ".55");
+  updateGabiPanel();
+  updateGrpCount();
+  fetchFzList();
+}
+
+function updateGrpCount() {
+  const el = document.getElementById("fz-grp-count");
+  if (!el) return;
+  const g = fzGroupsMeta.find(x => x.grp === fzGrp);
+  el.textContent = g ? `· ${g.count}/${g.max_slots}` : "";
+}
+
+function updateGabiPanel() {
+  const panel = document.getElementById("fz-gabi-panel");
+  if (!panel) return;
+  const show = isAuthed && fzGrp === "gabi";
+  panel.style.display = show ? "block" : "none";
+  if (show) {
+    const g = fzGroupsMeta.find(x => x.grp === "gabi");
+    const keyInput = document.getElementById("fz-gabi-key");
+    const link = document.getElementById("fz-gabi-link");
+    if (keyInput) keyInput.value = (g && g.api_key) ? g.api_key : "(loading...)";
+    if (link) link.href = `${location.origin}/gabi`;
+  }
+}
+
+function copyGabiKey() {
+  const el = document.getElementById("fz-gabi-key");
+  if (!el || !el.value) return;
+  navigator.clipboard?.writeText(el.value);
+  el.select();
+}
+
+async function rotateGabiKey() {
+  if (!confirm("Gabi API 키를 재발급할까요? 기존 키로 연동된 외부 대시보드는 즉시 끊깁니다.")) return;
+  try {
+    const res = await fetch("/api/fz/groups/gabi/rotate", { method: "POST" });
+    const j = await res.json();
+    if (j.ok) { await loadFzGroups(); fetchFzList(); alert("새 키가 발급되었습니다."); }
+    else alert(j.error || "rotate failed");
+  } catch(e) { alert(e.message); }
 }
 
 // ══════════════════════════════════════
@@ -2772,7 +2870,7 @@ async function addFzEntryByIgn(ign) {
     const res = await fetch('/api/fz', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ign })
+      body: JSON.stringify({ ign, grp: fzGrp })
     });
     if (res.ok) {
       await fetchFzList();

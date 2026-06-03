@@ -51,6 +51,52 @@ function requireAuth(req, res, next) {
 }
 
 // ══════════════════════════════════════
+// ★ NEW: GABI 전용 도메인 (host 기반 라우팅)
+//   - gabi.up.railway.app 로 들어오면 루트(/)에서 gabi 보드만 노출
+//   - 메인 대시보드/인증 API/타 그룹은 이 도메인에서 전부 차단(읽기전용 게이트)
+//   - 같은 서비스/같은 DB → 단일 원본 유지, 2nd 서비스 불필요
+// ══════════════════════════════════════
+const GABI_HOST       = (process.env.GABI_HOST || "gabi.up.railway.app").toLowerCase();
+const GABI_HTML_FILE  = path.join(__dirname, "public", "gabi.html");
+
+function reqHost(req) {
+  return (req.headers.host || req.hostname || "").toLowerCase().split(":")[0];
+}
+function isGabiHost(req) {
+  const h = reqHost(req);
+  return h === GABI_HOST || h.startsWith("gabi.");   // 서브도메인 prefix도 허용
+}
+function serveGabiPage(res) {
+  let html = "";
+  try { html = fs.readFileSync(GABI_HTML_FILE, "utf8"); }
+  catch { return res.status(500).send("gabi.html missing"); }
+  const g   = dbMod.get("SELECT api_key FROM fz_groups WHERE grp='gabi'");
+  const key = (g && g.api_key) ? g.api_key : "";
+  res.set("Content-Type", "text/html; charset=utf-8");
+  res.send(html.replace("__FZ_GABI_KEY__", key));
+}
+
+// gabi 도메인 게이트 — 모든 라우트보다 먼저 평가
+app.use((req, res, next) => {
+  if (!isGabiHost(req)) return next();           // 메인 도메인은 그대로 통과
+  const p = req.path;
+
+  // 루트 또는 /gabi → gabi 보드
+  if (p === "/" || p === "/gabi" || p === "/gabi.html") return serveGabiPage(res);
+  // 이미지/파비콘만 정적 허용
+  if (p.startsWith("/images/") || p === "/favicon.ico") return next();
+  // gabi 스코프 읽기 API만 허용 (grp=gabi 강제)
+  if ((p === "/api/fz" || p === "/api/fz/status") && req.method === "GET") {
+    if ((req.query.grp || "").toLowerCase() !== "gabi") {
+      return res.status(403).json({ error: "forbidden on gabi host" });
+    }
+    return next();
+  }
+  // 그 외(메인 대시보드, 인증 API, 다른 그룹 등) 전부 차단
+  return res.redirect("/");
+});
+
+// ══════════════════════════════════════
 // STATIC FILES
 // ══════════════════════════════════════
 app.use("/images", express.static(path.join(__dirname, "public", "images")));
@@ -223,6 +269,8 @@ dbMod.getDb().then(() => {
   app.use("/api/seller",         requireAuth, require("./routes/seller"));
   app.use("/api/forced-offline", requireAuth, require("./routes/forced"));
   app.use("/api/management",     require("./routes/management").router);
+  // ★ NEW: 그룹 키 노출/회전은 인증 필요 (그 외 /api/fz/* 는 그룹키로 자체 보호)
+  app.use("/api/fz/groups",      requireAuth);
   app.use("/api/fz",             require("./routes/fz"));
 
   // ★★★ NEW: PC 태그 API ★★★
@@ -353,6 +401,16 @@ dbMod.getDb().then(() => {
   app.get("/api/clients", requireAuth, (req, res) => {
     return res.json(dbMod.all("SELECT owner FROM clients ORDER BY owner"));
   });
+
+  // ════════════════════════════════════════════════════════════════
+  // ★★★ NEW: GABI 전용 더미 사이트 ★★★
+  //   - gabi.up.railway.app 도메인(또는 2nd Railway 서비스)을 이 앱에 연결하고
+  //     루트를 /gabi 로 보거나, 그냥 https://rudyfz.../gabi 를 Gabi에게 주면 됨
+  //   - 서버가 gabi 그룹 키를 페이지에 주입 → 정적 파일/깃에 키를 박지 않음
+  //   - 이 페이지는 gabi 그룹 리스트만 읽기전용으로 표시 (rudy 리스트/시크릿 접근 불가)
+  // ════════════════════════════════════════════════════════════════
+  const GABI_HTML_PATH = path.join(__dirname, "public", "gabi.html");
+  app.get(["/gabi", "/gabi.html"], (req, res) => serveGabiPage(res));
 
   // Catch-all
   app.get("*", (req, res) => {
