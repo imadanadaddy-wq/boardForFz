@@ -10,6 +10,8 @@ const HISTORY_INTERVAL  = 30 * 60 * 1000;
 const _svrHistory     = {};
 const SVR_MAX_DIFF    = 8_000_000;
 const SVR_MAX_DT_MS   = 90_000;
+const SVR_STALE_MS    = 120_000;    // 2분간 유효 샘플 없으면 클리어
+const SVR_WINDOW      = 5;          // 12→5: 빠른 반응
 const SVR_MESO_HR_CAP = 400_000_000;
 
 // ── evasion dedupe: 같은 (bot, by) 5초 내 재발생 무시 ──
@@ -37,21 +39,37 @@ function shouldRecordEvasion(owner, ign, by) {
 function svrCalcMesoHr(owner, ign, meso) {
   const key = owner + "|" + ign;
   const now = Date.now();
-  if (!_svrHistory[key]) _svrHistory[key] = { samples: [], lastMeso: null, lastTs: null };
+  if (!_svrHistory[key]) _svrHistory[key] = { samples: [], lastMeso: null, lastTs: null, lastValidTs: 0, pendDir: 0, pendCnt: 0 };
   const h = _svrHistory[key];
   if (h.lastMeso != null && h.lastTs != null) {
     const dt_ms = now - h.lastTs;
     const diff  = meso - h.lastMeso;
     if (dt_ms > SVR_MAX_DT_MS) {
-      h.samples = [];
-    } else if (dt_ms > 0 && diff >= 0 && diff < SVR_MAX_DIFF) {
+      h.samples = []; h.pendDir = 0; h.pendCnt = 0;
+    } else if (dt_ms > 0 && diff > 0 && diff < SVR_MAX_DIFF) {
       const rate = Math.floor((diff / dt_ms) * 3_600_000);
+      // ★ 레짐 변화 감지: 현재 샘플이 윈도우 평균 대비 60%+ 급변하면(FZ 토글 의심)
+      //   같은 방향 2연속 시 윈도우를 리셋 → 옛 구간 섞이지 않고 새 rate로 즉시 수렴
+      if (h.samples.length >= 2) {
+        const avg = h.samples.reduce((a, b) => a + b, 0) / h.samples.length;
+        const ratio = rate / Math.max(avg, 1);
+        if (ratio >= 1.6 || ratio <= 0.6) {
+          const dir = ratio >= 1 ? 1 : -1;
+          if (h.pendDir === dir) h.pendCnt++; else { h.pendDir = dir; h.pendCnt = 1; }
+          if (h.pendCnt >= 2) { h.samples = []; h.pendDir = 0; h.pendCnt = 0; }
+        } else { h.pendDir = 0; h.pendCnt = 0; }
+      }
       h.samples.push(rate);
-      while (h.samples.length > 12) h.samples.shift();
+      while (h.samples.length > SVR_WINDOW) h.samples.shift();
+      h.lastValidTs = now;
     }
   }
   h.lastMeso = meso;
   h.lastTs   = now;
+  // Staleness: 유효 샘플이 2분 이상 없으면 윈도우 클리어
+  if (h.lastValidTs && (now - h.lastValidTs) > SVR_STALE_MS) {
+    h.samples = []; h.pendDir = 0; h.pendCnt = 0;
+  }
   if (h.samples.length < 2) return null;
   return Math.floor(h.samples.reduce((a, b) => a + b, 0) / h.samples.length);
 }
@@ -182,7 +200,7 @@ router.post("/", (req, res) => {
       const diffPct = diff / maxVal;
       verified_meso_hr = diffPct <= 0.3
         ? Math.round((luaHr + svrHr) / 2)
-        : Math.min(luaHr, svrHr);
+        : svrHr;   // ★ min() → svrHr: 실제 meso 증가분 기반 실측값 우선 (상승 억제 제거)
       verified_meso_hr = Math.min(verified_meso_hr, SVR_MESO_HR_CAP);
     }
 

@@ -2137,32 +2137,30 @@ function makeSlot(item, small=false) {
 }
 
 const _mesoHistory = {};
-const SAMPLE_COUNT  = 10;
+const SAMPLE_COUNT  = 5;            // 10→5: 빠른 반응
 const MAX_DIFF_MESO = 15_000_000;
 const MAX_DT_MS     = 120_000;
+const STALE_MS      = 120_000;      // 2분간 유효 샘플 없으면 클리어
 
 function calcMesoHr(ign, meso, serverMesoHr) {
-  if (serverMesoHr && serverMesoHr > 0) {
-    const key = ign; const now = Date.now(); const mesoNum = Number(meso) || 0;
-    if (!_mesoHistory[key]) _mesoHistory[key] = { samples: [], lastMeso: null, lastTs: null };
-    const h = _mesoHistory[key];
-    if (h.lastMeso != null && h.lastTs != null) {
-      const dt_ms = now - h.lastTs; const diff = mesoNum - h.lastMeso;
-      if (dt_ms > MAX_DT_MS) { h.samples = []; }
-      else if (dt_ms > 0 && diff >= 0 && diff < MAX_DIFF_MESO) { h.samples.push(Math.floor((diff / dt_ms) * 3_600_000)); if (h.samples.length > SAMPLE_COUNT) h.samples.shift(); }
-    }
-    h.lastMeso = mesoNum; h.lastTs = now;
-    return serverMesoHr;
-  }
   const key = ign; const now = Date.now(); const mesoNum = Number(meso) || 0;
-  if (!_mesoHistory[key]) _mesoHistory[key] = { samples: [], lastMeso: null, lastTs: null };
+  if (!_mesoHistory[key]) _mesoHistory[key] = { samples: [], lastMeso: null, lastTs: null, lastValidTs: 0 };
   const h = _mesoHistory[key];
   if (h.lastMeso != null && h.lastTs != null) {
     const dt_ms = now - h.lastTs; const diff = mesoNum - h.lastMeso;
     if (dt_ms > MAX_DT_MS) { h.samples = []; }
-    else if (dt_ms > 0 && diff >= 0 && diff < MAX_DIFF_MESO) { h.samples.push(Math.floor((diff / dt_ms) * 3_600_000)); if (h.samples.length > SAMPLE_COUNT) h.samples.shift(); }
+    // ★ diff > 0: meso 변동 없는 구간은 "데이터 없음" 처리 (0 샘플 안 넣음)
+    else if (dt_ms > 0 && diff > 0 && diff < MAX_DIFF_MESO) {
+      h.samples.push(Math.floor((diff / dt_ms) * 3_600_000));
+      if (h.samples.length > SAMPLE_COUNT) h.samples.shift();
+      h.lastValidTs = now;
+    }
   }
   h.lastMeso = mesoNum; h.lastTs = now;
+  // Staleness: 유효 샘플 2분 이상 없으면 클리어
+  if (h.lastValidTs && (now - h.lastValidTs) > STALE_MS) { h.samples = []; }
+  // 서버값 신뢰 (있으면)
+  if (serverMesoHr && serverMesoHr > 0) return serverMesoHr;
   return h.samples.length > 0 ? Math.floor(h.samples.reduce((a,b)=>a+b,0)/h.samples.length) : 0;
 }
 
