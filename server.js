@@ -429,9 +429,50 @@ dbMod.getDb().then(() => {
     res.send(html);
   });
 
-  // Catch-all
+  // Catch-all — ★★★ 메인 대시보드는 OAuth 인증 후에만 접근 가능 ★★★
+  // /rudy, /gabi, /auth/*, /api/*, /images/* 는 위에서 이미 처리됨
   app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "public", "index.html"));
+    const token = req.cookies?.ms_token;
+    if (token) {
+      try {
+        jwt.verify(token, JWT_SECRET);
+        return res.sendFile(path.join(__dirname, "public", "index.html"));
+      } catch(e) { /* 만료/무효 → 아래 로그인 페이지 */ }
+    }
+    // 미인증 → 미니멀 로그인 페이지
+    res.send(`<!DOCTYPE html><html lang="ko"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HyeongFZ — Login</title>
+<link rel="icon" href="/images/cat-logo.png">
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:#0f1115;color:#e7eaee;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.card{text-align:center;padding:48px 40px;background:#161a20;border:1px solid #2a2f37;border-radius:16px;
+  box-shadow:0 4px 24px rgba(0,0,0,.5);max-width:380px;width:90%}
+.card img{width:64px;height:64px;border-radius:14px;margin-bottom:18px}
+.card h1{font-size:22px;font-weight:800;margin:0 0 6px;letter-spacing:.5px}
+.card p{font-size:13px;color:#9aa3ad;margin:0 0 28px;line-height:1.5}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;background:#5865F2;color:#fff;
+  border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;
+  transition:background .15s}
+.btn:hover{background:#4752c4}
+.links{margin-top:24px;font-size:12px;color:#555}
+.links a{color:#00bcd4;text-decoration:none}
+</style></head><body>
+<div class="card">
+  <img src="/images/cat-logo.png" alt="">
+  <h1>HyeongFZ</h1>
+  <p>대시보드에 접근하려면 Discord 로그인이 필요합니다.</p>
+  <a class="btn" href="/auth/discord">
+    <svg width="20" height="15" viewBox="0 0 71 55" fill="#fff"><path d="M60.1 4.9A58.5 58.5 0 0045.4.2a.2.2 0 00-.2.1 40.7 40.7 0 00-1.8 3.7 54 54 0 00-16.2 0A26.4 26.4 0 0025.4.3a.2.2 0 00-.2-.1A58.4 58.4 0 0010.5 4.9a.2.2 0 00-.1.1C1.5 18.7-.9 32.2.3 45.5v.1a58.7 58.7 0 0017.9 9.1.2.2 0 00.3-.1 42 42 0 003.6-5.9.2.2 0 00-.1-.3 38.6 38.6 0 01-5.5-2.7.2.2 0 01 0-.4l1.1-.9a.2.2 0 01.2 0 41.9 41.9 0 0035.6 0 .2.2 0 01.3 0l1 .9a.2.2 0 010 .3 36.2 36.2 0 01-5.5 2.7.2.2 0 00-.1.4 47.1 47.1 0 003.6 5.8.2.2 0 00.2.1A58.5 58.5 0 0070.4 45.7v-.2C72 30.1 68 16.7 60.1 5a.2.2 0 000-.1zM23.7 37.3c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.1 6.4-7.1 6.5 3.2 6.4 7.1c0 4-2.8 7.2-6.4 7.2zm23.6 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.1 6.4-7.1 6.5 3.2 6.4 7.1c0 4-2.9 7.2-6.4 7.2z"/></svg>
+    Login with Discord
+  </a>
+  <div class="links">
+    FZ 확인: <a href="/rudy">/rudy</a> · <a href="/gabi">/gabi</a>
+  </div>
+</div>
+</body></html>`);
   });
 
   app.listen(PORT, () => {

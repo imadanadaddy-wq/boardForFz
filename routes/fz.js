@@ -222,6 +222,17 @@ router.post("/mapname", (req, res) => {
   res.json({ ok: true, map_id: String(map_id), map_name: obj[String(map_id)] });
 });
 
+// ── GET /api/fz/health — 그룹 테이블 상태 진단 (공개) ──────────
+router.get("/health", (req, res) => {
+  try {
+    const groups = db.all("SELECT grp, is_public, max_slots FROM fz_groups");
+    const counts = db.all("SELECT grp, COUNT(*) AS n FROM fz_list GROUP BY grp");
+    res.json({ ok: true, groups, counts });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
 // ── GET /api/fz/all — 전체 FZ 목록 (그룹 불문, 관리자용) ─────────
 // server.js 에서 requireAuth 로 보호
 router.get("/all", (req, res) => {

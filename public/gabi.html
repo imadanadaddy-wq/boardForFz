@@ -82,7 +82,7 @@
         fetch(`/api/fz?${Q}`),
         fetch(`/api/fz/status?${Q}`),
       ]);
-      if(lr.status===401){ return showErr("API key invalid — 메인 대시보드에서 키를 다시 확인/회전하세요."); }
+      if(!lr.ok){ const e=await lr.json().catch(()=>({})); return showErr(`Error ${lr.status}: ${e.error||'Unknown'}`); }
       const list = await lr.json();
       const stat = sr.ok ? await sr.json() : [];
       const smap = {}; for(const s of stat) smap[s.ign]=s;
