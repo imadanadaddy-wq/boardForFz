@@ -938,7 +938,7 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
       <div style="font-size:11px;color:#777;background:var(--ms-slot);border-left:3px solid var(--ms-accent);padding:8px 12px;border-radius:4px;margin-bottom:14px;line-height:1.6">
         클릭하면 그룹 순환: <b>None → Rudy → Gabi → None</b>
       </div>
-      <div id="fz-master-table" style="max-width:900px">
+      <div id="fz-master-table" style="max-width:1080px;overflow-x:auto">
         <div style="color:#666;font-size:12px;font-family:'JetBrains Mono',monospace;padding:10px">Loading...</div>
       </div>
     </div>
@@ -2806,12 +2806,14 @@ async function rotateGabiKey() {
   } catch(e) { alert(e.message); }
 }
 
-// ── 마스터 테이블: 전체 봇 + 그룹 배정 ──
+// ── 마스터 테이블: 전체 봇 + 그룹 배정 + 메획설정/FZ ──
+let mesoConfig = {};   // ign -> {has_ia, gear_count, fz_on}
 async function fetchFzAll() {
   try {
-    const [fzRes, mesoRes] = await Promise.all([
+    const [fzRes, mesoRes, cfgRes] = await Promise.all([
       fetch("/api/fz/all"),
-      fetch("/api/tracker")
+      fetch("/api/tracker"),
+      fetch("/api/fz/meso-config")
     ]);
     if (fzRes.ok) fzAllAssign = await fzRes.json();
     if (mesoRes.ok) {
@@ -2820,6 +2822,7 @@ async function fetchFzAll() {
       mesoMap = {};
       md.forEach(d => { mesoMap[d.ign] = { meso: d.meso, meso_hr: d.meso_hr }; });
     }
+    if (cfgRes.ok) mesoConfig = await cfgRes.json();
     await loadFzGroups();
     renderMasterTable();
   } catch(e) {}
@@ -2881,6 +2884,9 @@ function renderMasterTable() {
   html += '<div style="flex:1;padding:8px 10px">Map</div>';
   html += '<div style="width:60px;text-align:right;padding:8px 6px">Meso</div>';
   html += '<div style="width:52px;text-align:right;padding:8px 6px">M/HR</div>';
+  html += '<div style="width:40px;text-align:center;padding:8px 2px">FZ</div>';
+  html += '<div style="width:46px;text-align:center;padding:8px 2px" title="메획 어빌">M-IA</div>';
+  html += '<div style="width:70px;text-align:center;padding:8px 2px" title="메획 장비 개수">M-Gear</div>';
   html += '<div style="width:70px;text-align:center;padding:8px 4px">Group</div>';
   html += '</div>';
 
@@ -2918,6 +2924,30 @@ function renderMasterTable() {
     html += `<div style="flex:1;padding:10px 10px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid #ddd">${esc(mapShort)}</div>`;
     html += `<div style="width:60px;text-align:right;padding:10px 6px;font-style:normal;font-size:12px;font-family:'JetBrains Mono',monospace;border-right:1px solid #ddd;color:#2e7d32">${fmtVal(md.meso)}</div>`;
     html += `<div style="width:52px;text-align:right;padding:10px 6px;font-style:normal;font-size:12px;font-family:'JetBrains Mono',monospace;border-right:1px solid #ddd;color:#1565c0">${fmtVal(md.meso_hr)}</div>`;
+
+    // ── FZ 상태: 미배정(none)이면 ⚪, 아니면 fz_on에 따라 🟢/🔴/⚪ ──
+    const cfg = mesoConfig[b.ign] || {};
+    let fzIcon, fzColor, fzTitle;
+    if (grp === "none") { fzIcon = "○"; fzColor = "#bbb"; fzTitle = "미관리(리스트 없음)"; }
+    else if (cfg.fz_on === true)  { fzIcon = "●"; fzColor = "#2e7d32"; fzTitle = "FZ ON"; }
+    else if (cfg.fz_on === false) { fzIcon = "●"; fzColor = "#e53935"; fzTitle = "FZ OFF"; }
+    else { fzIcon = "○"; fzColor = "#bbb"; fzTitle = "판정 대기"; }
+    html += `<div style="width:40px;text-align:center;padding:10px 2px;font-size:16px;color:${fzColor};border-right:1px solid #ddd" title="${fzTitle}">${fzIcon}</div>`;
+
+    // ── M-IA 토글 (○/●) ──
+    const iaOn = !!cfg.has_ia;
+    html += `<div style="width:46px;text-align:center;padding:6px 2px;border-right:1px solid #ddd">`;
+    html += `<button onclick="toggleIA('${esc(b.ign)}',${iaOn?0:1})" style="background:none;border:none;cursor:pointer;font-size:16px;color:${iaOn?'#2e7d32':'#ccc'}" title="메획 어빌 ${iaOn?'있음':'없음'}">${iaOn?'●':'○'}</button>`;
+    html += `</div>`;
+
+    // ── M-Gear 0~6 (▼ N ▲) ──
+    const gear = cfg.gear_count || 0;
+    html += `<div style="width:70px;display:flex;align-items:center;justify-content:center;gap:3px;padding:4px;border-right:1px solid #ddd;font-style:normal">`;
+    html += `<button onclick="changeGear('${esc(b.ign)}',${gear-1})" style="background:#eee;border:1px solid #ccc;border-radius:3px;width:18px;height:20px;cursor:pointer;font-size:11px;line-height:1;padding:0">−</button>`;
+    html += `<span style="font-family:'JetBrains Mono',monospace;font-weight:800;font-size:13px;min-width:14px;text-align:center;color:#333">${gear}</span>`;
+    html += `<button onclick="changeGear('${esc(b.ign)}',${gear+1})" style="background:#eee;border:1px solid #ccc;border-radius:3px;width:18px;height:20px;cursor:pointer;font-size:11px;line-height:1;padding:0">+</button>`;
+    html += `</div>`;
+
     html += `<div style="width:70px;display:flex;align-items:center;justify-content:center;padding:4px">`;
     html += `<button onclick="assignBot('${esc(b.ign)}','${grp}')" style="background:${badgeColor};color:#fff;border:none;border-radius:12px;padding:3px 10px;font-size:10px;font-weight:800;cursor:pointer;font-family:'JetBrains Mono',monospace;font-style:normal;letter-spacing:.5px;transition:background .15s">${badgeText}</button>`;
     html += `</div></div>`;
@@ -2940,6 +2970,31 @@ async function assignBot(ign, currentGrp) {
     if (!res.ok) { alert(j.error || "Failed"); return; }
     await fetchFzAll();
   } catch(e) { alert(e.message); }
+}
+
+// ── 메획 설정 저장 (IA 토글 / 기어 개수) ──
+async function saveMesoConfig(ign, hasIa, gear) {
+  // 낙관적 업데이트 (즉시 반영)
+  if (!mesoConfig[ign]) mesoConfig[ign] = { has_ia: false, gear_count: 0, fz_on: null };
+  mesoConfig[ign].has_ia = !!hasIa;
+  mesoConfig[ign].gear_count = gear;
+  renderMasterTable();
+  try {
+    await fetch(`/api/fz/meso-config/${encodeURIComponent(ign)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ has_ia: hasIa, gear_count: gear })
+    });
+  } catch(e) {}
+}
+function toggleIA(ign, val) {
+  const cur = mesoConfig[ign] || {};
+  saveMesoConfig(ign, val, cur.gear_count || 0);
+}
+function changeGear(ign, val) {
+  const g = Math.max(0, Math.min(6, val));   // 0~6 클램프
+  const cur = mesoConfig[ign] || {};
+  saveMesoConfig(ign, cur.has_ia ? 1 : 0, g);
 }
 
 // ══════════════════════════════════════

@@ -39,6 +39,8 @@
   .c-ch{width:58px;flex:0 0 58px;text-align:center;padding:11px 4px;border-right:1px solid #c4c4c4;
     font-size:17px;display:flex;align-items:center;justify-content:center}
   .c-ch.has{background:var(--pink)}
+  .c-fz{width:46px;flex:0 0 46px;text-align:center;padding:11px 4px;border-right:1px solid #c4c4c4;
+    font-size:18px;font-style:normal;display:flex;align-items:center;justify-content:center}
   .c-map{flex:1.3;min-width:0;padding:11px 12px;font-size:15px;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ccbadge{display:inline-block;margin-left:6px;background:var(--red);color:#fff;
@@ -112,11 +114,16 @@
         const isCc = ccTs>0 && (now-ccTs)<CC_MS;
         let ccBadge="";
         if(isCc){ const m=Math.max(1,Math.floor((now-ccTs)/60000)); ccBadge=`<span class="ccbadge">🔴 CC ${m}m</span>`; }
+        // FZ 상태: true=🟢 ON, false=🔴 OFF, null=⚪ 판정대기
+        const fz = s.fz_on;
+        const fzIcon = fz===true ? '🟢' : (fz===false ? '🔴' : '⚪');
+        const fzTitle = fz===true ? 'FZ ON' : (fz===false ? 'FZ OFF' : '판정 대기');
         const row = document.createElement("div");
         row.className = "row" + (isOn?"":" off") + (isCc?" cc":"");
         row.innerHTML =
           `<div class="c-idx">${i+1}</div>`+
           `<div class="c-ign">${esc(e.ign)}${ccBadge}</div>`+
+          `<div class="c-fz" title="${fzTitle}">${fzIcon}</div>`+
           `<div class="c-ch ${ch!=null?'has':''}">${ch!=null?ch:'-'}</div>`+
           `<div class="c-map">${mapTxt}</div>`;
         t.appendChild(row);

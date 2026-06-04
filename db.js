@@ -138,6 +138,13 @@ db.exec(`
     max_slots  INTEGER NOT NULL DEFAULT 0, -- 0=무제한
     created_at INTEGER NOT NULL
   );
+  -- ★ NEW: 봇별 메획 설정 (관리자 참고용 메모 — FZ 판정엔 미사용)
+  CREATE TABLE IF NOT EXISTS bot_meso_config (
+    ign         TEXT PRIMARY KEY,
+    has_ia      INTEGER NOT NULL DEFAULT 0,  -- 메획 어빌 보유 (0/1)
+    gear_count  INTEGER NOT NULL DEFAULT 0,  -- 메획 장비 개수 (0~6)
+    updated_at  INTEGER
+  );
 `);
 
 // 마이그레이션 (기존 DB 호환)
@@ -146,6 +153,8 @@ const migrations = [
   "ALTER TABLE fz_list ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0",
   // ★ NEW: 기존 fz_list 행은 전부 'rudy' 그룹으로 귀속
   "ALTER TABLE fz_list ADD COLUMN grp TEXT NOT NULL DEFAULT 'rudy'",
+  // ★ NEW: FZ ON/OFF 방향 판정 결과 (1=ON, 0=OFF, NULL=미판정)
+  "ALTER TABLE private_data ADD COLUMN fz_on INTEGER DEFAULT NULL",
 ];
 for (const sql of migrations) {
   try { db.exec(sql); } catch(e) { /* 이미 존재 */ }

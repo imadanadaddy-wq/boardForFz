@@ -286,6 +286,8 @@ dbMod.getDb().then(() => {
   app.use("/api/fz/groups",      requireAuth);
   // ★ 전체 배정 조회 (마스터 테이블용)
   app.use("/api/fz/all",         requireAuth);
+  // ★ 메획 설정 조회도 인증 필요 (PUT은 아래 비-GET 가드가 처리)
+  app.use("/api/fz/meso-config", requireAuth);
   // ★ FZ 쓰기(추가/삭제/정렬/배정)는 인증 필요 — GET만 공개(그룹키로 자체 보호)
   app.use("/api/fz", (req, res, next) => {
     if (req.method !== "GET") return requireAuth(req, res, next);
