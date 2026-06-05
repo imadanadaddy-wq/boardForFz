@@ -32,6 +32,15 @@ input::placeholder,textarea::placeholder{color:#666}
 /* FZ 마스터 테이블(서식 흰 종이) → 다크 */
 #fz-master-table > div{background:#181818!important;border-color:#3a3a3a!important;box-shadow:0 2px 8px rgba(0,0,0,.6)!important}
 #fz-master-table [style*="background:#fff"],#fz-master-table [style*="background:#ffffff"]{background:#181818!important}
+/* ── 다크모드 가시성: IGN 및 주요 텍스트는 화이트톤 ── */
+.td-ign,.ign,.mgmt-item-ign,.mgmt-tbl-ign,.seller-name{color:#ffffff!important}
+.money-val,.ccard-info-row .info-meso,.log-new{color:#f2f2f2!important}
+th,th.sortable,.section-title{color:#f0f0f0!important}
+th.sortable:hover{color:#fff!important}
+/* 청록 액센트(owner/pc/채널) → 다크에서 밝은 청록으로 */
+.td-owner,.info-pc,.ccard-info-row .info-pc{color:#5ec8d8!important}
+.log-field-ch{color:#5ec8d8!important;border-color:#5ec8d8!important}
+.map-cell .map-label,.td-loc span{color:#e8e8e8!important}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--ms-bg);font-family:'MaplestoryOTFBold',sans-serif;color:var(--ms-text);font-size:15px}
 
@@ -2764,7 +2773,7 @@ function fzEscapeHtml(s) {
 // ── FZ 테이블 블록 빌더 ──
 function buildFzTable(entries, startIdx) {
   const table = document.createElement("div");
-  table.style.cssText = "border:1px solid #888;background:#fff;font-family:Georgia,Cambria,'Times New Roman',serif;font-style:italic;font-weight:700;border-radius:2px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.25)";
+  table.style.cssText = "border:1px solid #3a3a3a;background:#181818;font-family:Georgia,Cambria,'Times New Roman',serif;font-style:italic;font-weight:700;border-radius:2px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.25)";
   const now = Date.now();
   const CC_HIGHLIGHT_MS = 15 * 60 * 1000;
   entries.forEach((entry, i) => {
@@ -2785,28 +2794,28 @@ function buildFzTable(entries, startIdx) {
     const lastCcTs = status && status.last_cc_ts ? Number(status.last_cc_ts) : 0;
     const isRecentCc = lastCcTs > 0 && (now - lastCcTs) < CC_HIGHLIGHT_MS;
     const row = document.createElement("div");
-    let rowStyle = "display:flex;align-items:stretch;border-bottom:1px solid #c4c4c4;cursor:grab;background:#fff;transition:opacity .15s,box-shadow .2s,outline-color .2s" + (isOnline ? "" : ";opacity:.5");
+    let rowStyle = "display:flex;align-items:stretch;border-bottom:1px solid #2c2c2c;cursor:grab;background:#181818;transition:opacity .15s,box-shadow .2s,outline-color .2s" + (isOnline ? "" : ";opacity:.5");
     if (isRecentCc) rowStyle += ";outline:2px solid #e74c3c;outline-offset:-2px;box-shadow:0 0 8px 1px rgba(231,76,60,.45);position:relative;z-index:1";
     row.style.cssText = rowStyle;
     row.dataset.ign = entry.ign;
     row.draggable = true;
-    const idxBg="#fff",idxColor="#000";
-    const ignColor=isOnline?"#000":"#888";
+    const idxBg="#222",idxColor="#ddd";
+    const ignColor=isOnline?"#fff":"#888";
     const ignDeco=isOnline?"":"text-decoration:line-through;";
-    const chBg=(ch!=null)?"#ffc6dd":"#fff",chColor="#000",mapColor="#000";
+    const chBg=(ch!=null)?"#7a2d44":"#181818",chColor="#fff",mapColor="#e8e8e8";
     const mapDisplay=mapShort?fzEscapeHtml(mapShort):(mapId!=null?`#${mapId}`:(isOnline?'-':'OFFLINE'));
     let ccBadgeHtml='';
     if(isRecentCc){const minsAgo=Math.max(1,Math.floor((now-lastCcTs)/60000));ccBadgeHtml=`<span style="display:inline-block;margin-left:6px;background:#e74c3c;color:#fff;font-family:'JetBrains Mono',monospace;font-style:normal;font-weight:800;font-size:9px;padding:1px 5px;border-radius:3px;letter-spacing:.5px;vertical-align:middle">🔴 CC ${minsAgo}m</span>`;}
     row.innerHTML=`
-      <div style="width:42px;flex-shrink:0;background:${idxBg};color:${idxColor};text-align:center;padding:11px 4px;font-family:Georgia,serif;font-style:normal;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;border-right:1px solid #c4c4c4">${idx+1}</div>
-      <div style="flex:1;min-width:0;color:${ignColor};padding:11px 16px;border-right:1px solid #c4c4c4;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${ignDeco}">${fzEscapeHtml(entry.ign)}${ccBadgeHtml}</div>
-      <div style="width:68px;flex-shrink:0;background:${chBg};color:${chColor};text-align:center;padding:11px 4px;border-right:1px solid #c4c4c4;font-size:18px;display:flex;align-items:center;justify-content:center">${ch!=null?ch:'-'}</div>
+      <div style="width:42px;flex-shrink:0;background:${idxBg};color:${idxColor};text-align:center;padding:11px 4px;font-family:Georgia,serif;font-style:normal;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;border-right:1px solid #2c2c2c">${idx+1}</div>
+      <div style="flex:1;min-width:0;color:${ignColor};padding:11px 16px;border-right:1px solid #2c2c2c;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${ignDeco}">${fzEscapeHtml(entry.ign)}${ccBadgeHtml}</div>
+      <div style="width:68px;flex-shrink:0;background:${chBg};color:${chColor};text-align:center;padding:11px 4px;border-right:1px solid #2c2c2c;font-size:18px;display:flex;align-items:center;justify-content:center">${ch!=null?ch:'-'}</div>
       <div class="fz-mapname" data-mapid="${mapId!=null?mapId:''}"
         ${mapId!=null?`onclick="startFzMapEdit('${mapId}',this)" title="Click to edit"`:''}
-        style="flex:1.4;min-width:0;color:${mapColor};padding:11px 14px;border-right:1px solid #c4c4c4;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${mapId!=null?'cursor:pointer':''}">${mapDisplay}</div>
-      <div style="width:48px;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center">
+        style="flex:1.4;min-width:0;color:${mapColor};padding:11px 14px;border-right:1px solid #2c2c2c;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${mapId!=null?'cursor:pointer':''}">${mapDisplay}</div>
+      <div style="width:48px;flex-shrink:0;background:#181818;display:flex;align-items:center;justify-content:center">
         <button onclick="event.stopPropagation();deleteFzEntry('${fzEscapeHtml(entry.ign)}')"
-          style="background:none;border:none;color:#b00020;font-size:20px;cursor:pointer;font-style:normal;font-weight:700;padding:2px 6px;line-height:1" title="Delete">×</button>
+          style="background:none;border:none;color:#f87171;font-size:20px;cursor:pointer;font-style:normal;font-weight:700;padding:2px 6px;line-height:1" title="Delete">×</button>
       </div>`;
     row.addEventListener("dragstart",e=>{fzDragSrc=row;e.dataTransfer.effectAllowed="move";setTimeout(()=>row.style.opacity="0.3",0);});
     row.addEventListener("dragend",()=>{row.style.opacity=isOnline?"1":"0.5";fzDragSrc=null;});
