@@ -307,4 +307,34 @@ router.put("/meso-config/:ign", (req, res) => {
   res.json({ ok: true, ign, has_ia: hasIa, gear_count: gear });
 });
 
+// ── GET /api/fz/map-colors — 맵 컬러 전체 (공개) ───────────────
+router.get("/map-colors", (req, res) => {
+  const rows = db.all("SELECT map_name, color FROM map_colors");
+  const out = {};
+  for (const r of rows) out[r.map_name] = r.color;
+  res.json(out);
+});
+
+// ── PUT /api/fz/map-colors — 맵 컬러 지정/해제 (공개, 저위험) ────
+// body: { map_name, color }  color가 빈값/null이면 해제
+router.put("/map-colors", (req, res) => {
+  const mapName = String(req.body.map_name || "").trim();
+  const color   = req.body.color ? String(req.body.color).trim() : "";
+  if (!mapName) return res.status(400).json({ error: "map_name required" });
+  // hex 화이트리스트 검증 (#rgb / #rrggbb 만 허용)
+  if (color && !/^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(color)) {
+    return res.status(400).json({ error: "invalid color" });
+  }
+  if (color) {
+    db.run(
+      `INSERT INTO map_colors (map_name, color, updated_at) VALUES (?,?,?)
+       ON CONFLICT(map_name) DO UPDATE SET color=excluded.color, updated_at=excluded.updated_at`,
+      [mapName, color, Date.now()]
+    );
+  } else {
+    db.run("DELETE FROM map_colors WHERE map_name=?", [mapName]);
+  }
+  res.json({ ok: true, map_name: mapName, color: color || null });
+});
+
 module.exports = router;

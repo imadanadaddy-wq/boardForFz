@@ -86,34 +86,33 @@ function svrCalcMesoHr(owner, ign, meso) {
   return medianOf(h.samples);              // 평균 대신 중앙값 — 바운스 억제
 }
 
-// ── FZ ON/OFF 방향 판정 ──
-// "지금 시급 ÷ N비트 전 시급" 비율로 판정 (절대값/기어/맵 전부 무관, 비율만 봄)
-//   FZ ON = OFF의 ~3배라 비율이 워낙 커서 방향만으로 안전하게 구분됨
-const _fzState     = {};
-const FZ_LOOKBACK  = 10;    // 약 10비트 전(=100~150초 전)과 비교
-const FZ_UP_RATIO  = 2.0;   // 2배 이상 급상승 → FZ 켜짐
-const FZ_DOWN_RATIO= 0.5;   // 0.5배 이하 급하락 → FZ 꺼짐
+// ── FZ ON/OFF 판정 (봇별 floor 기준 분류) ──
+// 이전 "10비트 전과 비교" 방식은 빠른 CC→재캐스트 시 옛 고점이 기준에 남아
+// 3~5분씩 전환이 지연되는 문제가 있었음. 대신 최근 윈도우의 floor(OFF 바닥값) 대비
+// 현재 시급 레벨로 분류 → 캐스트 후 1~2비트 내 🟢 전환.
+const _fzState   = {};
+const FZ_WIN     = 30;    // 최근 시급 윈도우 (ON+OFF 스윙을 담을 크기)
+const FZ_UP_K    = 1.8;   // floor 대비 1.8배 이상 → ON
+const FZ_DOWN_K  = 1.4;   // floor 대비 1.4배 이하 → OFF
+const FZ_SEP     = 2.0;   // 윈도우에 ON/OFF 스윙(peak≥floor×2)이 관측돼야 판정
 
 function updateFzState(owner, ign, mesoHr) {
   const key = owner + "|" + ign;
-  if (!_fzState[key]) _fzState[key] = { hist: [], state: null };
+  if (!_fzState[key]) _fzState[key] = { w: [], state: null };
   const f = _fzState[key];
-  // 유효한 양수 시급만 이력에 기록 (멈춤/0은 제외)
-  if (mesoHr != null && mesoHr > 0) {
-    f.hist.push(mesoHr);
-    while (f.hist.length > FZ_LOOKBACK + 1) f.hist.shift();
+  if (mesoHr == null || mesoHr <= 0) return f.state;   // 멈춤/0은 무시
+  f.w.push(mesoHr);
+  while (f.w.length > FZ_WIN) f.w.shift();
+  if (f.w.length < 5) return f.state;                  // 표본 부족
+  let floor = Infinity, peak = 0;
+  for (const v of f.w) { if (v < floor) floor = v; if (v > peak) peak = v; }
+  // ON/OFF 스윙이 관측된 경우에만 갱신 (전부 ON or 전부 OFF면 이전 상태 유지)
+  if (peak >= floor * FZ_SEP) {
+    if (mesoHr >= floor * FZ_UP_K)        f.state = true;   // floor 대비 급상승 → ON
+    else if (mesoHr <= floor * FZ_DOWN_K) f.state = false;  // floor 근처 → OFF
+    // 중간 구간은 이전 상태 유지 (히스테리시스)
   }
-  if (f.hist.length > FZ_LOOKBACK) {
-    const cur  = f.hist[f.hist.length - 1];
-    const past = f.hist[0];           // 약 10비트 전
-    if (past > 0) {
-      const ratio = cur / past;
-      if (ratio >= FZ_UP_RATIO)        f.state = true;   // 급상승 → ON
-      else if (ratio <= FZ_DOWN_RATIO) f.state = false;  // 급하락 → OFF
-      // 그 사이(안정 구간)는 이전 상태 유지
-    }
-  }
-  return f.state;   // true / false / null(이력부족)
+  return f.state;   // true / false / null(스윙 미관측)
 }
 
 function ensureManualReleasedTable() {

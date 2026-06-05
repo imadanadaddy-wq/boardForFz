@@ -145,6 +145,12 @@ db.exec(`
     gear_count  INTEGER NOT NULL DEFAULT 0,  -- 메획 장비 개수 0~6
     updated_at  INTEGER NOT NULL DEFAULT 0
   );
+  -- ★ NEW: 맵별 컬러 (Rudy/Gabi가 맵에 색 지정 → 같은 맵 봇들 동일 배경)
+  CREATE TABLE IF NOT EXISTS map_colors (
+    map_name   TEXT PRIMARY KEY,           -- 정규화된 맵 라벨 (예: "Alley 3")
+    color      TEXT NOT NULL,              -- 파스텔 hex (예: "#ffe0e0")
+    updated_at INTEGER NOT NULL DEFAULT 0
+  );
 `);
 
 // 마이그레이션 (기존 DB 호환)

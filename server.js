@@ -290,7 +290,8 @@ dbMod.getDb().then(() => {
   // ★ FZ 쓰기(추가/삭제/정렬/배정)는 인증 필요 — GET만 공개(그룹키로 자체 보호)
   app.use("/api/fz", (req, res, next) => {
     if (req.method !== "GET") {
-      if (req.path === "/reorder") return next(); // 순서 변경은 공개 (저위험, 추가/삭제 아님)
+      // 순서 변경 + 맵 컬러는 공개 (저위험, rudy/gabi가 직접)
+      if (req.path === "/reorder" || req.path === "/map-colors") return next();
       return requireAuth(req, res, next);
     }
     next();
