@@ -298,6 +298,8 @@ dbMod.getDb().then(() => {
   });
   app.use("/api/fz",             require("./routes/fz"));
 
+  app.use("/api/proxies",        requireAuth, require("./routes/proxies"));
+
   // ★★★ NEW: PC 태그 API ★★★
   app.get("/api/bot-tags", requireAuth, (req, res) => {
     const rows = dbMod.all("SELECT ign, pc_tag, updated_at FROM bot_pc_tags ORDER BY ign");

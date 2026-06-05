@@ -151,6 +151,18 @@ db.exec(`
     color      TEXT NOT NULL,              -- 파스텔 hex (예: "#ffe0e0")
     updated_at INTEGER NOT NULL DEFAULT 0
   );
+  -- ★ NEW: 프록시 관리
+  CREATE TABLE IF NOT EXISTS proxies (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip         TEXT NOT NULL,
+    port       TEXT NOT NULL,
+    pid        TEXT DEFAULT '',            -- proxy id (auth user)
+    pw         TEXT DEFAULT '',            -- proxy pw
+    exp_ts     INTEGER DEFAULT NULL,       -- 만료 시각 (epoch ms, NULL=무기한)
+    memo       TEXT DEFAULT '',            -- 행별 메모
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL DEFAULT 0
+  );
 `);
 
 // 마이그레이션 (기존 DB 호환)

@@ -632,6 +632,7 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
     <option value="mesoGraph">📈 Meso Graph</option>
     <option value="management">🔔 Bot Management</option>
     <option value="pcs">🖥️ PC Status</option>
+    <option value="proxy">🌐 Proxy</option>
   </select>
 </div>
 
@@ -666,6 +667,12 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
   <!-- PC -->
   <div class="sidebar-section-label">PC</div>
   <button class="sidebar-item locked-tab" id="sb-pcs" onclick="switchTab('pcs',this)">🖥️ PC Status <span class="tab-lock-icon">🔒</span></button>
+
+  <div class="sidebar-divider"></div>
+
+  <!-- PROXY -->
+  <div class="sidebar-section-label">PROXY</div>
+  <button class="sidebar-item locked-tab" id="sb-proxy" onclick="switchTab('proxy',this)">🌐 Proxy <span class="tab-lock-icon">🔒</span></button>
 </div>
 
 <!-- ══ CONTENT AREA ══ -->
@@ -898,6 +905,32 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
     </div>
 
     <div id="pc-grid" class="pc-grid">
+      <div class="pc-empty">Loading...</div>
+    </div>
+  </div>
+
+  <!-- TAB: PROXY -->
+  <div class="tab-content" id="tab-proxy">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <div class="section-title" style="margin-bottom:0">🌐 Proxy</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div id="proxy-summary" style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace;letter-spacing:.5px"></div>
+        <button class="btn" style="padding:5px 14px;font-size:11px" onclick="fetchProxies()">↺ Refresh</button>
+      </div>
+    </div>
+
+    <div style="font-size:11px;color:#777;background:var(--ms-slot);border-left:3px solid var(--ms-accent);padding:8px 12px;border-radius:4px;margin-bottom:12px;line-height:1.7">
+      <b>추가</b>: 아래 칸에 한 줄에 하나씩 <code style="background:#0003;padding:1px 5px;border-radius:3px">ip:port:id:pw:7D</code> 형식으로 붙여넣기.
+      <code style="background:#0003;padding:1px 5px;border-radius:3px">7D</code>=오늘+7일, <code style="background:#0003;padding:1px 5px;border-radius:3px">06/15</code>=날짜 직접 지정. id/pw/만료는 생략 가능.
+      <br>만료일·메모는 표에서 직접 수정하면 바로 저장됩니다.
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;margin-bottom:16px">
+      <textarea id="proxy-bulk" placeholder="161.77.173.72:12324:myid:mypw:7D&#10;95.134.184.129:12324:myid:mypw:30D&#10;168.158.175.71:12324" style="flex:1;min-width:280px;min-height:90px;background:var(--ms-slot);border:1px solid var(--ms-border-dark);border-radius:6px;padding:10px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ms-text);resize:vertical"></textarea>
+      <button class="btn" style="padding:10px 20px" onclick="addProxies()">+ 추가</button>
+    </div>
+
+    <div id="proxy-table" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
       <div class="pc-empty">Loading...</div>
     </div>
   </div>
@@ -1420,7 +1453,7 @@ function injectOwnerSellerPanel() {
 }
 
 // ── TABS ──
-const LOCKED_TABS = ['meso','mesoGraph','management','pcs','seller','register'];
+const LOCKED_TABS = ['meso','mesoGraph','management','pcs','seller','register','proxy'];
 function switchTab(name, btn) {
   if (LOCKED_TABS.includes(name) && !isAuthed) {
     // Flash the secret button to hint where to auth
@@ -1438,6 +1471,7 @@ function switchTab(name, btn) {
   if (name === "changelog")  fetchChangelog();
   if (name === "management") fetchManagement();
   if (name === "pcs")        fetchPcs();
+  if (name === "proxy")      fetchProxies();
 }
 
 // ── BOT MANAGEMENT ──
@@ -1749,6 +1783,113 @@ function _fmtTs(ts) {
   try {
     return new Date(ts).toLocaleString("ko-KR", { hour12: false, month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" });
   } catch { return "—"; }
+}
+
+// ── PROXY ──
+let _proxies = [];
+function _pesc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+// epoch ms → "MM/DD" (연도 표시 안 함)
+function fmtExpMD(ts){
+  if(!ts) return "";
+  const d=new Date(ts);
+  return String(d.getMonth()+1).padStart(2,"0")+"/"+String(d.getDate()).padStart(2,"0");
+}
+function daysLeft(ts){
+  if(!ts) return null;
+  return Math.floor((ts - Date.now())/(24*60*60*1000));
+}
+
+async function fetchProxies(){
+  try{
+    const r = await fetch("/api/proxies");
+    if(!r.ok){ document.getElementById("proxy-table").innerHTML='<div class="pc-empty">불러오기 실패</div>'; return; }
+    _proxies = await r.json();
+    renderProxies();
+  }catch(e){ document.getElementById("proxy-table").innerHTML='<div class="pc-empty">연결 실패</div>'; }
+}
+
+function renderProxies(){
+  const wrap = document.getElementById("proxy-table");
+  document.getElementById("proxy-summary").textContent = `total ${_proxies.length}`;
+  if(!_proxies.length){ wrap.innerHTML='<div class="pc-empty">프록시가 없습니다. 위에서 추가하세요.</div>'; return; }
+
+  let h = '<table style="width:100%;border-collapse:collapse;min-width:760px;font-family:\'JetBrains Mono\',monospace;font-size:12px">';
+  h += '<thead><tr style="background:var(--ms-panel);color:#bbb;text-align:left">';
+  ['#','IP','Port','ID','PW','만료(MM/DD)','D-','메모',''].forEach((t,i)=>{
+    const w = ['36px','','60px','','','92px','52px','','44px'][i];
+    h += `<th style="padding:8px 8px;border-bottom:1px solid var(--ms-border-dark);font-weight:800${w?`;width:${w}`:''}">${t}</th>`;
+  });
+  h += '</tr></thead><tbody>';
+
+  _proxies.forEach((p,idx)=>{
+    const dl = daysLeft(p.exp_ts);
+    let rowBg="transparent", dColor="#888", dTxt="–";
+    if(p.exp_ts){
+      dTxt = dl + "d";
+      if(dl < 0){ rowBg="rgba(120,120,120,.15)"; dColor="#888"; dTxt="만료"; }
+      else if(dl <= 3){ rowBg="rgba(220,60,60,.12)"; dColor="#e05555"; }
+      else { dColor="#3a9d4a"; }
+    }
+    h += `<tr style="background:${rowBg};border-bottom:1px solid var(--ms-border-dark)">`;
+    h += `<td style="padding:7px 8px;color:#777">${idx+1}</td>`;
+    h += `<td style="padding:7px 8px;color:var(--ms-text)">${_pesc(p.ip)}</td>`;
+    h += `<td style="padding:7px 8px;color:#aaa">${_pesc(p.port)}</td>`;
+    h += `<td style="padding:7px 8px;color:#aaa">${_pesc(p.pid)}</td>`;
+    h += `<td style="padding:7px 8px;color:#aaa">${_pesc(p.pw)}</td>`;
+    // 만료일 인라인 수정 (MM/DD or 7D 입력)
+    h += `<td style="padding:4px 6px">`;
+    h += `<input value="${fmtExpMD(p.exp_ts)}" placeholder="MM/DD·7D" onchange="updateProxy(${p.id},'exp',this.value)" style="width:84px;background:var(--ms-slot);border:1px solid var(--ms-border-dark);border-radius:4px;color:var(--ms-text);font-family:inherit;font-size:11px;padding:4px 6px">`;
+    h += `</td>`;
+    h += `<td style="padding:7px 8px;color:${dColor};font-weight:800">${dTxt}</td>`;
+    // 메모 인라인 수정
+    h += `<td style="padding:4px 6px">`;
+    h += `<input value="${_pesc(p.memo)}" placeholder="메모..." onchange="updateProxy(${p.id},'memo',this.value)" style="width:100%;min-width:120px;background:var(--ms-slot);border:1px solid var(--ms-border-dark);border-radius:4px;color:var(--ms-text);font-family:inherit;font-size:11px;padding:4px 6px">`;
+    h += `</td>`;
+    // 삭제
+    h += `<td style="padding:4px 6px;text-align:center"><button onclick="deleteProxy(${p.id})" title="삭제" style="background:none;border:1px solid #e0c0c0;border-radius:5px;cursor:pointer;font-size:12px;padding:3px 7px">🗑</button></td>`;
+    h += `</tr>`;
+  });
+  h += '</tbody></table>';
+  wrap.innerHTML = h;
+}
+
+async function addProxies(){
+  const ta = document.getElementById("proxy-bulk");
+  const text = ta.value.trim();
+  if(!text){ return; }
+  try{
+    const r = await fetch("/api/proxies/bulk",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({ text })
+    });
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok){ alert(j.error||"추가 실패"); return; }
+    ta.value="";
+    if(j.skipped && j.skipped.length) alert(`${j.added}개 추가됨. 형식 오류로 건너뜀:\n`+j.skipped.join("\n"));
+    await fetchProxies();
+  }catch(e){ alert(e.message); }
+}
+
+async function updateProxy(id, field, value){
+  const body={}; body[field]=value;
+  try{
+    const r = await fetch(`/api/proxies/${id}`,{
+      method:"PATCH", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(body)
+    });
+    if(!r.ok){ alert("저장 실패"); return; }
+    await fetchProxies();  // D- 재계산 위해 새로고침
+  }catch(e){ alert(e.message); }
+}
+
+async function deleteProxy(id){
+  if(!confirm("이 프록시를 삭제할까요?")) return;
+  try{
+    const r = await fetch(`/api/proxies/${id}`,{ method:"DELETE" });
+    if(!r.ok){ alert("삭제 실패"); return; }
+    await fetchProxies();
+  }catch(e){ alert(e.message); }
 }
 
 async function fetchPcs() {
