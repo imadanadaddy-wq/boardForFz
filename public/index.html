@@ -13,11 +13,25 @@
   src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@ProjectNoonnu_2.1/MaplestoryOTFBold.woff') format('woff');
 }
 :root {
-  --ms-bg:#e0f7fa; --ms-panel:#ffffff; --ms-panel-dark:#b2ebf2;
-  --ms-slot:#e0f2f1; --ms-border-light:#ffffff; --ms-border-dark:#81d4fa;
-  --ms-accent:#ffb300; --ms-text:#006064; --ms-header-text:#ffffff;
-  --ms-green:#2ecc71; --ms-red:#e74c3c; --ms-gold:#f59e0b;
+  /* ── DARK MODE (black & white) ── */
+  --ms-bg:#0d0d0d; --ms-panel:#181818; --ms-panel-dark:#242424;
+  --ms-slot:#1f1f1f; --ms-border-light:#2c2c2c; --ms-border-dark:#3a3a3a;
+  --ms-accent:#e0e0e0; --ms-text:#e8e8e8; --ms-header-text:#ffffff;
+  --ms-green:#4ade80; --ms-red:#f87171; --ms-gold:#fbbf24;
 }
+/* 다크모드: 하드코딩 색 보정 */
+header{background:linear-gradient(180deg,#1a1a1a 0%,#0d0d0d 100%)!important;border-bottom:2px solid var(--ms-border-dark)!important}
+.summary-banner{background:#000!important}
+.info-pill{background:#161616!important;border-color:var(--ms-border-dark)!important}
+.btn{background:linear-gradient(180deg,#2a2a2a,#1a1a1a)!important;border:1px solid var(--ms-border-dark)!important;color:#e8e8e8!important}
+.btn:hover{background:linear-gradient(180deg,#333,#222)!important}
+.map-inline-save,.header{}
+input,select,textarea{background:#1f1f1f!important;color:#e8e8e8!important;border-color:#3a3a3a!important}
+input::placeholder,textarea::placeholder{color:#666}
+.tab-btn.active,.mgmt-tab-btn.active,.sidebar-item.active{border-bottom-color:var(--ms-gold)!important}
+/* FZ 마스터 테이블(서식 흰 종이) → 다크 */
+#fz-master-table > div{background:#181818!important;border-color:#3a3a3a!important;box-shadow:0 2px 8px rgba(0,0,0,.6)!important}
+#fz-master-table [style*="background:#fff"],#fz-master-table [style*="background:#ffffff"]{background:#181818!important}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--ms-bg);font-family:'MaplestoryOTFBold',sans-serif;color:var(--ms-text);font-size:15px}
 
@@ -1345,7 +1359,7 @@ async function checkAuth() {
           errEl.innerHTML = `⛔ Access denied.<br><br>
             <div style="background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.3);border-radius:6px;padding:10px 14px;text-align:left;color:#c0392b;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.3px;line-height:1.7">
               <div><b>Username:</b> ${uname || '(unknown)'}</div>
-              <div><b>Discord ID:</b> <code style="background:#fff;padding:1px 6px;border-radius:3px;user-select:all">${uid}</code></div>
+              <div><b>Discord ID:</b> <code style="background:#2a2a2a;color:#e8e8e8;padding:1px 6px;border-radius:3px;user-select:all">${uid}</code></div>
               <div style="margin-top:6px;color:#666">→ Add this ID to <code>ALLOWED_USER_IDS</code> on Railway env vars.</div>
             </div>`;
         } else {
@@ -1787,7 +1801,27 @@ function _fmtTs(ts) {
 
 // ── PROXY ──
 let _proxies = [];
+let _proxySort = "added";  // added | exp_asc | exp_desc
 function _pesc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function setProxySort(mode){
+  _proxySort = mode;
+  renderProxies();
+}
+function sortedProxies(){
+  const arr = _proxies.slice();
+  if(_proxySort === "exp_asc" || _proxySort === "exp_desc"){
+    // 만료 없는 것(무기한)은 항상 맨 뒤
+    arr.sort((a,b)=>{
+      const ax = a.exp_ts==null, bx = b.exp_ts==null;
+      if(ax && bx) return 0;
+      if(ax) return 1;
+      if(bx) return -1;
+      return _proxySort==="exp_asc" ? a.exp_ts-b.exp_ts : b.exp_ts-a.exp_ts;
+    });
+  }
+  return arr;
+}
 
 // epoch ms → "MM/DD HH:MM" (연도 표시 안 함)
 function fmtExpMD(ts){
@@ -1829,29 +1863,33 @@ function renderProxies(){
   document.getElementById("proxy-summary").textContent = `total ${_proxies.length}`;
   if(!_proxies.length){ wrap.innerHTML='<div class="pc-empty">프록시가 없습니다. 위에서 추가하세요.</div>'; return; }
 
+  const arr = sortedProxies();
+  const sortArrow = _proxySort==="exp_asc" ? " ▲" : (_proxySort==="exp_desc" ? " ▼" : " ⇅");
+  const nextSort  = _proxySort==="exp_asc" ? "exp_desc" : "exp_asc";
+
   let h = '<table style="width:100%;border-collapse:collapse;min-width:620px;font-family:\'JetBrains Mono\',monospace;font-size:12px">';
   h += '<thead><tr style="background:var(--ms-panel);color:#bbb;text-align:left">';
-  [['#','40px'],['ip : port : id : pw',''],['만료일시 (MM/DD HH:MM)','150px'],['남은','58px'],['메모',''],['','44px']].forEach(([t,w])=>{
-    h += `<th style="padding:8px 8px;border-bottom:1px solid var(--ms-border-dark);font-weight:800${w?`;width:${w}`:''}">${t}</th>`;
-  });
+  h += `<th style="padding:8px 8px;border-bottom:1px solid var(--ms-border-dark);font-weight:800;width:40px">#</th>`;
+  h += `<th style="padding:8px 8px;border-bottom:1px solid var(--ms-border-dark);font-weight:800">ip : port : id : pw</th>`;
+  h += `<th onclick="setProxySort('${nextSort}')" title="클릭하면 만료일시 정렬" style="padding:8px 8px;border-bottom:1px solid var(--ms-border-dark);font-weight:800;width:170px;cursor:pointer;user-select:none">만료일시 (MM/DD HH:MM)<span style="color:var(--ms-accent)">${sortArrow}</span></th>`;
+  h += `<th style="padding:8px 8px;border-bottom:1px solid var(--ms-border-dark);font-weight:800;width:58px">남은</th>`;
+  h += `<th style="padding:8px 8px;border-bottom:1px solid var(--ms-border-dark);font-weight:800">메모</th>`;
+  h += `<th style="padding:8px 8px;border-bottom:1px solid var(--ms-border-dark);font-weight:800;width:44px"></th>`;
   h += '</tr></thead><tbody>';
 
-  _proxies.forEach((p,idx)=>{
+  arr.forEach((p,idx)=>{
     const L = leftLabel(p.exp_ts);
     const combo = [p.ip, p.port, p.pid, p.pw].filter((v,i)=> i<2 || (v!==null && v!=="")).join(" : ");
     h += `<tr style="background:${L.bg};border-bottom:1px solid var(--ms-border-dark)">`;
     h += `<td style="padding:7px 8px;color:#777">${idx+1}</td>`;
     h += `<td style="padding:7px 8px;color:var(--ms-text);white-space:nowrap">${_pesc(combo)}</td>`;
-    // 만료일시 인라인 수정 (MM/DD HH:MM · 7D 등)
     h += `<td style="padding:4px 6px">`;
     h += `<input value="${fmtExpMD(p.exp_ts)}" placeholder="MM/DD HH:MM" onchange="updateProxy(${p.id},'exp',this.value)" style="width:140px;background:var(--ms-slot);border:1px solid var(--ms-border-dark);border-radius:4px;color:var(--ms-text);font-family:inherit;font-size:11px;padding:4px 6px">`;
     h += `</td>`;
     h += `<td style="padding:7px 8px;color:${L.color};font-weight:800">${L.txt}</td>`;
-    // 메모 인라인 수정
     h += `<td style="padding:4px 6px">`;
     h += `<input value="${_pesc(p.memo)}" placeholder="메모..." onchange="updateProxy(${p.id},'memo',this.value)" style="width:100%;min-width:100px;background:var(--ms-slot);border:1px solid var(--ms-border-dark);border-radius:4px;color:var(--ms-text);font-family:inherit;font-size:11px;padding:4px 6px">`;
     h += `</td>`;
-    // 삭제
     h += `<td style="padding:4px 6px;text-align:center"><button onclick="deleteProxy(${p.id})" title="삭제" style="background:none;border:1px solid #e0c0c0;border-radius:5px;cursor:pointer;font-size:12px;padding:3px 7px">🗑</button></td>`;
     h += `</tr>`;
   });
@@ -3058,9 +3096,9 @@ function renderMasterTable() {
   const esc = s => String(s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
   // 테이블 빌드 (스크린샷 스타일: Georgia serif italic)
-  let html = '<div style="border:1px solid #888;background:#fff;border-radius:3px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.35);font-family:Georgia,Cambria,serif;font-style:italic;font-weight:700;min-width:716px">';
+  let html = '<div style="border:1px solid #888;background:#181818;border-radius:3px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.35);font-family:Georgia,Cambria,serif;font-style:italic;font-weight:700;min-width:716px">';
   // 헤더
-  html += '<div style="display:flex;background:#f5f5f5;border-bottom:2px solid #888;font-style:normal;font-weight:800;font-size:11px;color:#333;font-family:\'JetBrains Mono\',monospace">';
+  html += '<div style="display:flex;background:#222;border-bottom:2px solid #444;font-style:normal;font-weight:800;font-size:11px;color:#ddd;font-family:\'JetBrains Mono\',monospace">';
   html += '<div style="width:34px;text-align:center;padding:8px 2px">#</div>';
   html += '<div style="flex:1.2;padding:8px 10px">IGN</div>';
   html += '<div style="width:44px;text-align:center;padding:8px 2px">LV</div>';
@@ -3092,7 +3130,7 @@ function renderMasterTable() {
     const opacity = isOnline ? "1" : ".5";
     const ignDeco = isOnline ? "" : "text-decoration:line-through;color:#888;";
     const offBadge = isOnline ? "" : ' <span style="display:inline-block;background:#888;color:#fff;font-family:\'JetBrains Mono\',monospace;font-style:normal;font-weight:800;font-size:8px;padding:1px 4px;border-radius:3px;vertical-align:middle">OFF</span>';
-    const chBg = (ch != null) ? "#ffc6dd" : "#fff";
+    const chBg = (ch != null) ? "#7a2d44" : "#fff";
 
     // 그룹 뱃지
     let badgeColor, badgeText;
@@ -3102,14 +3140,14 @@ function renderMasterTable() {
 
     const rowBorder = isCc ? "outline:2px solid #e74c3c;outline-offset:-2px;position:relative;z-index:1;" : "";
 
-    html += `<div style="display:flex;align-items:stretch;border-bottom:1px solid #c4c4c4;background:#fff;opacity:${opacity};${rowBorder}">`;
-    html += `<div style="width:34px;text-align:center;padding:10px 2px;font-style:normal;font-size:13px;border-right:1px solid #ddd;color:#555">${i + 1}</div>`;
-    html += `<div style="flex:1.2;padding:10px 10px;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid #ddd;${ignDeco}">${esc(b.ign)}${ccBadge}${offBadge}</div>`;
-    html += `<div style="width:44px;text-align:center;padding:10px 2px;font-style:normal;font-size:13px;border-right:1px solid #ddd;font-family:'JetBrains Mono',monospace">${b.level || "-"}</div>`;
-    html += `<div style="width:38px;text-align:center;padding:10px 2px;font-size:15px;background:${chBg};border-right:1px solid #ddd">${ch != null ? ch : "-"}</div>`;
-    html += `<div style="flex:1;padding:10px 10px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid #ddd">${esc(mapShort)}</div>`;
-    html += `<div style="width:60px;text-align:right;padding:10px 6px;font-style:normal;font-size:12px;font-family:'JetBrains Mono',monospace;border-right:1px solid #ddd;color:#2e7d32">${fmtVal(md.meso)}</div>`;
-    html += `<div style="width:52px;text-align:right;padding:10px 6px;font-style:normal;font-size:12px;font-family:'JetBrains Mono',monospace;border-right:1px solid #ddd;color:#1565c0">${fmtVal(md.meso_hr)}</div>`;
+    html += `<div style="display:flex;align-items:stretch;border-bottom:1px solid #2c2c2c;background:#181818;opacity:${opacity};${rowBorder}">`;
+    html += `<div style="width:34px;text-align:center;padding:10px 2px;font-style:normal;font-size:13px;border-right:1px solid #333;color:#999">${i + 1}</div>`;
+    html += `<div style="flex:1.2;padding:10px 10px;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid #333;${ignDeco}">${esc(b.ign)}${ccBadge}${offBadge}</div>`;
+    html += `<div style="width:44px;text-align:center;padding:10px 2px;font-style:normal;font-size:13px;border-right:1px solid #333;font-family:'JetBrains Mono',monospace">${b.level || "-"}</div>`;
+    html += `<div style="width:38px;text-align:center;padding:10px 2px;font-size:15px;background:${chBg};border-right:1px solid #333">${ch != null ? ch : "-"}</div>`;
+    html += `<div style="flex:1;padding:10px 10px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid #333">${esc(mapShort)}</div>`;
+    html += `<div style="width:60px;text-align:right;padding:10px 6px;font-style:normal;font-size:12px;font-family:'JetBrains Mono',monospace;border-right:1px solid #333;color:#4ade80">${fmtVal(md.meso)}</div>`;
+    html += `<div style="width:52px;text-align:right;padding:10px 6px;font-style:normal;font-size:12px;font-family:'JetBrains Mono',monospace;border-right:1px solid #333;color:#60a5fa">${fmtVal(md.meso_hr)}</div>`;
 
     // FZ 상태 (자동 판정): 미배정이면 ⚪, 배정됐으면 🟢/🔴/⚪
     const fzOn = fzOnMap[b.ign];
@@ -3118,21 +3156,21 @@ function renderMasterTable() {
     else if (fzOn === true)    { fzIcon = "🟢"; fzColor = "#2e7d32"; }
     else if (fzOn === false)   { fzIcon = "🔴"; fzColor = "#c62828"; }
     else                       { fzIcon = "⚪"; fzColor = "#999"; }
-    html += `<div style="width:38px;text-align:center;padding:10px 2px;font-style:normal;font-size:13px;border-right:1px solid #ddd;color:${fzColor}">${fzIcon}</div>`;
+    html += `<div style="width:38px;text-align:center;padding:10px 2px;font-style:normal;font-size:13px;border-right:1px solid #333;color:${fzColor}">${fzIcon}</div>`;
 
     // M-IA 토글 (● 보유 / ○ 없음)
     const cfg = fzConfigMap[b.ign] || { has_ia: 0, gear_count: 0 };
     const iaFilled = cfg.has_ia ? 1 : 0;
-    html += `<div style="width:40px;text-align:center;padding:6px 2px;border-right:1px solid #ddd;font-style:normal">`;
+    html += `<div style="width:40px;text-align:center;padding:6px 2px;border-right:1px solid #333;font-style:normal">`;
     html += `<button onclick="toggleIa('${esc(b.ign)}',${iaFilled})" title="메획 어빌" style="background:none;border:none;cursor:pointer;font-size:16px;color:${iaFilled?'#2e7d32':'#bbb'};padding:2px 6px">${iaFilled?'●':'○'}</button>`;
     html += `</div>`;
 
     // M-Gear (0~6, ▼ 숫자 ▲)
     const gear = cfg.gear_count || 0;
-    html += `<div style="width:62px;display:flex;align-items:center;justify-content:center;gap:2px;padding:4px 2px;border-right:1px solid #ddd;font-style:normal">`;
-    html += `<button onclick="setGear('${esc(b.ign)}',${gear-1})" style="background:#eee;border:1px solid #ccc;border-radius:3px;cursor:pointer;font-size:11px;width:16px;height:18px;line-height:1;padding:0">−</button>`;
-    html += `<span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:800;width:14px;text-align:center;color:#333">${gear}</span>`;
-    html += `<button onclick="setGear('${esc(b.ign)}',${gear+1})" style="background:#eee;border:1px solid #ccc;border-radius:3px;cursor:pointer;font-size:11px;width:16px;height:18px;line-height:1;padding:0">+</button>`;
+    html += `<div style="width:62px;display:flex;align-items:center;justify-content:center;gap:2px;padding:4px 2px;border-right:1px solid #333;font-style:normal">`;
+    html += `<button onclick="setGear('${esc(b.ign)}',${gear-1})" style="background:#2a2a2a;border:1px solid #444;border-radius:3px;cursor:pointer;font-size:11px;width:16px;height:18px;line-height:1;padding:0">−</button>`;
+    html += `<span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:800;width:14px;text-align:center;color:#ddd">${gear}</span>`;
+    html += `<button onclick="setGear('${esc(b.ign)}',${gear+1})" style="background:#2a2a2a;border:1px solid #444;border-radius:3px;cursor:pointer;font-size:11px;width:16px;height:18px;line-height:1;padding:0">+</button>`;
     html += `</div>`;
     html += `<div style="width:70px;display:flex;align-items:center;justify-content:center;padding:4px">`;
     html += `<button onclick="assignBot('${esc(b.ign)}','${grp}')" style="background:${badgeColor};color:#fff;border:none;border-radius:12px;padding:3px 10px;font-size:10px;font-weight:800;cursor:pointer;font-family:'JetBrains Mono',monospace;font-style:normal;letter-spacing:.5px;transition:background .15s">${badgeText}</button>`;
@@ -3307,10 +3345,10 @@ function startFzMapEdit(mapId, el) {
   el.dataset.editing = "1";
   const current = el.textContent || "";
   const wrap = document.createElement("div");
-  wrap.style.cssText = "flex:1.4;min-width:0;display:flex;gap:4px;align-items:center;padding:6px 8px;border-right:1px solid #c4c4c4;background:#fffbe6";
+  wrap.style.cssText = "flex:1.4;min-width:0;display:flex;gap:4px;align-items:center;padding:6px 8px;border-right:1px solid #2c2c2c;background:#2a2410";
   wrap.innerHTML = `
     <input type="text" value="${current.replace(/"/g,'&quot;')}"
-      style="flex:1;min-width:0;background:#fff;border:1px solid #888;color:#000;padding:3px 6px;border-radius:2px;font-size:13px;font-family:Georgia,Cambria,serif;font-style:italic;font-weight:700" />
+      style="flex:1;min-width:0;background:#1f1f1f;border:1px solid #555;color:#e8e8e8;padding:3px 6px;border-radius:2px;font-size:13px;font-family:Georgia,Cambria,serif;font-style:italic;font-weight:700" />
     <button style="background:#1f6e3a;border:none;color:#fff;padding:3px 8px;border-radius:2px;font-size:11px;cursor:pointer;font-family:Georgia,serif;font-weight:700">Save</button>
     <button style="background:#888;border:none;color:#fff;padding:3px 8px;border-radius:2px;font-size:11px;cursor:pointer;font-family:Georgia,serif;font-weight:700">Cancel</button>
   `;

@@ -45,6 +45,14 @@ function parseExp(raw) {
     const mi = m[5] !== undefined ? parseInt(m[5],10) : 59;
     return new Date(parseInt(m[1],10), parseInt(m[2],10)-1, parseInt(m[3],10), hh, mi, 0).getTime();
   }
+  // DD.MM.YY 또는 DD.MM.YYYY [, ][HH:MM]  (프록시 사이트 표기: "09.06.26, 03:20")
+  if ((m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})\s*,?\s*(?:(\d{1,2}):(\d{2}))?$/))) {
+    const d  = parseInt(m[1],10), mo = parseInt(m[2],10)-1;
+    let yr   = parseInt(m[3],10); if (yr < 100) yr += 2000;
+    const hh = m[4] !== undefined ? parseInt(m[4],10) : 23;
+    const mi = m[5] !== undefined ? parseInt(m[5],10) : 59;
+    return new Date(yr, mo, d, hh, mi, 0).getTime();
+  }
   const t = Date.parse(s);
   return isNaN(t) ? null : t;
 }
@@ -66,7 +74,8 @@ router.post("/bulk", (req, res) => {
   const added = [];
   const skipped = [];
   for (const line of lines) {
-    // ip:port:id:pw:exp  (id/pw/exp는 생략 가능)
+    // ip:port:id:pw:exp  (id/pw/exp 생략 가능)
+    // exp에 "09.06.26, 03:20" 처럼 콜론이 들어갈 수 있으므로 5번째 칸부터는 전부 합침
     const parts = line.split(":");
     if (parts.length < 2) { skipped.push(line); continue; }
     const ip   = parts[0].trim();
@@ -74,7 +83,8 @@ router.post("/bulk", (req, res) => {
     if (!ip || !port) { skipped.push(line); continue; }
     const pid  = (parts[2] || "").trim();
     const pw   = (parts[3] || "").trim();
-    const exp  = parseExp(parts[4] || "");
+    const expRaw = parts.slice(4).join(":").trim();   // 5번째 이후 재결합 → "03:20" 보존
+    const exp  = parseExp(expRaw);
     order += 1;
     db.run(
       "INSERT INTO proxies (ip,port,pid,pw,exp_ts,memo,sort_order,created_at) VALUES (?,?,?,?,?,?,?,?)",
