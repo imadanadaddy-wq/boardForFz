@@ -372,6 +372,8 @@ dbMod.getDb().then(() => {
       dbMod.run("DELETE FROM forced_offline  WHERE ign=?", [ign]);
       dbMod.run("DELETE FROM bot_change_log  WHERE ign=?", [ign]);
       dbMod.run("DELETE FROM meso_alert_log  WHERE ign=?", [ign]);
+      dbMod.run("DELETE FROM fz_list         WHERE ign=?", [ign]);  // ★ FZ 그룹 배정 제거
+      try { dbMod.run("DELETE FROM bot_meso_config WHERE ign=?", [ign]); } catch(e){}  // ★ 메획 설정(있으면)
       // ★ CHANGED: active_bots는 보존 (영구 등록 의도). 봇이 다시 ONLINE 되면 즉시 active로 인식됨.
       //            만약 사용자가 active 해제도 원하면 우클릭 메뉴에서 명시적으로 처리.
       console.log(`[BOT-DELETE] ✅ Removed all records for ign=${ign} by ${req.user?.username}`);
