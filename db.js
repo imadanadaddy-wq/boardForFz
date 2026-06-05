@@ -138,12 +138,12 @@ db.exec(`
     max_slots  INTEGER NOT NULL DEFAULT 0, -- 0=무제한
     created_at INTEGER NOT NULL
   );
-  -- ★ NEW: 봇별 메획 설정 (관리자 참고용 메모 — FZ 판정엔 미사용)
+  -- ★ NEW: 봇별 메획 설정 (관리자 참고 메모용 — FZ 판정 공식엔 안 씀)
   CREATE TABLE IF NOT EXISTS bot_meso_config (
     ign         TEXT PRIMARY KEY,
-    has_ia      INTEGER NOT NULL DEFAULT 0,  -- 메획 어빌 보유 (0/1)
-    gear_count  INTEGER NOT NULL DEFAULT 0,  -- 메획 장비 개수 (0~6)
-    updated_at  INTEGER
+    has_ia      INTEGER NOT NULL DEFAULT 0,  -- 메획 어빌리티 보유 0/1
+    gear_count  INTEGER NOT NULL DEFAULT 0,  -- 메획 장비 개수 0~6
+    updated_at  INTEGER NOT NULL DEFAULT 0
   );
 `);
 
@@ -153,7 +153,7 @@ const migrations = [
   "ALTER TABLE fz_list ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0",
   // ★ NEW: 기존 fz_list 행은 전부 'rudy' 그룹으로 귀속
   "ALTER TABLE fz_list ADD COLUMN grp TEXT NOT NULL DEFAULT 'rudy'",
-  // ★ NEW: FZ ON/OFF 방향 판정 결과 (1=ON, 0=OFF, NULL=미판정)
+  // ★ NEW: FZ ON/OFF 자동 판정 결과 저장 (1=ON, 0=OFF, NULL=미판정)
   "ALTER TABLE private_data ADD COLUMN fz_on INTEGER DEFAULT NULL",
 ];
 for (const sql of migrations) {

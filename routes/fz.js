@@ -94,7 +94,7 @@ router.get("/status", (req, res) => {
     byIgn[r.ign] = { ign: r.ign, channel: r.channel, map_id: r.map_id, last_seen: r.last_seen || 0 };
   }
   for (const r of pdRows) {
-    fzOnByIgn[r.ign] = (r.fz_on == null) ? null : (r.fz_on === 1);
+    fzOnByIgn[r.ign] = (r.fz_on === 1 ? true : (r.fz_on === 0 ? false : null));
     if (!byIgn[r.ign]) {
       byIgn[r.ign] = { ign: r.ign, channel: null, map_id: null, last_seen: r.last_seen || 0 };
     } else if ((r.last_seen || 0) > (byIgn[r.ign].last_seen || 0)) {
@@ -119,7 +119,7 @@ router.get("/status", (req, res) => {
   const result = fzIgns.map(ign => {
     const r = byIgn[ign];
     const last_cc_ts = lastCcByIgn[ign] || null;
-    const fz_on = (fzOnByIgn[ign] === undefined) ? null : fzOnByIgn[ign];
+    const fz_on = (ign in fzOnByIgn) ? fzOnByIgn[ign] : null;
     if (!r) {
       return { ign, online: false, channel: null, map_id: null, map_name: null, ago_sec: null, last_cc_ts, fz_on };
     }
@@ -244,35 +244,6 @@ router.get("/all", (req, res) => {
   res.json(rows);
 });
 
-// ── GET /api/fz/meso-config — 봇별 메획 설정 + fz_on 전체 (관리자) ──
-router.get("/meso-config", (req, res) => {
-  const cfg = db.all("SELECT ign, has_ia, gear_count FROM bot_meso_config");
-  const fz  = db.all("SELECT ign, fz_on FROM private_data");
-  const out = {};
-  for (const c of cfg) out[c.ign] = { has_ia: !!c.has_ia, gear_count: c.gear_count, fz_on: null };
-  for (const f of fz) {
-    if (!out[f.ign]) out[f.ign] = { has_ia: false, gear_count: 0, fz_on: null };
-    out[f.ign].fz_on = (f.fz_on == null) ? null : (f.fz_on === 1);
-  }
-  res.json(out);
-});
-
-// ── PUT /api/fz/meso-config/:ign — IA/gear 저장 (관리자) ──────────
-router.put("/meso-config/:ign", (req, res) => {
-  const ign  = req.params.ign;
-  const hasIa = req.body.has_ia ? 1 : 0;
-  let gear = parseInt(req.body.gear_count, 10);
-  if (isNaN(gear)) gear = 0;
-  gear = Math.max(0, Math.min(6, gear));   // 0~6 클램프
-  db.run(
-    `INSERT INTO bot_meso_config (ign, has_ia, gear_count, updated_at)
-     VALUES (?,?,?,?)
-     ON CONFLICT(ign) DO UPDATE SET has_ia=excluded.has_ia, gear_count=excluded.gear_count, updated_at=excluded.updated_at`,
-    [ign, hasIa, gear, Date.now()]
-  );
-  res.json({ ok: true, ign, has_ia: !!hasIa, gear_count: gear });
-});
-
 // ── PUT /api/fz/:ign/assign — 봇 그룹 배정/해제 ─────────────────
 // grp: 'rudy' | 'gabi' | 'none' (none이면 fz_list에서 삭제)
 router.put("/:ign/assign", (req, res) => {
@@ -311,6 +282,29 @@ router.put("/:ign/assign", (req, res) => {
     }
   }
   res.json({ ok: true, ign, grp });
+});
+
+// ── GET /api/fz/meso-config — 전체 봇 메획 설정 (관리자용) ──────
+// server.js 에서 requireAuth 로 보호
+router.get("/meso-config", (req, res) => {
+  const rows = db.all("SELECT ign, has_ia, gear_count FROM bot_meso_config");
+  res.json(rows);
+});
+
+// ── PUT /api/fz/meso-config/:ign — IA/Gear 저장 ────────────────
+router.put("/meso-config/:ign", (req, res) => {
+  const ign = req.params.ign;
+  const hasIa = req.body.has_ia ? 1 : 0;
+  let gear = parseInt(req.body.gear_count, 10);
+  if (isNaN(gear)) gear = 0;
+  gear = Math.max(0, Math.min(6, gear));   // 0~6 클램프
+  db.run(
+    `INSERT INTO bot_meso_config (ign, has_ia, gear_count, updated_at)
+     VALUES (?,?,?,?)
+     ON CONFLICT(ign) DO UPDATE SET has_ia=excluded.has_ia, gear_count=excluded.gear_count, updated_at=excluded.updated_at`,
+    [ign, hasIa, gear, Date.now()]
+  );
+  res.json({ ok: true, ign, has_ia: hasIa, gear_count: gear });
 });
 
 module.exports = router;

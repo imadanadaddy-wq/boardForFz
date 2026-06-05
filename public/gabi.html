@@ -31,16 +31,16 @@
   .row:last-child{border-bottom:none}
   .row.off{opacity:.5}
   .row.cc{outline:2px solid var(--red);outline-offset:-2px;box-shadow:0 0 8px 1px rgba(231,76,60,.45)}
+  .c-drag{width:28px;flex:0 0 28px;text-align:center;padding:11px 2px;cursor:grab;color:#bbb;font-size:14px;border-right:1px solid #c4c4c4;user-select:none;touch-action:none}
   .c-idx{width:40px;flex:0 0 40px;text-align:center;padding:11px 4px;font-style:normal;
     font-size:15px;border-right:1px solid #c4c4c4;display:flex;align-items:center;justify-content:center}
   .c-ign{flex:1;min-width:0;padding:11px 14px;border-right:1px solid #c4c4c4;font-size:17px;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .row.off .c-ign{text-decoration:line-through;color:#888}
+  .c-fz{width:42px;flex:0 0 42px;text-align:center;padding:11px 2px;font-size:15px;font-style:normal;border-right:1px solid #c4c4c4;display:flex;align-items:center;justify-content:center}
   .c-ch{width:58px;flex:0 0 58px;text-align:center;padding:11px 4px;border-right:1px solid #c4c4c4;
     font-size:17px;display:flex;align-items:center;justify-content:center}
   .c-ch.has{background:var(--pink)}
-  .c-fz{width:46px;flex:0 0 46px;text-align:center;padding:11px 4px;border-right:1px solid #c4c4c4;
-    font-size:18px;font-style:normal;display:flex;align-items:center;justify-content:center}
   .c-map{flex:1.3;min-width:0;padding:11px 12px;font-size:15px;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ccbadge{display:inline-block;margin-left:6px;background:var(--red);color:#fff;
@@ -51,6 +51,7 @@
   .err{color:var(--red);font-size:13px;padding:16px;border:1px solid var(--red);
     border-radius:8px;font-family:"JetBrains Mono",ui-monospace,monospace}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -114,21 +115,29 @@
         const isCc = ccTs>0 && (now-ccTs)<CC_MS;
         let ccBadge="";
         if(isCc){ const m=Math.max(1,Math.floor((now-ccTs)/60000)); ccBadge=`<span class="ccbadge">🔴 CC ${m}m</span>`; }
-        // FZ 상태: true=🟢 ON, false=🔴 OFF, null=⚪ 판정대기
-        const fz = s.fz_on;
-        const fzIcon = fz===true ? '🟢' : (fz===false ? '🔴' : '⚪');
-        const fzTitle = fz===true ? 'FZ ON' : (fz===false ? 'FZ OFF' : '판정 대기');
         const row = document.createElement("div");
         row.className = "row" + (isOn?"":" off") + (isCc?" cc":"");
+        row.dataset.ign = e.ign;
         row.innerHTML =
+          `<div class="c-drag">⠿</div>`+
           `<div class="c-idx">${i+1}</div>`+
           `<div class="c-ign">${esc(e.ign)}${ccBadge}</div>`+
-          `<div class="c-fz" title="${fzTitle}">${fzIcon}</div>`+
+          `<div class="c-fz">${s.fz_on===true?'🟢':(s.fz_on===false?'🔴':'⚪')}</div>`+
           `<div class="c-ch ${ch!=null?'has':''}">${ch!=null?ch:'-'}</div>`+
           `<div class="c-map">${mapTxt}</div>`;
         t.appendChild(row);
       });
       $("list").innerHTML=""; $("list").appendChild(t);
+      // Sortable 초기화 (드래그 + 터치)
+      if(typeof Sortable!=="undefined"){
+        Sortable.create(t,{
+          animation:150,handle:".c-drag",
+          onEnd:function(){
+            const order=Array.from(t.children).map(r=>r.dataset.ign).filter(Boolean);
+            saveFzOrder(order);
+          }
+        });
+      }
     }
     $("m-total").textContent  = list.length;
     $("m-online").textContent = online;

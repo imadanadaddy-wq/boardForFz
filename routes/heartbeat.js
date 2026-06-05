@@ -23,33 +23,6 @@ function medianOf(arr) {
   return n % 2 ? s[(n - 1) / 2] : Math.floor((s[n / 2 - 1] + s[n / 2]) / 2);
 }
 
-// ── FZ ON/OFF 방향 판정 ──
-// 메소 공식/기어 무관. 봇 자신의 최근 시급 추세만 본다:
-//   지금 시급이 10비트 전 대비 2배↑ 급상승 → FZ 캐스트(ON)
-//   0.5배↓ 급하락 → FZ 빠짐(OFF). 그 사이는 직전 상태 유지(안정 구간 깜빡임 방지)
-const _fzState       = {};
-const FZ_HIST_LEN    = 12;
-const FZ_LOOKBACK    = 10;     // 비교 대상: 10비트 전
-const FZ_UP_RATIO    = 2.0;    // 2배↑ 상승 = ON
-const FZ_DOWN_RATIO  = 0.5;    // 0.5배↓ 하락 = OFF
-
-function detectFzState(owner, ign, mesoHr) {
-  const key = owner + "|" + ign;
-  if (!_fzState[key]) _fzState[key] = { hist: [], state: null };
-  const s = _fzState[key];
-  if (mesoHr == null || mesoHr <= 0) return s.state;   // 데이터 없음 → 상태 유지
-  s.hist.push(mesoHr);
-  while (s.hist.length > FZ_HIST_LEN) s.hist.shift();
-  if (s.hist.length > FZ_LOOKBACK) {
-    const past  = s.hist[s.hist.length - 1 - FZ_LOOKBACK];
-    const ratio = mesoHr / Math.max(past, 1);
-    if (ratio >= FZ_UP_RATIO)        s.state = true;    // 급상승 → ON
-    else if (ratio <= FZ_DOWN_RATIO) s.state = false;   // 급하락 → OFF
-    // 그 사이: 직전 상태 유지
-  }
-  return s.state;
-}
-
 // ── evasion dedupe: 같은 (bot, by) 5초 내 재발생 무시 ──
 const _evasionDedupe    = new Map();
 const EVASION_DEDUPE_MS = 5_000;
@@ -111,6 +84,36 @@ function svrCalcMesoHr(owner, ign, meso) {
   }
   if (h.samples.length < 3) return null;   // 최소 3개 모여야 median 신뢰
   return medianOf(h.samples);              // 평균 대신 중앙값 — 바운스 억제
+}
+
+// ── FZ ON/OFF 방향 판정 ──
+// "지금 시급 ÷ N비트 전 시급" 비율로 판정 (절대값/기어/맵 전부 무관, 비율만 봄)
+//   FZ ON = OFF의 ~3배라 비율이 워낙 커서 방향만으로 안전하게 구분됨
+const _fzState     = {};
+const FZ_LOOKBACK  = 10;    // 약 10비트 전(=100~150초 전)과 비교
+const FZ_UP_RATIO  = 2.0;   // 2배 이상 급상승 → FZ 켜짐
+const FZ_DOWN_RATIO= 0.5;   // 0.5배 이하 급하락 → FZ 꺼짐
+
+function updateFzState(owner, ign, mesoHr) {
+  const key = owner + "|" + ign;
+  if (!_fzState[key]) _fzState[key] = { hist: [], state: null };
+  const f = _fzState[key];
+  // 유효한 양수 시급만 이력에 기록 (멈춤/0은 제외)
+  if (mesoHr != null && mesoHr > 0) {
+    f.hist.push(mesoHr);
+    while (f.hist.length > FZ_LOOKBACK + 1) f.hist.shift();
+  }
+  if (f.hist.length > FZ_LOOKBACK) {
+    const cur  = f.hist[f.hist.length - 1];
+    const past = f.hist[0];           // 약 10비트 전
+    if (past > 0) {
+      const ratio = cur / past;
+      if (ratio >= FZ_UP_RATIO)        f.state = true;   // 급상승 → ON
+      else if (ratio <= FZ_DOWN_RATIO) f.state = false;  // 급하락 → OFF
+      // 그 사이(안정 구간)는 이전 상태 유지
+    }
+  }
+  return f.state;   // true / false / null(이력부족)
 }
 
 function ensureManualReleasedTable() {
@@ -243,9 +246,9 @@ router.post("/", (req, res) => {
       verified_meso_hr = Math.min(verified_meso_hr, SVR_MESO_HR_CAP);
     }
 
-    // ── FZ ON/OFF 방향 판정 → fz_on 저장 (true/false/null) ──
-    const fzOn = detectFzState(owner, ign, verified_meso_hr);
-    const fzOnVal = (fzOn === true) ? 1 : (fzOn === false) ? 0 : null;
+    // ★ FZ ON/OFF 방향 판정 (표시된 시급 기준)
+    const fzState = updateFzState(owner, ign, verified_meso_hr);
+    const fzVal   = fzState === true ? 1 : (fzState === false ? 0 : null);
 
     db.run(
       `INSERT INTO private_data (owner,ign,level,meso,meso_hr,items,last_seen,buff_count,fz_on)
@@ -254,7 +257,7 @@ router.post("/", (req, res) => {
          level=excluded.level, meso=excluded.meso, meso_hr=excluded.meso_hr,
          items=excluded.items, last_seen=excluded.last_seen, buff_count=excluded.buff_count,
          fz_on=excluded.fz_on`,
-      [owner, ign, lvNum, mesoNum, verified_meso_hr, JSON.stringify(items || []), now, buffCnt, fzOnVal]
+      [owner, ign, lvNum, mesoNum, verified_meso_hr, JSON.stringify(items || []), now, buffCnt, fzVal]
     );
 
     const last = db.get(
