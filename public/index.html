@@ -937,8 +937,9 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
     <div id="fz-master-wrap">
       <div style="font-size:11px;color:#777;background:var(--ms-slot);border-left:3px solid var(--ms-accent);padding:8px 12px;border-radius:4px;margin-bottom:14px;line-height:1.6">
         클릭하면 그룹 순환: <b>None → Rudy → Gabi → None</b>
+        <span style="color:#aaa;margin-left:8px">← 모바일: 좌우로 스크롤</span>
       </div>
-      <div id="fz-master-table" style="max-width:900px">
+      <div id="fz-master-table" style="max-width:900px;overflow-x:auto;-webkit-overflow-scrolling:touch">
         <div style="color:#666;font-size:12px;font-family:'JetBrains Mono',monospace;padding:10px">Loading...</div>
       </div>
     </div>
@@ -2911,7 +2912,7 @@ function renderMasterTable() {
   const esc = s => String(s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
   // 테이블 빌드 (스크린샷 스타일: Georgia serif italic)
-  let html = '<div style="border:1px solid #888;background:#fff;border-radius:3px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.35);font-family:Georgia,Cambria,serif;font-style:italic;font-weight:700">';
+  let html = '<div style="border:1px solid #888;background:#fff;border-radius:3px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.35);font-family:Georgia,Cambria,serif;font-style:italic;font-weight:700;min-width:680px">';
   // 헤더
   html += '<div style="display:flex;background:#f5f5f5;border-bottom:2px solid #888;font-style:normal;font-weight:800;font-size:11px;color:#333;font-family:\'JetBrains Mono\',monospace">';
   html += '<div style="width:34px;text-align:center;padding:8px 2px">#</div>';
