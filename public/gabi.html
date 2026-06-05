@@ -93,7 +93,11 @@
   const esc = s => String(s||"").replace(/[&<>"']/g,c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
   const $ = id => document.getElementById(id);
 
+  let _sortable   = null;   // Sortable 인스턴스 저장 → destroy()용
+  let _isDragging = false;  // 드래그 중엔 auto-refresh 차단
+
   async function load(){
+    if (_isDragging) return;  // 드래그 중 재렌더 방지
     try{
       const [lr, sr] = await Promise.all([
         fetch(`/api/fz?${Q}`),
@@ -141,14 +145,26 @@
           `<div class="c-map">${mapTxt}</div>`;
         t.appendChild(row);
       });
+      // 이전 Sortable 인스턴스를 destroy() 후 교체 (안 하면 전역 이벤트 리스너 누적)
+      if (_sortable) { _sortable.destroy(); _sortable = null; }
       $("list").innerHTML=""; $("list").appendChild(t);
-      // Sortable 초기화 (드래그 + 터치)
       if(typeof Sortable!=="undefined"){
-        Sortable.create(t,{
-          animation:150,handle:".c-drag",
-          onEnd:function(){
-            const order=Array.from(t.children).map(r=>r.dataset.ign).filter(Boolean);
-            saveFzOrder(order);
+        _sortable = Sortable.create(t,{
+          animation: 150,
+          handle: ".c-drag",
+          onStart: function() { _isDragging = true; },
+          onEnd: function() {
+            _isDragging = false;
+            // 번호 갱신 (Sortable이 DOM만 옮기고 텍스트는 안 바꿈)
+            Array.from(t.children).forEach(function(row, i) {
+              const idx = row.querySelector('.c-idx');
+              if (idx) idx.textContent = i + 1;
+            });
+            // 저장
+            const order = Array.from(t.children)
+              .map(function(r) { return r.dataset.ign; })
+              .filter(Boolean);
+            if (order.length > 0) saveFzOrder(order);
           }
         });
       }
