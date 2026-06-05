@@ -19,25 +19,31 @@ db.run(`
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// "7D" / "30d" → 지금+N일 epoch ms,  "MM/DD" or "YYYY-MM-DD" → 해당 날짜,  빈값 → null
+// "7D"/"30d" → 지금+N일,  "MM/DD" 또는 "MM/DD HH:MM" → 해당 날짜(/시각),
+// "YYYY-MM-DD" 또는 "YYYY-MM-DD HH:MM" → 절대,  빈값 → null
 function parseExp(raw) {
-  if (!raw) return null;
+  if (raw === null || raw === undefined) return null;
   const s = String(raw).trim();
   if (!s) return null;
   let m;
   if ((m = s.match(/^(\d+)\s*[dD]$/))) {            // 상대일 7D
     return Date.now() + parseInt(m[1], 10) * DAY_MS;
   }
-  if ((m = s.match(/^(\d{1,2})[\/\-](\d{1,2})$/))) { // MM/DD (연도 없음 → 올해, 이미 지났으면 내년)
+  // MM/DD [HH:MM]  (연도 없음 → 올해, 이미 지났으면 내년)
+  if ((m = s.match(/^(\d{1,2})[\/\-](\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?$/))) {
     const now = new Date();
-    let year = now.getFullYear();
-    const mo = parseInt(m[1], 10) - 1, d = parseInt(m[2], 10);
-    let dt = new Date(year, mo, d, 23, 59, 0);
-    if (dt.getTime() < now.getTime() - DAY_MS) dt = new Date(year + 1, mo, d, 23, 59, 0);
+    const mo = parseInt(m[1],10)-1, d = parseInt(m[2],10);
+    const hh = m[3] !== undefined ? parseInt(m[3],10) : 23;
+    const mi = m[4] !== undefined ? parseInt(m[4],10) : 59;
+    let dt = new Date(now.getFullYear(), mo, d, hh, mi, 0);
+    if (dt.getTime() < now.getTime() - DAY_MS) dt = new Date(now.getFullYear()+1, mo, d, hh, mi, 0);
     return dt.getTime();
   }
-  if ((m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/))) { // YYYY-MM-DD
-    return new Date(parseInt(m[1],10), parseInt(m[2],10)-1, parseInt(m[3],10), 23, 59, 0).getTime();
+  // YYYY-MM-DD [HH:MM]
+  if ((m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?$/))) {
+    const hh = m[4] !== undefined ? parseInt(m[4],10) : 23;
+    const mi = m[5] !== undefined ? parseInt(m[5],10) : 59;
+    return new Date(parseInt(m[1],10), parseInt(m[2],10)-1, parseInt(m[3],10), hh, mi, 0).getTime();
   }
   const t = Date.parse(s);
   return isNaN(t) ? null : t;
