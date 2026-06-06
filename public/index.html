@@ -1869,41 +1869,118 @@ async function fetchProxies(){
 
 function renderProxies(){
   const wrap = document.getElementById("proxy-table");
-  document.getElementById("proxy-summary").textContent = `total ${_proxies.length}`;
-  if(!_proxies.length){ wrap.innerHTML='<div class="pc-empty">프록시가 없습니다. 위에서 추가하세요.</div>'; return; }
+  if(!_proxies.length){
+    document.getElementById("proxy-summary").textContent = "total 0";
+    wrap.innerHTML='<div class="pc-empty">프록시가 없습니다. 위에서 추가하세요.</div>';
+    return;
+  }
 
   const arr = sortedProxies();
-  const sortArrow = _proxySort==="exp_asc" ? " ▲" : (_proxySort==="exp_desc" ? " ▼" : " ⇅");
+  const sortArrow = _proxySort==="exp_asc" ? "▲" : (_proxySort==="exp_desc" ? "▼" : "⇅");
   const nextSort  = _proxySort==="exp_asc" ? "exp_desc" : "exp_asc";
 
-  let h = '<table style="width:100%;border-collapse:collapse;min-width:620px;font-family:\'JetBrains Mono\',monospace;font-size:12px">';
-  h += '<thead><tr style="background:var(--ms-panel);color:#bbb;text-align:left">';
-  h += `<th style="padding:8px 8px;border-bottom:1px solid var(--ms-border-dark);font-weight:800;width:40px">#</th>`;
-  h += `<th style="padding:8px 8px;border-bottom:1px solid var(--ms-border-dark);font-weight:800">ip : port : id : pw</th>`;
-  h += `<th onclick="setProxySort('${nextSort}')" title="클릭하면 만료일시 정렬" style="padding:8px 8px;border-bottom:1px solid var(--ms-border-dark);font-weight:800;width:170px;cursor:pointer;user-select:none">만료일시 (MM/DD HH:MM)<span style="color:var(--ms-accent)">${sortArrow}</span></th>`;
-  h += `<th style="padding:8px 8px;border-bottom:1px solid var(--ms-border-dark);font-weight:800;width:58px">남은</th>`;
-  h += `<th style="padding:8px 8px;border-bottom:1px solid var(--ms-border-dark);font-weight:800">메모</th>`;
-  h += `<th style="padding:8px 8px;border-bottom:1px solid var(--ms-border-dark);font-weight:800;width:44px"></th>`;
+  // 상단 일괄 복사 바
+  let bar = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <button onclick="copySelectedProxies()" style="background:#2a2a2a;border:1px solid #444;color:#e8e8e8;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:system-ui,-apple-system,sans-serif;font-weight:600">📋 선택 복사</button>
+      <button onclick="copyAllProxies()" style="background:#2a2a2a;border:1px solid #444;color:#e8e8e8;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:system-ui,-apple-system,sans-serif;font-weight:600">📋 전체 복사</button>
+      <span style="font-size:11px;color:#888;font-family:system-ui,sans-serif">선택 항목은 <code style="background:#0004;padding:1px 5px;border-radius:3px">ip:port:id:pw</code> 형식으로 줄바꿈 복사됩니다</span>
+    </div>`;
+
+  const SANS = "font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif";
+  let h = bar;
+  h += `<table style="width:100%;border-collapse:collapse;min-width:680px;${SANS};font-size:14px">`;
+  h += '<thead><tr style="color:#9a9a9a;text-align:left;font-size:12px;font-weight:600;letter-spacing:.3px">';
+  h += `<th style="padding:10px 8px;border-bottom:1px solid #333;width:34px;text-align:center"><input type="checkbox" id="proxy-check-all" onchange="toggleAllProxies(this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:#888"></th>`;
+  h += `<th style="padding:10px 8px;border-bottom:1px solid #333;width:32px">#</th>`;
+  h += `<th style="padding:10px 8px;border-bottom:1px solid #333">Host</th>`;
+  h += `<th style="padding:10px 8px;border-bottom:1px solid #333;width:70px">Port</th>`;
+  h += `<th style="padding:10px 8px;border-bottom:1px solid #333">Username</th>`;
+  h += `<th style="padding:10px 8px;border-bottom:1px solid #333">Password</th>`;
+  h += `<th onclick="setProxySort('${nextSort}')" title="클릭하면 만료일시 정렬" style="padding:10px 8px;border-bottom:1px solid #333;width:160px;cursor:pointer;user-select:none">만료일시 <span style="color:var(--ms-gold)">${sortArrow}</span></th>`;
+  h += `<th style="padding:10px 8px;border-bottom:1px solid #333;width:60px">남은</th>`;
+  h += `<th style="padding:10px 8px;border-bottom:1px solid #333;width:120px">메모</th>`;
+  h += `<th style="padding:10px 8px;border-bottom:1px solid #333;width:80px;text-align:center">복사</th>`;
+  h += `<th style="padding:10px 8px;border-bottom:1px solid #333;width:40px"></th>`;
   h += '</tr></thead><tbody>';
 
   arr.forEach((p,idx)=>{
     const L = leftLabel(p.exp_ts);
-    const combo = [p.ip, p.port, p.pid, p.pw].filter((v,i)=> i<2 || (v!==null && v!=="")).join(" : ");
-    h += `<tr style="background:${L.bg};border-bottom:1px solid var(--ms-border-dark)">`;
-    h += `<td style="padding:7px 8px;color:#777">${idx+1}</td>`;
-    h += `<td style="padding:7px 8px;color:var(--ms-text);white-space:nowrap">${_pesc(combo)}</td>`;
-    h += `<td style="padding:4px 6px">`;
-    h += `<input value="${fmtExpMD(p.exp_ts)}" placeholder="MM/DD HH:MM" onchange="updateProxy(${p.id},'exp',this.value)" style="width:140px;background:var(--ms-slot);border:1px solid var(--ms-border-dark);border-radius:4px;color:var(--ms-text);font-family:inherit;font-size:11px;padding:4px 6px">`;
+    h += `<tr style="background:${L.bg};border-bottom:1px solid #262626">`;
+    // 체크박스
+    h += `<td style="padding:9px 8px;text-align:center"><input type="checkbox" class="proxy-row-check" data-id="${p.id}" style="width:16px;height:16px;cursor:pointer;accent-color:#888"></td>`;
+    h += `<td style="padding:9px 8px;color:#666">${idx+1}</td>`;
+    // 분리 컬럼 (이미지2 스타일)
+    h += `<td style="padding:9px 8px;color:#fff;font-weight:600">${_pesc(p.ip)}</td>`;
+    h += `<td style="padding:9px 8px;color:#cfcfcf">${_pesc(p.port)}</td>`;
+    h += `<td style="padding:9px 8px;color:#cfcfcf">${_pesc(p.pid)||'<span style="color:#555">—</span>'}</td>`;
+    h += `<td style="padding:9px 8px;color:#cfcfcf">${_pesc(p.pw)||'<span style="color:#555">—</span>'}</td>`;
+    // 만료일시 (와이드, 본문과 같은 14px)
+    h += `<td style="padding:6px 8px">`;
+    h += `<input value="${fmtExpMD(p.exp_ts)}" placeholder="MM/DD HH:MM" onchange="updateProxy(${p.id},'exp',this.value)" style="width:150px;background:#1f1f1f;border:1px solid #3a3a3a;border-radius:4px;color:#fff;${SANS};font-size:14px;padding:6px 8px">`;
     h += `</td>`;
-    h += `<td style="padding:7px 8px;color:${L.color};font-weight:800">${L.txt}</td>`;
-    h += `<td style="padding:4px 6px">`;
-    h += `<input value="${_pesc(p.memo)}" placeholder="메모..." onchange="updateProxy(${p.id},'memo',this.value)" style="width:100%;min-width:100px;background:var(--ms-slot);border:1px solid var(--ms-border-dark);border-radius:4px;color:var(--ms-text);font-family:inherit;font-size:11px;padding:4px 6px">`;
+    h += `<td style="padding:9px 8px;color:${L.color};font-weight:700">${L.txt}</td>`;
+    // 메모 (영역 축소)
+    h += `<td style="padding:6px 6px">`;
+    h += `<input value="${_pesc(p.memo)}" placeholder="메모" onchange="updateProxy(${p.id},'memo',this.value)" style="width:110px;background:#1f1f1f;border:1px solid #3a3a3a;border-radius:4px;color:#cfcfcf;${SANS};font-size:12px;padding:6px 6px">`;
     h += `</td>`;
-    h += `<td style="padding:4px 6px;text-align:center"><button onclick="deleteProxy(${p.id})" title="삭제" style="background:none;border:1px solid #e0c0c0;border-radius:5px;cursor:pointer;font-size:12px;padding:3px 7px">🗑</button></td>`;
+    // Copy 버튼 (행별)
+    h += `<td style="padding:6px 6px;text-align:center"><button onclick="copyOneProxy(${p.id})" style="background:#2a2a2a;border:1px solid #444;color:#ddd;border-radius:5px;cursor:pointer;font-size:11px;padding:5px 10px;${SANS}">copy</button></td>`;
+    // 삭제
+    h += `<td style="padding:6px 6px;text-align:center"><button onclick="deleteProxy(${p.id})" title="삭제" style="background:none;border:1px solid #6a3a3a;border-radius:5px;cursor:pointer;font-size:12px;padding:4px 7px">🗑</button></td>`;
     h += `</tr>`;
   });
   h += '</tbody></table>';
   wrap.innerHTML = h;
+  document.getElementById("proxy-summary").textContent = `total ${_proxies.length}`;
+}
+
+// ip:port:id:pw (공백 없이). id/pw 없으면 그 부분 생략
+function proxyConnStr(p){
+  let s = `${p.ip}:${p.port}`;
+  if(p.pid) s += `:${p.pid}`;
+  if(p.pw)  s += `:${p.pw}`;
+  return s;
+}
+function toggleAllProxies(checked){
+  document.querySelectorAll(".proxy-row-check").forEach(cb=>cb.checked=checked);
+}
+async function _doCopy(text, label){
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(text);
+    }else{
+      const ta=document.createElement("textarea"); ta.value=text;
+      ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta);
+      ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+    }
+    proxyToast(label);
+  }catch(e){ alert("복사 실패: "+e.message); }
+}
+function copyOneProxy(id){
+  const p=_proxies.find(x=>x.id===id); if(!p) return;
+  _doCopy(proxyConnStr(p), "1개 복사됨");
+}
+function copySelectedProxies(){
+  const ids=[...document.querySelectorAll(".proxy-row-check:checked")].map(cb=>+cb.dataset.id);
+  if(!ids.length){ alert("선택된 항목이 없습니다."); return; }
+  const lines=sortedProxies().filter(p=>ids.includes(p.id)).map(proxyConnStr);
+  _doCopy(lines.join("\n"), `${lines.length}개 복사됨`);
+}
+function copyAllProxies(){
+  const lines=sortedProxies().map(proxyConnStr);
+  _doCopy(lines.join("\n"), `전체 ${lines.length}개 복사됨`);
+}
+// 간단 토스트
+let _proxyToastTimer=null;
+function proxyToast(msg){
+  let el=document.getElementById("proxy-toast");
+  if(!el){ el=document.createElement("div"); el.id="proxy-toast";
+    el.style.cssText="position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:1000;padding:9px 18px;border-radius:20px;font-size:13px;font-weight:700;color:#fff;background:#2e7d32;font-family:system-ui,sans-serif;transition:opacity .3s";
+    document.body.appendChild(el);
+  }
+  el.textContent="✓ "+msg; el.style.opacity="1";
+  clearTimeout(_proxyToastTimer);
+  _proxyToastTimer=setTimeout(()=>{ el.style.opacity="0"; },1300);
 }
 
 async function addProxies(){
