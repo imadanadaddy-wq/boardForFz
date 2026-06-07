@@ -246,18 +246,21 @@ app.get("/api/cookie-debug", (req, res) => {
 });
 
 // ══════════════════════════════════════
-// MAP NAMES
+// MAP NAMES  (SQLite map_names 단일 소스 — 파일 쓰기 제거)
 // ══════════════════════════════════════
-const MAPNAMES_PATH = path.join(__dirname, "public", "mapnames.json");
 function loadMapNames() {
+  const out = {};
   try {
-    if (fs.existsSync(MAPNAMES_PATH))
-      return JSON.parse(fs.readFileSync(MAPNAMES_PATH, "utf8"));
-  } catch(e) { console.error("[mapnames] load error:", e.message); }
-  return {};
+    for (const r of dbMod.all("SELECT map_id, map_name FROM map_names")) out[String(r.map_id)] = r.map_name;
+  } catch (e) { console.error("[mapnames] load error:", e.message); }
+  return out;
 }
-function saveMapNames(obj) {
-  fs.writeFileSync(MAPNAMES_PATH, JSON.stringify(obj, null, 2), "utf8");
+function saveMapName(mapId, name) {
+  dbMod.run(
+    `INSERT INTO map_names (map_id, map_name) VALUES (?,?)
+     ON CONFLICT(map_id) DO UPDATE SET map_name=excluded.map_name`,
+    [String(mapId), String(name).slice(0, 200)]
+  );
 }
 
 // ══════════════════════════════════════
@@ -290,8 +293,8 @@ dbMod.getDb().then(() => {
   // ★ FZ 쓰기(추가/삭제/정렬/배정)는 인증 필요 — GET만 공개(그룹키로 자체 보호)
   app.use("/api/fz", (req, res, next) => {
     if (req.method !== "GET") {
-      // 순서 변경 + 맵 컬러는 공개 (저위험, rudy/gabi가 직접)
-      if (req.path === "/reorder" || req.path === "/map-colors") return next();
+      // 순서 변경 + 맵 컬러 + 맵 이름은 공개 (저위험, 어느 대시보드에서든 편집 가능)
+      if (req.path === "/reorder" || req.path === "/map-colors" || req.path === "/mapname") return next();
       return requireAuth(req, res, next);
     }
     next();
@@ -386,7 +389,7 @@ dbMod.getDb().then(() => {
     }
   });
 
-  // Map names
+  // Map names  (SQLite 단일 소스)
   app.get("/api/mapnames", requireAuth, (req, res) => {
     const obj  = loadMapNames();
     const rows = Object.entries(obj).map(([map_id, map_name]) => ({ map_id, map_name }));
@@ -395,15 +398,11 @@ dbMod.getDb().then(() => {
   app.post("/api/mapnames", requireAuth, (req, res) => {
     const { map_id, map_name } = req.body;
     if (!map_id || !map_name) return res.status(400).json({ error: "map_id and map_name required" });
-    const obj = loadMapNames();
-    obj[String(map_id)] = map_name;
-    saveMapNames(obj);
-    return res.json({ ok: true });
+    saveMapName(map_id, map_name);
+    return res.json({ ok: true, map_id: String(map_id), map_name: String(map_name).slice(0, 200) });
   });
   app.delete("/api/mapnames/:id", requireAuth, (req, res) => {
-    const obj = loadMapNames();
-    delete obj[req.params.id];
-    saveMapNames(obj);
+    dbMod.run("DELETE FROM map_names WHERE map_id=?", [String(req.params.id)]);
     return res.json({ ok: true });
   });
 

@@ -38,19 +38,22 @@ function checkGroupAccess(req, grp) {
   return { ok: false, code: 401, error: "invalid or missing fz key" };
 }
 
-// mapnames.json
-const MAPNAMES_PATH = path.join(__dirname, "..", "public", "mapnames.json");
+// ── 맵이름: SQLite map_names 테이블 단일 소스 (파일 쓰기 제거) ──
+//   Railway 읽기전용 FS에서도 안전하게 영구화(런타임). 시드는 db.js가 담당.
 function loadMapNames() {
+  const out = {};
   try {
-    if (fs.existsSync(MAPNAMES_PATH))
-      return JSON.parse(fs.readFileSync(MAPNAMES_PATH, "utf8"));
-  } catch(e) { console.error("[fz/mapnames] load error:", e.message); }
-  return {};
+    for (const r of db.all("SELECT map_id, map_name FROM map_names")) out[String(r.map_id)] = r.map_name;
+  } catch (e) { console.error("[fz/mapnames] load error:", e.message); }
+  return out;
 }
-function saveMapNames(obj) {
-  try {
-    fs.writeFileSync(MAPNAMES_PATH, JSON.stringify(obj, null, 2), "utf8");
-  } catch(e) { console.error("[fz/mapnames] save error:", e.message); }
+// 단일 라벨 upsert
+function setMapName(mapId, name) {
+  db.run(
+    `INSERT INTO map_names (map_id, map_name) VALUES (?,?)
+     ON CONFLICT(map_id) DO UPDATE SET map_name=excluded.map_name`,
+    [String(mapId), String(name).slice(0, 200)]
+  );
 }
 
 // ── GET /api/fz — 그룹별 목록 ───────────────────────────────────
@@ -214,16 +217,21 @@ router.put("/reorder", (req, res) => {
   res.json({ ok: true });
 });
 
-// ── POST /api/fz/mapname — 맵이름 수정 (공개) ───────────────────
+// ── POST /api/fz/mapname — 맵이름 수정 (공개, 저위험) ───────────
+//   server.js 가드에서 공개 예외 처리됨. DB 단일 소스에 즉시 upsert.
 router.post("/mapname", (req, res) => {
   const { map_id, map_name } = req.body;
   if (!map_id || !map_name) {
     return res.status(400).json({ error: "map_id and map_name required" });
   }
-  const obj = loadMapNames();
-  obj[String(map_id)] = String(map_name).slice(0, 200);
-  saveMapNames(obj);
-  res.json({ ok: true, map_id: String(map_id), map_name: obj[String(map_id)] });
+  setMapName(map_id, map_name);
+  res.json({ ok: true, map_id: String(map_id), map_name: String(map_name).slice(0, 200) });
+});
+
+// ── GET /api/fz/mapnames — 전체 맵이름 (공개) ───────────────────
+//   rudy/gabi 등 비인증 페이지에서도 동일 라벨 사용 가능.
+router.get("/mapnames", (req, res) => {
+  res.json(loadMapNames());
 });
 
 // ── GET /api/fz/health — 그룹 테이블 상태 진단 (공개) ──────────

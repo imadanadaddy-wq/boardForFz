@@ -2342,8 +2342,19 @@ async function saveMapName(mapId) {
   if (!inp) return;
   const name = inp.value.trim();
   if (!name) { cancelMapEdit(mapId); return; }
-  await fetch('/api/mapnames', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({map_id:String(mapId), map_name:name}) });
-  mapNames[String(mapId)] = name;
+  try {
+    // 단일 공개 경로(/api/fz/mapname)로 통일 → 어느 대시보드에서든 동일하게 동작
+    const res = await fetch('/api/fz/mapname', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ map_id:String(mapId), map_name:name })
+    });
+    if (!res.ok) { const e = await res.text(); throw new Error(`HTTP ${res.status}: ${e}`); }
+    mapNames[String(mapId)] = name;   // 로컬 즉시 반영
+  } catch (e) {
+    alert('맵 이름 저장 실패: ' + e.message);
+    cancelMapEdit(mapId);
+    return;
+  }
   const cell = document.getElementById('mapcell-'+mapId);
   if (cell) cell.innerHTML = buildMapCell(mapId);
 }
@@ -3447,13 +3458,14 @@ function startFzMapEdit(mapId, el) {
     const name = input.value.trim();
     if (!name) { fetchFzList(); return; }
     try {
-      await fetch("/api/fz/mapname", {
+      const res = await fetch("/api/fz/mapname", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ map_id: String(mapId), map_name: name })
       });
+      if (!res.ok) { const e = await res.text(); throw new Error(`HTTP ${res.status}: ${e}`); }
       if (typeof mapNames !== "undefined") mapNames[String(mapId)] = name;
-    } catch(e) {}
+    } catch(e) { alert('맵 이름 저장 실패: ' + e.message); }
     fetchFzList();
   };
 
@@ -3765,95 +3777,42 @@ const changeLogMarkersPlugin = {
     const { ctx, chartArea: ca, scales } = chart;
     if (!ca) return;
 
+    // ── CC 이벤트만 표시 (channel 변경 + cced_by_evasion). 그 외(evade/map/death/forced/offline)는 모두 제거. ──
     const events = _changeLogCache
       .filter(r => r.ign === highlightedIgn)
-      .slice(0, 50); // max 50
-
-    // Also draw forced/offline markers from botData
-    const botEntry = botData.find(b => b.ign === highlightedIgn);
-    const botKey   = botEntry ? ((botEntry.owner||'Hyeong') + '|' + botEntry.ign) : null;
-    const isForced = botKey ? manualOffline.has(botKey) : false;
-    const isOffline= botEntry ? (!botEntry.online) : false;
-
-    if (!events.length && !isForced && !isOffline) return;
+      .filter(r => { const t = getEventType(r); return t === 'cc' || t === 'cced'; })
+      .slice(0, 50);
+    if (!events.length) return;
 
     const xScale = scales.x;
     const nowMs  = Date.now();
+    const GREEN  = '#22c55e';   // CC 마커 단일 컬러
+    const RADIUS = 13;
 
     ctx.save();
-
-    // Draw forced/offline shading on right edge of chart
-    if (botEntry && (isForced || isOffline)) {
-      const shadeColor = isForced ? '#9b59b6' : '#e74c3c';
-      const lastSeenMs = nowMs - (botEntry.ago_sec || 0) * 1000;
-      const lastPx = Math.max(xScale.getPixelForValue(lastSeenMs), ca.left);
-      if (lastPx < ca.right) {
-        ctx.fillStyle = shadeColor + '18';
-        ctx.fillRect(lastPx, ca.top, ca.right - lastPx, ca.bottom - ca.top);
-        ctx.strokeStyle = shadeColor + '88';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([5, 4]);
-        ctx.beginPath();
-        ctx.moveTo(lastPx, ca.top);
-        ctx.lineTo(lastPx, ca.bottom);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.font = 'bold 9px "JetBrains Mono", monospace';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        ctx.fillStyle = shadeColor + 'cc';
-        ctx.fillText(isForced ? '🔒 FORCED' : '✕ OFFLINE', Math.min(lastPx + 4, ca.right - 60), ca.top + 4);
-      }
-    }
-
     for (const ev of events) {
       const evTs = new Date(ev.ts).getTime();
       if (evTs < xScale.min || evTs > xScale.max) continue;
-
       const px = xScale.getPixelForValue(evTs);
-      const type = getEventType(ev);
+      const circleY = ca.top + RADIUS + 3;
 
-      // Color per event type
-      const color = type === 'cc'    ? '#0097a7'
-                  : type === 'evade' ? '#e74c3c'
-                  : type === 'map'   ? '#e67e22'
-                  : type === 'death' ? '#9b59b6'
-                  : '#888';
-
-      // Short label text
-      const shortLabel = type === 'cc'    ? 'CC'
-                       : type === 'evade' ? 'E'
-                       : type === 'map'   ? 'M'
-                       : type === 'death' ? 'D'
-                       : '?';
-
-      const RADIUS = type === 'death' || type === 'evade' ? 16 : 14;
-
-      // Vertical dashed line
-      ctx.strokeStyle = color + 'cc';
-      ctx.lineWidth = type === 'death' ? 2.5 : type === 'evade' ? 2.5 : 1.8;
-      ctx.setLineDash(type === 'death' || type === 'evade' ? [3,3] : [4,4]);
+      // 세로 점선
+      ctx.strokeStyle = GREEN + 'cc';
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([4, 4]);
       ctx.beginPath();
-      ctx.moveTo(px, ca.top + RADIUS * 2 + 2);
+      ctx.moveTo(px, circleY + RADIUS);
       ctx.lineTo(px, ca.bottom);
       ctx.stroke();
       ctx.setLineDash([]);
 
-      const diffMin = Math.round((nowMs - evTs) / 60000);
-      const agoStr  = diffMin < 1 ? 'just now' : diffMin < 60 ? `${diffMin}m ago` : `${Math.round(diffMin/60)}h ago`;
-      const circleY = ca.top + RADIUS + 3;
-
-      // Drop shadow for better visibility
+      // 원형 마커
       ctx.shadowColor = 'rgba(0,0,0,0.28)';
       ctx.shadowBlur  = 6;
-
-      // Circle fill
-      ctx.fillStyle = color + 'e8';
+      ctx.fillStyle = GREEN;
       ctx.beginPath();
       ctx.arc(px, circleY, RADIUS, 0, Math.PI * 2);
       ctx.fill();
-
-      // Circle border
       ctx.shadowBlur = 0;
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 2;
@@ -3861,21 +3820,23 @@ const changeLogMarkersPlugin = {
       ctx.arc(px, circleY, RADIUS, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Label text inside circle
-      ctx.font = `bold ${shortLabel.length > 1 ? 10 : 12}px "JetBrains Mono", monospace`;
+      // 라벨 "CC"
+      ctx.font = 'bold 10px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#fff';
       ctx.shadowColor = 'rgba(0,0,0,0.4)';
       ctx.shadowBlur = 3;
-      ctx.fillText(shortLabel, px, circleY);
+      ctx.fillText('CC', px, circleY);
       ctx.shadowBlur = 0;
 
-      // "Nmin ago" text below the chart
+      // "Nmin ago"
+      const diffMin = Math.round((nowMs - evTs) / 60000);
+      const agoStr  = diffMin < 1 ? 'just now' : diffMin < 60 ? `${diffMin}m ago` : `${Math.round(diffMin/60)}h ago`;
       ctx.font = 'bold 9px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillStyle = color;
+      ctx.fillStyle = GREEN;
       ctx.fillText(agoStr, px, ca.bottom + 3);
     }
     ctx.restore();

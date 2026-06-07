@@ -210,6 +210,24 @@ for (const c of DEFAULT_CLIENTS) {
   db.prepare("INSERT OR IGNORE INTO clients (owner, token) VALUES (?,?)").run(c.owner, c.token);
 }
 
+// ★ NEW: 맵이름 시드 — 번들된 public/mapnames.json → SQLite map_names (INSERT OR IGNORE)
+//   Railway 재배포 시 DB가 초기화되므로 영구 라벨은 mapnames.json에 보관 → 시드.
+//   런타임 편집은 map_names 테이블에 직접 반영(파일 쓰기 의존 제거 → 읽기전용 FS 이슈 해소).
+try {
+  const _fs   = require("fs");
+  const _path = require("path");
+  const seedPath = _path.join(__dirname, "public", "mapnames.json");
+  if (_fs.existsSync(seedPath)) {
+    const seed = JSON.parse(_fs.readFileSync(seedPath, "utf8"));
+    const ins  = db.prepare("INSERT OR IGNORE INTO map_names (map_id, map_name) VALUES (?,?)");
+    const tx   = db.transaction(obj => {
+      for (const [id, name] of Object.entries(obj)) ins.run(String(id), String(name));
+    });
+    tx(seed);
+    console.log(`[DB] map_names seeded (${Object.keys(seed).length} labels)`);
+  }
+} catch (e) { console.error("[DB] map_names seed error:", e.message); }
+
 console.log(`[DB] using ${DB_PATH}`);
 
 // sql.js 스타일 호환 래퍼
