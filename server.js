@@ -246,20 +246,24 @@ app.get("/api/cookie-debug", (req, res) => {
 });
 
 // ══════════════════════════════════════
-// MAP NAMES  (SQLite map_names 단일 소스 — 파일 쓰기 제거)
+// MAP NAMES  (SQLite map_names, 그룹별 (grp, map_id))
+//   전역 관리 테이블(메소트래커/FZ 마스터)은 표시용으로 병합(rudy 우선) 사용.
+//   실제 편집/저장은 그룹 컨텍스트가 있는 /api/fz/mapname 에서 수행.
 // ══════════════════════════════════════
-function loadMapNames() {
+function loadMapNamesMerged() {
   const out = {};
   try {
-    for (const r of dbMod.all("SELECT map_id, map_name FROM map_names")) out[String(r.map_id)] = r.map_name;
+    // gabi 먼저 깔고 rudy로 덮어써 rudy 우선
+    for (const r of dbMod.all("SELECT map_id, map_name FROM map_names WHERE grp='gabi'")) out[String(r.map_id)] = r.map_name;
+    for (const r of dbMod.all("SELECT map_id, map_name FROM map_names WHERE grp='rudy'")) out[String(r.map_id)] = r.map_name;
   } catch (e) { console.error("[mapnames] load error:", e.message); }
   return out;
 }
-function saveMapName(mapId, name) {
+function saveMapName(grp, mapId, name) {
   dbMod.run(
-    `INSERT INTO map_names (map_id, map_name) VALUES (?,?)
-     ON CONFLICT(map_id) DO UPDATE SET map_name=excluded.map_name`,
-    [String(mapId), String(name).slice(0, 200)]
+    `INSERT INTO map_names (grp, map_id, map_name) VALUES (?,?,?)
+     ON CONFLICT(grp, map_id) DO UPDATE SET map_name=excluded.map_name`,
+    [grp || "rudy", String(mapId), String(name).slice(0, 200)]
   );
 }
 
@@ -389,20 +393,23 @@ dbMod.getDb().then(() => {
     }
   });
 
-  // Map names  (SQLite 단일 소스)
+  // Map names  (GET=병합 표시용 / POST=그룹별 저장 / DELETE=그룹별)
   app.get("/api/mapnames", requireAuth, (req, res) => {
-    const obj  = loadMapNames();
+    const obj  = loadMapNamesMerged();
     const rows = Object.entries(obj).map(([map_id, map_name]) => ({ map_id, map_name }));
     return res.json(rows);
   });
   app.post("/api/mapnames", requireAuth, (req, res) => {
     const { map_id, map_name } = req.body;
+    const grp = (req.body.grp || req.query.grp || "rudy").toString().trim().toLowerCase() || "rudy";
     if (!map_id || !map_name) return res.status(400).json({ error: "map_id and map_name required" });
-    saveMapName(map_id, map_name);
-    return res.json({ ok: true, map_id: String(map_id), map_name: String(map_name).slice(0, 200) });
+    saveMapName(grp, map_id, map_name);
+    return res.json({ ok: true, grp, map_id: String(map_id), map_name: String(map_name).slice(0, 200) });
   });
   app.delete("/api/mapnames/:id", requireAuth, (req, res) => {
-    dbMod.run("DELETE FROM map_names WHERE map_id=?", [String(req.params.id)]);
+    const grp = (req.query.grp || "").toString().trim().toLowerCase();
+    if (grp) dbMod.run("DELETE FROM map_names WHERE grp=? AND map_id=?", [grp, String(req.params.id)]);
+    else     dbMod.run("DELETE FROM map_names WHERE map_id=?", [String(req.params.id)]);
     return res.json({ ok: true });
   });
 

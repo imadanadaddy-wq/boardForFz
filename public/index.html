@@ -2324,8 +2324,10 @@ function renderBotTable() {
 function buildMapCell(mapId) {
   if (mapId===null||mapId===undefined) return '<span style="color:#bbb">—</span>';
   const name = mapNames[String(mapId)];
-  const label = name ? `<span class="map-label">${name}</span><span class="map-id">(${mapId})</span>` : `<span class="map-id">${mapId}</span>`;
-  return `<div class="map-cell">${label}<button class="map-edit-btn" onclick="startMapEdit(${mapId}, this)">${name ? '✏️' : '+ Name'}</button></div>`;
+  // 표시 전용: 맵이름 편집은 그룹 컨텍스트가 있는 FZ List의 Rudy/Gabi 탭에서만 (그룹별 분리)
+  return name
+    ? `<div class="map-cell"><span class="map-label">${name}</span><span class="map-id">(${mapId})</span></div>`
+    : `<div class="map-cell"><span class="map-id">${mapId}</span></div>`;
 }
 
 function startMapEdit(mapId, btn) {
@@ -3458,15 +3460,15 @@ function startFzMapEdit(mapId, el) {
     const name = input.value.trim();
     if (!name) { fetchFzList(); return; }
     try {
-      const res = await fetch("/api/fz/mapname", {
+      // 현재 보고 있는 그룹(fzGrp)으로 저장 → Rudy/Gabi 라벨 분리
+      const res = await fetch(`/api/fz/mapname?grp=${encodeURIComponent(fzGrp)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ map_id: String(mapId), map_name: name })
+        body: JSON.stringify({ map_id: String(mapId), map_name: name, grp: fzGrp })
       });
       if (!res.ok) { const e = await res.text(); throw new Error(`HTTP ${res.status}: ${e}`); }
-      if (typeof mapNames !== "undefined") mapNames[String(mapId)] = name;
     } catch(e) { alert('맵 이름 저장 실패: ' + e.message); }
-    fetchFzList();
+    fetchFzList();   // 그룹별 status 재조회 → 해당 그룹 라벨만 갱신
   };
 
   saveBtn.onclick   = doSave;

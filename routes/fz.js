@@ -38,21 +38,22 @@ function checkGroupAccess(req, grp) {
   return { ok: false, code: 401, error: "invalid or missing fz key" };
 }
 
-// ── 맵이름: SQLite map_names 테이블 단일 소스 (파일 쓰기 제거) ──
-//   Railway 읽기전용 FS에서도 안전하게 영구화(런타임). 시드는 db.js가 담당.
-function loadMapNames() {
+// ── 맵이름: SQLite map_names 테이블, 그룹별 분리 (grp, map_id) ──
+//   rudy 탭 편집 → rudy 라벨, gabi 탭 편집 → gabi 라벨로 독립 저장.
+function loadMapNames(grp) {
   const out = {};
   try {
-    for (const r of db.all("SELECT map_id, map_name FROM map_names")) out[String(r.map_id)] = r.map_name;
+    const rows = db.all("SELECT map_id, map_name FROM map_names WHERE grp=?", [grp || "rudy"]);
+    for (const r of rows) out[String(r.map_id)] = r.map_name;
   } catch (e) { console.error("[fz/mapnames] load error:", e.message); }
   return out;
 }
-// 단일 라벨 upsert
-function setMapName(mapId, name) {
+// 단일 라벨 upsert (그룹별)
+function setMapName(grp, mapId, name) {
   db.run(
-    `INSERT INTO map_names (map_id, map_name) VALUES (?,?)
-     ON CONFLICT(map_id) DO UPDATE SET map_name=excluded.map_name`,
-    [String(mapId), String(name).slice(0, 200)]
+    `INSERT INTO map_names (grp, map_id, map_name) VALUES (?,?,?)
+     ON CONFLICT(grp, map_id) DO UPDATE SET map_name=excluded.map_name`,
+    [grp || "rudy", String(mapId), String(name).slice(0, 200)]
   );
 }
 
@@ -116,7 +117,7 @@ router.get("/status", (req, res) => {
   const lastCcByIgn = {};
   for (const r of ccRows) lastCcByIgn[r.ign] = r.last_cc_ts || 0;
 
-  const mapNames = loadMapNames();
+  const mapNames = loadMapNames(grp);
   const ONLINE_THRESHOLD_MS = 120_000;
 
   const result = fzIgns.map(ign => {
@@ -217,21 +218,21 @@ router.put("/reorder", (req, res) => {
   res.json({ ok: true });
 });
 
-// ── POST /api/fz/mapname — 맵이름 수정 (공개, 저위험) ───────────
-//   server.js 가드에서 공개 예외 처리됨. DB 단일 소스에 즉시 upsert.
+// ── POST /api/fz/mapname — 맵이름 수정 (공개, 그룹별) ───────────
+//   grp: query.grp | body.grp (기본 rudy). server.js 가드에서 공개 예외 처리됨.
 router.post("/mapname", (req, res) => {
   const { map_id, map_name } = req.body;
   if (!map_id || !map_name) {
     return res.status(400).json({ error: "map_id and map_name required" });
   }
-  setMapName(map_id, map_name);
-  res.json({ ok: true, map_id: String(map_id), map_name: String(map_name).slice(0, 200) });
+  const grp = resolveGrp(req);
+  setMapName(grp, map_id, map_name);
+  res.json({ ok: true, grp, map_id: String(map_id), map_name: String(map_name).slice(0, 200) });
 });
 
-// ── GET /api/fz/mapnames — 전체 맵이름 (공개) ───────────────────
-//   rudy/gabi 등 비인증 페이지에서도 동일 라벨 사용 가능.
+// ── GET /api/fz/mapnames — 그룹별 맵이름 전체 (공개) ────────────
 router.get("/mapnames", (req, res) => {
-  res.json(loadMapNames());
+  res.json(loadMapNames(resolveGrp(req)));
 });
 
 // ── GET /api/fz/health — 그룹 테이블 상태 진단 (공개) ──────────

@@ -54,8 +54,10 @@ db.exec(`
     UNIQUE(owner, ign)
   );
   CREATE TABLE IF NOT EXISTS map_names (
-    map_id   TEXT PRIMARY KEY,
-    map_name TEXT NOT NULL
+    grp      TEXT NOT NULL DEFAULT 'rudy',
+    map_id   TEXT NOT NULL,
+    map_name TEXT NOT NULL,
+    PRIMARY KEY (grp, map_id)
   );
   CREATE TABLE IF NOT EXISTS seller_records (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -210,7 +212,29 @@ for (const c of DEFAULT_CLIENTS) {
   db.prepare("INSERT OR IGNORE INTO clients (owner, token) VALUES (?,?)").run(c.owner, c.token);
 }
 
-// ★ NEW: 맵이름 시드 — 번들된 public/mapnames.json → SQLite map_names (INSERT OR IGNORE)
+// ★ 맵이름 그룹화 마이그레이션 — 구 스키마(map_id PK, grp 없음) → (grp, map_id) 복합키
+//   구 전역 라벨을 rudy/gabi 양쪽으로 복제(시작값 동일), 이후 그룹별로 독립 편집.
+try {
+  const cols = db.prepare("PRAGMA table_info(map_names)").all();
+  const hasGrp = cols.some(c => c.name === "grp");
+  if (!hasGrp) {
+    db.exec(`
+      ALTER TABLE map_names RENAME TO map_names_old;
+      CREATE TABLE map_names (
+        grp      TEXT NOT NULL DEFAULT 'rudy',
+        map_id   TEXT NOT NULL,
+        map_name TEXT NOT NULL,
+        PRIMARY KEY (grp, map_id)
+      );
+      INSERT OR IGNORE INTO map_names (grp, map_id, map_name) SELECT 'rudy', map_id, map_name FROM map_names_old;
+      INSERT OR IGNORE INTO map_names (grp, map_id, map_name) SELECT 'gabi', map_id, map_name FROM map_names_old;
+      DROP TABLE map_names_old;
+    `);
+    console.log("[DB] map_names migrated → per-group (grp, map_id)");
+  }
+} catch (e) { console.error("[DB] map_names migration error:", e.message); }
+
+// ★ 맵이름 시드 — 번들된 public/mapnames.json → SQLite map_names (rudy/gabi 각각, INSERT OR IGNORE)
 //   Railway 재배포 시 DB가 초기화되므로 영구 라벨은 mapnames.json에 보관 → 시드.
 //   런타임 편집은 map_names 테이블에 직접 반영(파일 쓰기 의존 제거 → 읽기전용 FS 이슈 해소).
 try {
@@ -219,12 +243,15 @@ try {
   const seedPath = _path.join(__dirname, "public", "mapnames.json");
   if (_fs.existsSync(seedPath)) {
     const seed = JSON.parse(_fs.readFileSync(seedPath, "utf8"));
-    const ins  = db.prepare("INSERT OR IGNORE INTO map_names (map_id, map_name) VALUES (?,?)");
+    const ins  = db.prepare("INSERT OR IGNORE INTO map_names (grp, map_id, map_name) VALUES (?,?,?)");
     const tx   = db.transaction(obj => {
-      for (const [id, name] of Object.entries(obj)) ins.run(String(id), String(name));
+      for (const [id, name] of Object.entries(obj)) {
+        ins.run("rudy", String(id), String(name));
+        ins.run("gabi", String(id), String(name));
+      }
     });
     tx(seed);
-    console.log(`[DB] map_names seeded (${Object.keys(seed).length} labels)`);
+    console.log(`[DB] map_names seeded (${Object.keys(seed).length} labels × rudy/gabi)`);
   }
 } catch (e) { console.error("[DB] map_names seed error:", e.message); }
 
