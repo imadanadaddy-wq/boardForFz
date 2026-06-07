@@ -770,16 +770,9 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
         <div class="section-title" style="margin-bottom:0">Bot Change Log</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <span id="log-count" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#888"></span>
-          <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;background:rgba(255,179,0,.1);border:1.5px solid rgba(255,179,0,.5);padding:4px 10px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:800;color:#b8860b;user-select:none" title="Active Bots만 표시 (⭐로 표시한 봇)">
-            <input type="checkbox" id="log-filter-active" checked onchange="renderChangelog(_changeLogCache)" style="margin:0;accent-color:#ffb300"/>
-            ⭐ Active only
-          </label>
-          <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;background:rgba(0,151,167,.08);border:1.5px solid rgba(0,151,167,.35);padding:4px 10px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:800;color:#0097a7;user-select:none" title="Hide bots below Lv.219">
-            <input type="checkbox" id="log-filter-low-lv" checked onchange="renderChangelog(_changeLogCache)" style="margin:0;accent-color:#0097a7"/>
-            Lv.219+ only
-          </label>
+          <input type="text" id="log-search" placeholder="🔍 IGN 검색" autocomplete="off" oninput="renderChangelog(_changeLogCache)"
+            style="background:#1a1a1a;border:1.5px solid #444;border-radius:4px;color:#e0e0e0;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;padding:5px 10px;width:150px;outline:none"/>
           <button class="btn" style="padding:5px 14px;font-size:11px" onclick="fetchChangelog()">↺ Refresh</button>
-          <button class="btn" style="padding:5px 14px;font-size:11px;background:linear-gradient(180deg,#ffa726,#fb8c00);border-color:#e65100" onclick="cleanupLegacyEvade()" title="레거시 raw EVADE 행 일괄 삭제 (v3.2 이전 데이터 정리)">🧹 Cleanup old EVADE</button>
           <button class="btn btn-red" style="padding:5px 14px;font-size:11px" onclick="clearChangelog()">Clear All</button>
         </div>
       </div>
@@ -2669,17 +2662,11 @@ function renderChangelog(rows) {
   const countEl = document.getElementById("log-count");
   if (!tbody) return;
 
-  // ★ NEW: Active Bot 필터 (기본 ON) — _activeBots Set 기반
-  const filterActive = document.getElementById("log-filter-active")?.checked ?? true;
-  let activeFiltered = 0;
-  if (filterActive && _activeBots && _activeBots.size) {
-    const before = rows.length;
-    rows = rows.filter(r => _activeBots.has(r.ign));
-    activeFiltered = before - rows.length;
-  }
+  // ★ IGN 검색 필터 (부분일치, 대소문자 무시)
+  const searchQ = (document.getElementById("log-search")?.value || "").trim().toLowerCase();
+  if (searchQ) rows = rows.filter(r => String(r.ign || "").toLowerCase().includes(searchQ));
 
-  // ★ NEW: raw `field='evasion'` 행은 항상 숨김 (cced_by_evasion 으로만 표시되어야 함)
-  //         레거시 데이터 정리 전까지 화면에서 차폐. DB 자체는 Cleanup 버튼으로 일괄 삭제 가능.
+  // ★ raw `field='evasion'` 행은 항상 숨김 (cced_by_evasion 으로만 표시되어야 함)
   const evadeHidden = rows.filter(r => r.field === 'evasion').length;
   rows = rows.filter(r => r.field !== 'evasion');
 
@@ -2696,19 +2683,17 @@ function renderChangelog(rows) {
     return true;
   });
 
-  // ★ Level filter: hide entries from bots below Lv.219
-  const filterLow = document.getElementById("log-filter-low-lv")?.checked ?? true;
+  // ★ Level filter: Lv.260 미만 봇 로그는 항상 숨김 (토글 없음, 별도 설정 불필요)
+  const LOG_MIN_LEVEL = 260;
   let filteredCount = 0;
-  if (filterLow && botData.length) {
-    // Build IGN→level map from current botData
+  if (botData.length) {
     const levelMap = {};
     botData.forEach(b => { if (b.ign) levelMap[b.ign] = b.level || 0; });
     const before = rows.length;
     rows = rows.filter(r => {
       const lv = levelMap[r.ign];
-      // If we don't know level (bot not in botData), keep it visible
-      if (lv === undefined) return true;
-      return lv >= 219;
+      if (lv === undefined) return true;   // 레벨 모름(botData 미수신) → 일단 표시
+      return lv >= LOG_MIN_LEVEL;
     });
     filteredCount = before - rows.length;
   }
@@ -2734,16 +2719,16 @@ function renderChangelog(rows) {
 
   if (countEl) {
     const parts = [deduped.length + " entries"];
-    if (activeFiltered) parts.push(`${activeFiltered} non-active hidden`);
-    if (filteredCount) parts.push(`${filteredCount} low-lv hidden`);
+    if (searchQ) parts.push(`🔍 "${searchQ}"`);
+    if (filteredCount) parts.push(`${filteredCount} below Lv.260 hidden`);
     if (evadeHidden) parts.push(`${evadeHidden} raw EVADE hidden`);
     if (ccMerged) parts.push(`${ccMerged} CC merged`);
     countEl.textContent = parts.join(" · ");
   }
   if (!deduped.length) {
     let msg = "No changes recorded yet";
-    if (filterActive && activeFiltered) msg = "Active Bot 필터로 모두 가려짐 — 우클릭으로 ⭐ Active 지정하세요";
-    else if (filterLow && filteredCount) msg = "All hidden by Lv.219+ filter";
+    if (searchQ) msg = `"${searchQ}" 검색 결과 없음`;
+    else if (filteredCount) msg = "모두 Lv.260 미만으로 숨겨짐";
     tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">${msg}</div></td></tr>`;
     return;
   }
