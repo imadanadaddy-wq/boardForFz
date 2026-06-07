@@ -3271,8 +3271,12 @@ function renderMasterTable() {
     html += `<span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:800;width:14px;text-align:center;color:#ddd">${gear}</span>`;
     html += `<button onclick="setGear('${esc(b.ign)}',${gear+1})" style="background:#2a2a2a;border:1px solid #444;border-radius:3px;cursor:pointer;font-size:11px;width:16px;height:18px;line-height:1;padding:0">+</button>`;
     html += `</div>`;
-    html += `<div style="width:70px;display:flex;align-items:center;justify-content:center;padding:4px">`;
-    html += `<button onclick="assignBot('${esc(b.ign)}','${grp}')" style="background:${badgeColor};color:#fff;border:none;border-radius:12px;padding:3px 10px;font-size:10px;font-weight:800;cursor:pointer;font-family:'JetBrains Mono',monospace;font-style:normal;letter-spacing:.5px;transition:background .15s">${badgeText}</button>`;
+    html += `<div style="width:70px;display:flex;align-items:center;justify-content:center;gap:2px;padding:4px">`;
+    const seg = (g, lbl, col, title) => {
+      const on = (grp === g);
+      return `<button onclick="setBotGrp('${esc(b.ign)}','${g}')" title="${title}" style="background:${on?col:'#2a2a2a'};color:${on?'#fff':'#888'};border:1px solid ${on?col:'#444'};border-radius:4px;padding:3px 0;width:20px;font-size:10px;font-weight:800;cursor:pointer;font-family:'JetBrains Mono',monospace;font-style:normal;transition:all .12s">${lbl}</button>`;
+    };
+    html += seg('none','N','#666','None') + seg('rudy','R','#e91e63','Rudy') + seg('gabi','G','#00bcd4','Gabi');
     html += `</div>`;
     // 삭제 버튼
     html += `<div style="width:36px;display:flex;align-items:center;justify-content:center;padding:4px">`;
@@ -3284,16 +3288,17 @@ function renderMasterTable() {
   c.innerHTML = html;
 }
 
-async function assignBot(ign, currentGrp) {
-  const cycle = { none: "rudy", rudy: "gabi", gabi: "none" };
-  const newGrp = cycle[currentGrp] || "rudy";
+async function setBotGrp(ign, grp) {
+  // 직접 지정 (순환 없음). 이미 같은 그룹이면 무시.
+  const cur = (() => { for (const a of (typeof fzAllAssign!=="undefined"?fzAllAssign:[])) if (a.ign===ign) return a.grp; return "none"; })();
+  if (cur === grp) return;
   try {
     const res = await fetch(`/api/fz/${encodeURIComponent(ign)}/assign`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ grp: newGrp })
+      body: JSON.stringify({ grp })
     });
-    const j = await res.json();
+    const j = await res.json().catch(()=>({}));
     if (!res.ok) { alert(j.error || "Failed"); return; }
     await fetchFzAll();
   } catch(e) { alert(e.message); }
