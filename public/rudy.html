@@ -173,7 +173,7 @@
           `<div class="c-ign">${esc(e.ign)}${ccBadge}</div>`+
           `<div class="c-fz">${s.fz_on===true?'🟢':(s.fz_on===false?'🔴':'⚪')}</div>`+
           `<div class="c-ch ${ch!=null?'has':''}">${ch!=null?ch:'-'}</div>`+
-          `<div class="c-map clr" data-mapkey="${mk?esc(mk):''}">${mapTxt}</div>`;
+          `<div class="c-map clr" data-mapkey="${mk?esc(mk):''}" data-mapid="${mapId!=null?mapId:''}">${mapTxt}${mapId!=null?`<button class="map-name-edit" data-edit-mapid="${mapId}" data-edit-cur="${mapName?esc(mapName):''}" title="맵 이름 변경" style="background:none;border:none;cursor:pointer;font-size:12px;margin-left:6px;padding:0;opacity:.7;vertical-align:middle">✏️</button>`:''}</div>`;
         t.appendChild(row);
       });
       $("list").innerHTML=""; $("list").appendChild(t);
@@ -184,6 +184,11 @@
       // 맵셀 클릭 → 컬러 선택
       t.querySelectorAll('.c-map.clr').forEach(c=>c.onclick=(ev)=>{
         const mk=c.dataset.mapkey; if(mk) openColorPicker(mk, ev);
+      });
+      // ✏️ 맵 이름 편집 (셀 색상피커와 충돌 방지: stopPropagation)
+      t.querySelectorAll('.map-name-edit').forEach(b=>b.onclick=(ev)=>{
+        ev.stopPropagation();
+        editMapName(b.dataset.editMapid, b.dataset.editCur);
       });
     }
     $("m-total").textContent  = _list.length;
@@ -249,6 +254,24 @@
       });
       flash(color?"✓ 컬러 적용":"✓ 컬러 해제");
     }catch(e){ console.error('[mapcolor] error:',e); flash("컬러 저장 실패",true); }
+    finally{ _busy=false; }
+  }
+
+  // 맵 이름 변경 → 공개 엔드포인트(/api/fz/mapname) → DB 단일 소스 → 모든 대시 반영
+  async function editMapName(mapId, cur){
+    if(!mapId) return;
+    const name = (prompt(`맵 이름 입력 (map_id ${mapId})`, cur||'')||'').trim();
+    if(!name) return;            // 취소/공백 → 변경 없음
+    _busy=true;
+    try{
+      const res = await fetch('/api/fz/mapname',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ map_id:String(mapId), map_name:name })
+      });
+      if(!res.ok){ const e=await res.text(); throw new Error(`HTTP ${res.status}: ${e}`); }
+      flash('✓ 맵 이름 저장');
+      load();                    // 재조회 → 같은 map_id 모든 행 즉시 갱신
+    }catch(e){ console.error('[mapname] error:',e); flash('맵 이름 저장 실패',true); }
     finally{ _busy=false; }
   }
 
