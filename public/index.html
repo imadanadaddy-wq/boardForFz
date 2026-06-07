@@ -1563,7 +1563,7 @@ function getDropCause(ign, lowSinceTs) {
 // Determine event type (based on field)
 function getEventType(row) {
   if (row.field === 'cced_by_evasion') return 'cced';
-  if (row.field === 'channel') return 'cc';
+  if (row.field === 'channel' || row.field === 'cc') return 'cc';
   if (row.field === 'evasion') return 'evade';
   if (row.field === 'map_id')  return 'map';
   if (row.field === 'buff_count' && row.new_val === '11') return 'death';
@@ -2683,6 +2683,19 @@ function renderChangelog(rows) {
   const evadeHidden = rows.filter(r => r.field === 'evasion').length;
   rows = rows.filter(r => r.field !== 'evasion');
 
+  // ★ NEW: CC ↔ cced_by_evasion 병합 — 같은 ign 의 cced_by_evasion 와 ±60s 내의 단순 CC(cc/channel)는
+  //         동일 evasion 사건의 부수 채널변경이므로 숨겨 한 행(CCED)으로만 표시.
+  const CCED_MERGE_MS = 60 * 1000;
+  const ccedTsByIgn = {};
+  for (const r of rows) if (r.field === 'cced_by_evasion') (ccedTsByIgn[r.ign] ||= []).push(r.ts);
+  let ccMerged = 0;
+  rows = rows.filter(r => {
+    if (r.field !== 'cc' && r.field !== 'channel') return true;
+    const list = ccedTsByIgn[r.ign];
+    if (list && list.some(ts => Math.abs(ts - r.ts) <= CCED_MERGE_MS)) { ccMerged++; return false; }
+    return true;
+  });
+
   // ★ Level filter: hide entries from bots below Lv.219
   const filterLow = document.getElementById("log-filter-low-lv")?.checked ?? true;
   let filteredCount = 0;
@@ -2724,6 +2737,7 @@ function renderChangelog(rows) {
     if (activeFiltered) parts.push(`${activeFiltered} non-active hidden`);
     if (filteredCount) parts.push(`${filteredCount} low-lv hidden`);
     if (evadeHidden) parts.push(`${evadeHidden} raw EVADE hidden`);
+    if (ccMerged) parts.push(`${ccMerged} CC merged`);
     countEl.textContent = parts.join(" · ");
   }
   if (!deduped.length) {
@@ -3785,9 +3799,16 @@ const changeLogMarkersPlugin = {
     if (!ca) return;
 
     // ── CC 이벤트만 표시 (channel 변경 + cced_by_evasion). 그 외(evade/map/death/forced/offline)는 모두 제거. ──
+    //    같은 ign 의 cced_by_evasion ±60s 내의 단순 CC 는 동일 사건 → 병합(마커 1개).
+    const mineCced = _changeLogCache.filter(r => r.ign === highlightedIgn && r.field === 'cced_by_evasion').map(r => r.ts);
     const events = _changeLogCache
       .filter(r => r.ign === highlightedIgn)
-      .filter(r => { const t = getEventType(r); return t === 'cc' || t === 'cced'; })
+      .filter(r => {
+        const t = getEventType(r);
+        if (t === 'cced') return true;
+        if (t === 'cc') return !mineCced.some(ts => Math.abs(ts - r.ts) <= 60000);
+        return false;
+      })
       .slice(0, 50);
     if (!events.length) return;
 
