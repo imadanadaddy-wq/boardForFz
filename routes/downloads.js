@@ -1,97 +1,101 @@
 // ════════════════════════════════════════════════════════════════════
-// routes/downloads.js — Maple Overlay 빌드 다운로드 라우트
+// routes/downloads.js — 웹 업로드형 파일 배포 라우트
 //
-// 동작:
-//   1) public/downloads/ 폴더에 .exe가 있으면 정적으로 서빙 (1st priority)
-//   2) 없으면 환경변수 DOWNLOAD_REDIRECT_BASE를 prefix로 외부 URL 리다이렉트
-//      (예: GitHub Releases 링크)
+// 브라우저에서 직접 .bat/.exe 등을 업로드/삭제하고, 자동으로 다운로드 카드 생성.
+// GitHub 푸시/재배포 없이 운영. 단, Railway 재배포 시 파일 유지를 위해 Volume 사용:
+//   Variables :  UPLOAD_DIR = /data/downloads
+//   Volumes   :  Mount path = /data
+// (미설정 시 public/downloads 에 저장 → 재배포 시 git에 없는 업로드분은 소실)
 //
+// 마운트:  app.use("/api/downloads", require("./routes/downloads")(requireAuth));
 // 라우트:
-//   GET  /api/downloads/list        → 사용 가능한 빌드 목록 JSON
-//   GET  /api/downloads/file/:name  → 실제 .exe 다운로드 (브라우저 redirect)
+//   GET    /api/downloads/list          → 파일 목록 (공개)
+//   POST   /api/downloads/upload        → 업로드 (보호, multipart field: files)
+//   GET    /api/downloads/file/:name    → 다운로드 (공개)
+//   DELETE /api/downloads/file/:name    → 삭제 (보호)
 //
-// 주: 인증 안 거는 이유:
-//   - GitHub Releases는 어차피 public
-//   - <a href> 클릭으로 외부 redirect 가는 동안 ms_token 쿠키가 SameSite로 막혀서
-//     401 → 404 GitHub 페이지로 떨어지는 문제 발생
-//   - 다운로드 카드 자체는 dash UI를 거쳐서만 노출되니 실용적으로 충분히 보호됨
+// 의존성:  npm i multer
 // ════════════════════════════════════════════════════════════════════
 const express = require("express");
-const router  = express.Router();
+const multer  = require("multer");
 const fs      = require("fs");
 const path    = require("path");
 
-const DOWNLOADS_DIR = path.join(__dirname, "..", "public", "downloads");
-const REDIRECT_BASE = process.env.DOWNLOAD_REDIRECT_BASE || "";
+const UPLOAD_DIR = process.env.UPLOAD_DIR
+  || path.join(__dirname, "..", "public", "downloads");
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
-// 빌드 목록 (대시보드에 표시할 데이터)
-function listLocalBuilds() {
-  if (!fs.existsSync(DOWNLOADS_DIR)) return [];
-  const out = [];
-  for (const name of fs.readdirSync(DOWNLOADS_DIR)) {
-    if (!name.toLowerCase().endsWith(".exe")) continue;
-    const full = path.join(DOWNLOADS_DIR, name);
-    const stat = fs.statSync(full);
-    out.push({
-      name,
-      size:  stat.size,
-      mtime: stat.mtime.getTime(),
-      kind:  name.toLowerCase().includes("portable") ? "portable" : "installer",
-      url:   `/api/downloads/file/${encodeURIComponent(name)}`,
-    });
-  }
-  // 포터블 먼저, 그다음 알파벳 순
-  out.sort((a,b) => (a.kind===b.kind ? a.name.localeCompare(b.name) : (a.kind==="portable" ? -1 : 1)));
-  return out;
-}
+const ALLOW_EXT = [".bat", ".exe", ".cmd", ".ps1", ".zip", ".lua", ".txt", ".msi"];
+const MAX_SIZE  = 300 * 1024 * 1024; // 300MB
 
-// GitHub Releases 같은 외부 호스팅용 fallback 빌드 목록
-// (로컬 파일이 없고 DOWNLOAD_REDIRECT_BASE만 설정된 경우)
-const REDIRECT_FALLBACK_FILES = [
-  { name: "MapleOverlay-Portable-1.0.0.exe", kind: "portable",  size: 0 },
-  { name: "Maple Overlay Setup 1.0.0.exe",   kind: "installer", size: 0 },
-];
+// 파일명 정리(경로 조작 방지, 한글 허용)
+const safeName = (name) =>
+  path.basename(name).replace(/[^\w.\-가-힣 ()]/g, "_").slice(0, 120);
 
-router.get("/list", (req, res) => {
-  const local = listLocalBuilds();
+// 최종 경로가 UPLOAD_DIR 밖으로 못 나가게 검증
+const resolveInDir = (name) => {
+  const fp = path.resolve(UPLOAD_DIR, safeName(name));
+  return fp.startsWith(path.resolve(UPLOAD_DIR) + path.sep) ? fp : null;
+};
 
-  let builds = local;
-  if (!builds.length && REDIRECT_BASE) {
-    // 로컬에 .exe가 없지만 redirect base가 있으면 가상 목록 제공
-    builds = REDIRECT_FALLBACK_FILES.map(f => ({
-      name:  f.name,
-      size:  f.size,
-      mtime: 0,
-      kind:  f.kind,
-      url:   `/api/downloads/file/${encodeURIComponent(f.name)}`,
-    }));
-  }
+// multipart 한글 파일명 깨짐 복원(latin1 → utf8)
+const decodeOriginal = (s) => Buffer.from(s, "latin1").toString("utf8");
 
-  res.json({
-    builds,
-    redirect_base: REDIRECT_BASE || null,
-    has_local:     local.length > 0,
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename:    (req, file, cb) => cb(null, safeName(decodeOriginal(file.originalname))),
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: MAX_SIZE },
+  fileFilter: (req, file, cb) =>
+    cb(null, ALLOW_EXT.includes(path.extname(decodeOriginal(file.originalname)).toLowerCase())),
+});
+
+// requireAuth 를 주입받는 팩토리 (server.js 의 JWT 미들웨어 재사용)
+module.exports = (requireAuth) => {
+  const router = express.Router();
+  const guard  = typeof requireAuth === "function" ? requireAuth : (q, s, n) => n();
+
+  // 목록 (공개) — 기존 프론트 호환 위해 { builds } 래핑
+  router.get("/list", (req, res) => {
+    let builds = [];
+    try {
+      builds = fs.readdirSync(UPLOAD_DIR)
+        .filter((f) => !f.startsWith(".") && f.toLowerCase() !== "readme.md")
+        .map((f) => {
+          const st = fs.statSync(path.join(UPLOAD_DIR, f));
+          return {
+            name:  f,
+            size:  st.size,
+            mtime: st.mtime.getTime(),
+            kind:  path.extname(f).toLowerCase().replace(".", ""),
+            url:   `/api/downloads/file/${encodeURIComponent(f)}`,
+          };
+        })
+        .sort((a, b) => b.mtime - a.mtime);
+    } catch (_) {}
+    res.json({ builds, count: builds.length });
   });
-});
 
-router.get("/file/:name", (req, res) => {
-  // 경로 트래버설 방지: 슬래시·백슬래시·.. 차단
-  const raw = req.params.name || "";
-  if (raw.includes("/") || raw.includes("\\") || raw.includes("..")) {
-    return res.status(400).send("invalid filename");
-  }
-  if (!raw.toLowerCase().endsWith(".exe")) {
-    return res.status(400).send("only .exe allowed");
-  }
-  const full = path.join(DOWNLOADS_DIR, raw);
-  if (!fs.existsSync(full)) {
-    // 로컬에 없으면 REDIRECT_BASE로 리다이렉트 (GitHub Releases 등)
-    if (REDIRECT_BASE) {
-      return res.redirect(302, `${REDIRECT_BASE.replace(/\/$/, "")}/${encodeURIComponent(raw)}`);
-    }
-    return res.status(404).send("not found");
-  }
-  res.download(full, raw);
-});
+  // 업로드 (보호) — 다중 파일
+  router.post("/upload", guard, upload.array("files", 20), (req, res) => {
+    res.json({ ok: true, count: (req.files || []).length });
+  });
 
-module.exports = router;
+  // 다운로드 (공개)
+  router.get("/file/:name", (req, res) => {
+    const fp = resolveInDir(req.params.name);
+    if (!fp || !fs.existsSync(fp)) return res.status(404).send("not found");
+    res.download(fp, path.basename(fp));
+  });
+
+  // 삭제 (보호)
+  router.delete("/file/:name", guard, (req, res) => {
+    const fp = resolveInDir(req.params.name);
+    if (fp && fs.existsSync(fp)) fs.unlinkSync(fp);
+    res.json({ ok: true });
+  });
+
+  return router;
+};

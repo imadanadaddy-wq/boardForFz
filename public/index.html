@@ -910,12 +910,17 @@ input[type=range].ov-slider::-moz-range-thumb{width:12px;height:12px;border-radi
       각 카드의 <b>PC 이름</b>은 직접 입력해서 저장. Bot Status에서 봇의 <b>PC 태그</b>와 이 이름이 <b>완전히 같으면</b> 그 봇이 카드 하단에 표시됩니다. 같은 IP를 쓰는 카드는 <span style="color:var(--ms-red);font-weight:800">빨간 테두리</span>로 강조, 5분 이상 신호 없는 PC는 <b>흐리게</b> 표시 (호버하면 또렷해짐).
     </div>
 
-    <!-- ★ NEW: Maple Overlay 다운로드 -->
-    <div id="pc-downloads" style="display:none;background:var(--ms-panel);border:2px solid var(--ms-border-dark);border-radius:8px;padding:12px 14px;margin-bottom:14px">
+    <!-- 파일 다운로드 / 업로드 -->
+    <div id="pc-downloads" style="background:var(--ms-panel);border:2px solid var(--ms-border-dark);border-radius:8px;padding:12px 14px;margin-bottom:14px">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-        <div style="font-family:'MaplestoryOTFBold',sans-serif;font-size:13px;color:var(--ms-text);letter-spacing:.5px">📥 Maple Overlay 다운로드</div>
-        <div style="font-size:10px;color:#888;font-family:'JetBrains Mono',monospace;letter-spacing:.5px">새 PC에 설치 / 기존 PC 업데이트</div>
+        <div style="font-family:'MaplestoryOTFBold',sans-serif;font-size:13px;color:var(--ms-text);letter-spacing:.5px">📦 파일 다운로드</div>
+        <div style="font-size:10px;color:#888;font-family:'JetBrains Mono',monospace;letter-spacing:.5px">새 PC 설치 / 기존 PC 업데이트</div>
       </div>
+      <label id="dl-drop" style="display:block;border:1.5px dashed var(--ms-border-dark);border-radius:6px;padding:14px;text-align:center;color:#888;font-size:11px;cursor:pointer;margin-bottom:10px;transition:border-color .15s,color .15s">
+        파일을 끌어다 놓거나 클릭해서 업로드
+        <span style="color:#666">(.bat .exe .cmd .ps1 .zip .lua .txt .msi · ~300MB)</span>
+        <input type="file" id="dl-input" multiple style="display:none">
+      </label>
       <div id="pc-download-list" style="display:flex;flex-wrap:wrap;gap:8px"></div>
     </div>
 
@@ -2040,32 +2045,66 @@ async function fetchPcDownloads() {
     if (!r.ok) throw new Error("HTTP " + r.status);
     const j = await r.json();
     const builds = j.builds || [];
-    if (!builds.length) { wrap.style.display = "none"; return; }
-    wrap.style.display = "block";
-    list.innerHTML = builds.map(b => {
+    list.innerHTML = builds.length ? builds.map(b => {
       const mb = b.size ? (b.size / 1024 / 1024).toFixed(1) + " MB" : "";
-      const isPortable = b.kind === "portable";
-      const label = isPortable ? "💾 Portable" : "🔧 Installer";
-      const sub   = isPortable ? "더블클릭으로 바로 실행" : "설치 마법사로 설치";
-      const color = isPortable ? "var(--ms-accent)" : "var(--ms-border-dark)";
       return `
-        <a href="${b.url}" download
-           style="display:flex;flex-direction:column;gap:2px;padding:9px 14px;background:var(--ms-slot);border:1.5px solid ${color};border-radius:6px;text-decoration:none;color:var(--ms-text);min-width:200px;transition:transform .12s,box-shadow .12s"
-           onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 2px 8px rgba(0,0,0,.12)'"
-           onmouseout="this.style.transform='';this.style.boxShadow=''">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-            <span style="font-family:'MaplestoryOTFBold',sans-serif;font-size:12px;font-weight:800">${label}</span>
-            <span style="font-size:10px;color:#777;font-family:'JetBrains Mono',monospace">${mb}</span>
+        <div style="display:flex;flex-direction:column;gap:4px;padding:9px 12px;background:var(--ms-slot);border:1.5px solid var(--ms-border-dark);border-radius:6px;min-width:210px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <span style="font-family:'MaplestoryOTFBold',sans-serif;font-size:11px;word-break:break-all">${_escAttr(b.name)}</span>
+            <span style="font-size:9px;color:#777;font-family:'JetBrains Mono',monospace;white-space:nowrap">${mb}</span>
           </div>
-          <span style="font-size:10px;color:#888;letter-spacing:.3px">${sub}</span>
-          <span style="font-size:9px;color:#aaa;font-family:'JetBrains Mono',monospace;margin-top:2px;word-break:break-all">${_escAttr(b.name)}</span>
-        </a>`;
-    }).join("");
+          <div style="display:flex;gap:6px;margin-top:2px">
+            <a href="${b.url}" download style="flex:1;text-align:center;padding:6px;background:var(--ms-accent);border-radius:5px;text-decoration:none;color:#fff;font-size:11px;font-weight:700">다운로드</a>
+            <button onclick="deleteDownload('${encodeURIComponent(b.name)}')" title="삭제" style="padding:6px 9px;background:#33333f;color:var(--ms-red);border:none;border-radius:5px;cursor:pointer;font-size:11px">🗑️</button>
+          </div>
+        </div>`;
+    }).join("") : `<div style="color:#888;font-size:11px;padding:8px">업로드된 파일이 없습니다.</div>`;
   } catch (e) {
     console.warn("[pcs] downloads fetch error", e);
-    wrap.style.display = "none";
+    list.innerHTML = `<div style="color:#888;font-size:11px;padding:8px">목록을 불러오지 못했어요.</div>`;
   }
 }
+
+// 업로드 (multipart, field: files)
+async function uploadDownloads(files) {
+  if (!files || !files.length) return;
+  const fd = new FormData();
+  [...files].forEach(f => fd.append("files", f));
+  try {
+    const r = await fetch("/api/downloads/upload", { method: "POST", body: fd });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json();
+    alert(`업로드 완료 (${j.count}개)`);
+    fetchPcDownloads();
+  } catch (e) {
+    alert("업로드 실패 — 로그인 상태와 파일 형식(.bat/.exe 등)을 확인하세요.");
+  }
+}
+
+async function deleteDownload(encName) {
+  const name = decodeURIComponent(encName);
+  if (!confirm(`'${name}' 삭제할까요?`)) return;
+  try {
+    const r = await fetch("/api/downloads/file/" + encName, { method: "DELETE" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    fetchPcDownloads();
+  } catch (e) { alert("삭제 실패"); }
+}
+
+// 드롭존 이벤트 바인딩 (1회)
+(function bindDlDrop() {
+  const drop  = document.getElementById("dl-drop");
+  const input = document.getElementById("dl-input");
+  if (!drop || !input) return;
+  input.addEventListener("change", () => uploadDownloads(input.files));
+  ["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => {
+    e.preventDefault(); drop.style.borderColor = "var(--ms-accent)"; drop.style.color = "var(--ms-text)";
+  }));
+  ["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => {
+    e.preventDefault(); drop.style.borderColor = "var(--ms-border-dark)"; drop.style.color = "#888";
+  }));
+  drop.addEventListener("drop", e => uploadDownloads(e.dataTransfer.files));
+})();
 
 function renderPcs() {
   const grid = document.getElementById("pc-grid");

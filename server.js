@@ -281,8 +281,8 @@ dbMod.getDb().then(() => {
   //   - /list, PATCH/DELETE/:pc_id, /screenshot/:pc_id 는 라우터 내부에서 requireAuth
   app.use("/api/pc", require("./routes/pc"));
 
-  // ★★★ NEW: 오버레이 다운로드 ★★★
-  app.use("/api/downloads", require("./routes/downloads"));
+  // ★★★ 파일 다운로드/업로드 (업로드·삭제는 requireAuth 보호) ★★★
+  app.use("/api/downloads", require("./routes/downloads")(requireAuth));
 
   // 인증 필요
   app.use("/api/tracker",        require("./routes/tracker"));
