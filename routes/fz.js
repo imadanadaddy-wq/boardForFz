@@ -94,15 +94,27 @@ router.get("/status", (req, res) => {
 
   const byIgn = {};
   const fzOnByIgn = {};
+  // ★ 같은 ign 이 owner별 복수 행을 가질 수 있음(재진입/PC 이동 시 옛 owner 행이 stale로 잔존).
+  //   ign 기준 조인이므로 last_seen 이 가장 최신인 행만 채택 → stale 데이터로 인한 오프라인/옛맵 오표시 방지.
   for (const r of hbRows) {
-    byIgn[r.ign] = { ign: r.ign, channel: r.channel, map_id: r.map_id, last_seen: r.last_seen || 0 };
+    const ex = byIgn[r.ign];
+    if (!ex || (r.last_seen || 0) > (ex.last_seen || 0)) {
+      byIgn[r.ign] = { ign: r.ign, channel: r.channel, map_id: r.map_id, last_seen: r.last_seen || 0 };
+    }
   }
+  // private_data 도 ign별 최신만 반영
+  const pdLatest = {};
   for (const r of pdRows) {
-    fzOnByIgn[r.ign] = (r.fz_on === 1 ? true : (r.fz_on === 0 ? false : null));
-    if (!byIgn[r.ign]) {
-      byIgn[r.ign] = { ign: r.ign, channel: null, map_id: null, last_seen: r.last_seen || 0 };
-    } else if ((r.last_seen || 0) > (byIgn[r.ign].last_seen || 0)) {
-      byIgn[r.ign].last_seen = r.last_seen;
+    const ex = pdLatest[r.ign];
+    if (!ex || (r.last_seen || 0) > (ex.last_seen || 0)) pdLatest[r.ign] = r;
+  }
+  for (const ign in pdLatest) {
+    const r = pdLatest[ign];
+    fzOnByIgn[ign] = (r.fz_on === 1 ? true : (r.fz_on === 0 ? false : null));
+    if (!byIgn[ign]) {
+      byIgn[ign] = { ign, channel: null, map_id: null, last_seen: r.last_seen || 0 };
+    } else if ((r.last_seen || 0) > (byIgn[ign].last_seen || 0)) {
+      byIgn[ign].last_seen = r.last_seen;
     }
   }
 
