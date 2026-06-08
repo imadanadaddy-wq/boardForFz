@@ -3153,6 +3153,7 @@ async function fetchFzAll() {
       cfg.forEach(c => { fzConfigMap[c.ign] = { has_ia: c.has_ia, gear_count: c.gear_count }; });
     }
     await loadFzGroups();
+    try { await fetchChangelog(); } catch(e) {}   // ★ CC 캐시 최신화 (Last CC 컬럼용)
     renderMasterTable();
   } catch(e) {}
 }
@@ -3211,6 +3212,7 @@ function renderMasterTable() {
   html += '<div style="width:44px;text-align:center;padding:8px 2px">LV</div>';
   html += '<div style="width:38px;text-align:center;padding:8px 2px">CH</div>';
   html += '<div style="flex:1;padding:8px 10px">Map</div>';
+  html += '<div style="width:74px;text-align:center;padding:8px 4px">Last CC</div>';
   html += '<div style="width:60px;text-align:right;padding:8px 6px">Meso</div>';
   html += '<div style="width:52px;text-align:right;padding:8px 6px">M/HR</div>';
   html += '<div style="width:38px;text-align:center;padding:8px 2px">FZ</div>';
@@ -3253,6 +3255,8 @@ function renderMasterTable() {
     html += `<div style="width:44px;text-align:center;padding:10px 2px;font-style:normal;font-size:13px;border-right:1px solid #333;font-family:'JetBrains Mono',monospace">${b.level || "-"}</div>`;
     html += `<div style="width:38px;text-align:center;padding:10px 2px;font-size:15px;background:${chBg};border-right:1px solid #333">${ch != null ? ch : "-"}</div>`;
     html += `<div style="flex:1;padding:10px 10px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid #333">${esc(mapShort)}</div>`;
+    const ccText = ccTs ? (()=>{const m=Math.floor((now-ccTs)/60000);return m<1?'now':(m<60?m+'m':Math.floor(m/60)+'h');})() : '–';
+    html += `<div style="width:74px;text-align:center;padding:10px 4px;font-style:normal;font-size:11px;font-family:'JetBrains Mono',monospace;border-right:1px solid #333;color:${isCc?'#f87171':'#777'}">${ccText}</div>`;
     html += `<div style="width:60px;text-align:right;padding:10px 6px;font-style:normal;font-size:12px;font-family:'JetBrains Mono',monospace;border-right:1px solid #333;color:#4ade80">${fmtVal(md.meso)}</div>`;
     html += `<div style="width:52px;text-align:right;padding:10px 6px;font-style:normal;font-size:12px;font-family:'JetBrains Mono',monospace;border-right:1px solid #333;color:#60a5fa">${fmtVal(md.meso_hr)}</div>`;
 
