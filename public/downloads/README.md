@@ -1,20 +1,15 @@
-# Maple Overlay Builds
+# downloads
 
-여기에 .exe 파일을 두면 dash의 🖥️ PC Status 탭 상단에
-자동으로 다운로드 카드가 표시됩니다.
+웹 대시보드(PC Status 탭 → "📦 파일 다운로드")에서 직접 업로드/삭제하는 파일 저장소입니다.
+별도 코드 수정이나 GitHub 푸시 없이 브라우저에서 .bat/.exe 등을 올리면 다운로드 카드가 자동 생성됩니다.
 
-빌드 결과물 위치:
-  boardForFz-main/dist-electron/MapleOverlay-Portable-1.0.0.exe
-  boardForFz-main/dist-electron/Maple Overlay Setup 1.0.0.exe
+## 영구 저장 (Railway)
+재배포 시 파일이 사라지지 않게 하려면 Volume 을 마운트하세요.
+- Variables : UPLOAD_DIR = /data/downloads
+- Volumes   : Mount path = /data
 
-이 두 파일을 `public/downloads/` 폴더에 복사한 뒤 git push 하면
-Railway에서 자동 서빙됩니다.
+UPLOAD_DIR 미설정 시 이 폴더(public/downloads)에 저장되며, 재배포 시 git 에 없는 업로드분은 소실됩니다.
 
-큰 파일(>100MB)이면 git LFS 또는 GitHub Releases 사용을 권장.
-GitHub Releases에 올린 경우 Railway 환경변수로:
-  DOWNLOAD_REDIRECT_BASE=https://github.com/<user>/<repo>/releases/download/<tag>
-설정하면 자동으로 redirect됩니다.
-
-분류:
-  파일명에 "portable" 포함 → 💾 Portable 카드로 표시
-  그 외 → 🔧 Installer 카드로 표시
+## 허용 확장자 / 제한
+.bat .exe .cmd .ps1 .zip .lua .txt .msi · 파일당 최대 300MB
+업로드·삭제는 로그인(Discord OAuth) 필요, 목록·다운로드는 공개.
