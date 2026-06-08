@@ -2892,6 +2892,12 @@ function buildFzTable(entries, startIdx) {
     const ignDeco=isOnline?"":"text-decoration:line-through;";
     const chBg=(ch!=null)?"#7a2d44":"#181818",chColor="#fff",mapColor="#e8e8e8";
     const mapDisplay=mapShort?fzEscapeHtml(mapShort):(mapId!=null?`#${mapId}`:(isOnline?'-':'OFFLINE'));
+    // ── LAST CC / LAST SEEN ──
+    const ccText = lastCcTs ? (()=>{const m=Math.floor((now-lastCcTs)/60000);return m<1?'just now':(m<60?m+'m ago':Math.floor(m/60)+'h ago');})() : '–';
+    const ccCellColor = isRecentCc ? '#f87171' : '#777';
+    const lastSeenSec = (status && status.ago_sec!=null) ? status.ago_sec : ((botEntry && botEntry.ago_sec!=null) ? botEntry.ago_sec : null);
+    const seenText = (lastSeenSec!=null) ? formatAgo(lastSeenSec) : '–';
+    const seenColor = (lastSeenSec==null) ? '#777' : (lastSeenSec<120?'#4ade80':(lastSeenSec<300?'#fbbf24':'#f87171'));
     let ccBadgeHtml='';
     if(isRecentCc){const minsAgo=Math.max(1,Math.floor((now-lastCcTs)/60000));ccBadgeHtml=`<span style="display:inline-block;margin-left:6px;background:#e74c3c;color:#fff;font-family:'JetBrains Mono',monospace;font-style:normal;font-weight:800;font-size:9px;padding:1px 5px;border-radius:3px;letter-spacing:.5px;vertical-align:middle">🔴 CC ${minsAgo}m</span>`;}
     row.innerHTML=`
@@ -2901,6 +2907,10 @@ function buildFzTable(entries, startIdx) {
       <div class="fz-mapname" data-mapid="${mapId!=null?mapId:''}"
         ${mapId!=null?`onclick="startFzMapEdit('${mapId}',this)" title="Click to edit"`:''}
         style="flex:1.4;min-width:0;color:${mapColor};padding:11px 14px;border-right:1px solid #2c2c2c;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${mapId!=null?'cursor:pointer':''}">${mapDisplay}</div>
+      <div style="width:96px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 4px;border-right:1px solid #2c2c2c;font-family:'JetBrains Mono',monospace;font-style:normal;font-weight:700">
+        <span style="font-size:8px;color:#555;letter-spacing:.5px">LAST CC</span><span style="font-size:12px;color:${ccCellColor}">${ccText}</span></div>
+      <div style="width:96px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 4px;border-right:1px solid #2c2c2c;font-family:'JetBrains Mono',monospace;font-style:normal;font-weight:700">
+        <span style="font-size:8px;color:#555;letter-spacing:.5px">LAST SEEN</span><span style="font-size:12px;color:${seenColor}">${seenText}</span></div>
       <div style="width:48px;flex-shrink:0;background:#181818;display:flex;align-items:center;justify-content:center">
         <button onclick="event.stopPropagation();deleteFzEntry('${fzEscapeHtml(entry.ign)}')"
           style="background:none;border:none;color:#f87171;font-size:20px;cursor:pointer;font-style:normal;font-weight:700;padding:2px 6px;line-height:1" title="Delete">×</button>
