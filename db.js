@@ -17,6 +17,10 @@ const db = new Database(DB_PATH);
 
 // WAL 모드 — 동시 읽기 성능 향상
 db.pragma("journal_mode = WAL");
+// ★ 성능/안정성 PRAGMA
+db.pragma("busy_timeout = 5000");      // 락 충돌 시 5초 대기 → 간헐 SQLITE_BUSY 방지
+db.pragma("synchronous = NORMAL");     // WAL에서 안전하면서 fsync 부담↓ (Railway volume I/O 완화)
+db.pragma("wal_autocheckpoint = 1000");// WAL 파일이 무한 커지지 않도록 자동 체크포인트
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS private_data (
@@ -179,6 +183,41 @@ const migrations = [
 for (const sql of migrations) {
   try { db.exec(sql); } catch(e) { /* 이미 존재 */ }
 }
+
+// ════════════════════════════════════════════════════════════════
+// ★ NEW: 인덱스 — 풀스캔 제거 (느려짐의 직접 원인 해소)
+//   • bot_change_log: ORDER BY ts DESC / ign 검색
+//   • meso_history  : heartbeat 마다 (owner,ign) 최신 1건 조회 + ts 범위 조회
+//   • private_data  : meso_hr 정렬, heartbeats: last_seen 비교
+// ════════════════════════════════════════════════════════════════
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_changelog_ts        ON bot_change_log(ts);
+  CREATE INDEX IF NOT EXISTS idx_changelog_ign_ts    ON bot_change_log(ign, ts);
+  CREATE INDEX IF NOT EXISTS idx_meso_hist_owner_ign ON meso_history(owner, ign, ts);
+  CREATE INDEX IF NOT EXISTS idx_meso_hist_ts        ON meso_history(ts);
+  CREATE INDEX IF NOT EXISTS idx_private_meso_hr     ON private_data(meso_hr);
+  CREATE INDEX IF NOT EXISTS idx_heartbeats_last     ON heartbeats(last_seen);
+`);
+
+// ════════════════════════════════════════════════════════════════
+// ★ NEW: 부팅 시 로그 테이블 정리 (폭주성 evasion 로그로 무한 증가 방지)
+//   • bot_change_log: 최신 2000행만 보존
+//   • meso_history  : 최근 7일만 보존
+//   • 정리 후 1회 VACUUM 으로 파일 크기 회수
+// ════════════════════════════════════════════════════════════════
+try {
+  const delLog = db.prepare(
+    `DELETE FROM bot_change_log WHERE id NOT IN (
+       SELECT id FROM bot_change_log ORDER BY ts DESC LIMIT 2000)`
+  ).run();
+  const delHist = db.prepare(
+    "DELETE FROM meso_history WHERE ts < ?"
+  ).run(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  if (delLog.changes || delHist.changes) {
+    db.exec("VACUUM");
+    console.log(`[DB] pruned change_log=${delLog.changes}, meso_history=${delHist.changes} rows`);
+  }
+} catch (e) { console.error("[DB] prune error:", e.message); }
 
 // ★ NEW: FZ 그룹 시드 — rudy(공개), gabi(전용 키)
 const crypto = require("crypto");

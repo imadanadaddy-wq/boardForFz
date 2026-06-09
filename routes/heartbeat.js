@@ -120,6 +120,20 @@ function ensureManualReleasedTable() {
     owner TEXT NOT NULL, ign TEXT NOT NULL, PRIMARY KEY (owner, ign)
   )`);
 }
+// ★ CHANGED: 매 heartbeat 마다 CREATE TABLE DDL 돌던 것 → 모듈 로드 시 1회만 보장
+ensureManualReleasedTable();
+
+// ── change_log 런타임 정리: INSERT 200회마다 최신 2000행만 보존 ──
+//   evasion 폭주로 테이블이 무한 증가 → 조회 풀스캔이 점점 무거워지는 것을 방지
+let _logInsertCount = 0;
+function maybePruneChangeLog() {
+  if (++_logInsertCount < 200) return;
+  _logInsertCount = 0;
+  try {
+    db.run(`DELETE FROM bot_change_log WHERE id NOT IN (
+      SELECT id FROM bot_change_log ORDER BY ts DESC LIMIT 2000)`);
+  } catch (e) { /* 무시 */ }
+}
 
 // ══════════════════════════════════════════════════
 // POST /api/bot-heartbeat/client
@@ -138,8 +152,6 @@ router.post("/", (req, res) => {
               || db.get("SELECT token FROM clients WHERE owner=?", [owner]);
   if (!tokRow)                return res.status(401).json({ error: "Unknown owner" });
   if (tokRow.token !== token) return res.status(401).json({ error: "Invalid token" });
-
-  ensureManualReleasedTable();
 
   const now     = Date.now();
   const hasMeso = meso !== undefined && meso !== null;
@@ -275,6 +287,7 @@ router.post("/", (req, res) => {
     checkMesoAlert(owner, ign, lvNum, verified_meso_hr || null, true, isForcedOffline);
   }
 
+  maybePruneChangeLog();   // ★ change_log 무한 증가 방지 (200회마다)
   return res.json({ ok: true, ts: now });
 });
 
