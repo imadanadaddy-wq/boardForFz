@@ -14,11 +14,11 @@ const DISCORD_WEBHOOK_STOCK = "https://discord.com/api/webhooks/1518265050073399
 // 관리 대상 아이템 5종 메타 (기본 임계값 + 라벨). 실제 enabled/threshold는 봇별 bot_item_config.
 // WAP은 환산(2003611 + 2003551×4)이라 id 필드 없음.
 const ITEM_META = {
-  fuel:    { defThreshold: 50,    label: "연료",    ids: [2000039] },
-  ale:     { defThreshold: 10000, label: "ale",     ids: [2002023] },
-  wap:     { defThreshold: 50,    label: "재획비",  ids: null },     // 환산 전용
-  charm:   { defThreshold: 2,     label: "세이프티차밍", ids: [5130000] },
-  petfeed: { defThreshold: 5000,  label: "펫사료",  ids: [2120000] },
+  fuel:    { defThreshold: 50,    label: "Fuel",    ids: [2000039] },
+  ale:     { defThreshold: 10000, label: "Ale",     ids: [2002023] },
+  wap:     { defThreshold: 50,    label: "WAP",  ids: null },     // 환산 전용
+  charm:   { defThreshold: 2,     label: "Charm", ids: [5130000] },
+  petfeed: { defThreshold: 5000,  label: "Pet food",  ids: [2120000] },
 };
 const ITEM_KEYS = Object.keys(ITEM_META);
 const LOW_MESO_THRESHOLD  = 150_000_000;
