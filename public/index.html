@@ -1268,9 +1268,9 @@ function switchMgmtTab(tab) {
 
 async function fetchManagement() {
   if (!isAuthed) return;
+  fetchItemTable();
   try {
     const data = await (await fetch("/api/tracker")).json();
-    renderMgmtItems(data);
     renderMgmtStock(data);
   } catch(e) { console.warn("[mgmt] tracker", e); }
   try {
@@ -1357,60 +1357,119 @@ function buildEventChip(row, nowMs) {
   return '';
 }
 
-function renderMgmtItems(data) {
-  const grid = document.getElementById('mgmt-item-grid');
-  // ★ CHANGED: 레벨 필터(MIN_LEVEL=221)와 CHARM_IGNS 화이트리스트 제거 →
-  //            active_bots 에 등록된 봇만 매니지 대상으로 함.
-  //            모든 active bot은 CHARM / PET / FUEL / ALE 4종 모두 관리 필요.
-  const CHARM_THR  = 2;
-  const SLOT_DEFS = [
-    { label:'CHARM', icon:ICON_MAP['safety_charm'], thr:CHARM_THR, finder:(it)=>findItem(it,'safety_charm') },
-    { label:'PET',   icon:ICON_MAP['펫먹이'],       thr:1000,      finder:(it)=>findItem(it,'펫먹이') },
-    { label:'FUEL',  icon:ICON_MAP['연료'],         thr:100,       finder:(it)=>findItem(it,'연료','에센스') },
-    { label:'WAP',   icon:ICON_MAP['재획'],         thr:100,       finder:(it)=>findWapEquiv(it) },
-    { label:'ALE',   icon:ICON_MAP['ale'],          thr:1000,      finder:(it)=>findItemById(it,2002023)||findItem(it,'ale') },
-  ];
+// ── Items 탭: 아이템 재고 테이블 (가로=아이템5종 아이콘+체크박스, 세로=IGN, 셀=수량) ──
+let _itemMeta = null;   // [{key,label,defThreshold}]
+let _itemTable = [];    // [{ign,level,online,counts,enabled}]
+let _itemThresholds = {};  // {fuel:50, ale:10000, ...} 전역 공통
+const ITEM_ICON = { fuel:'/images/fuel.png', ale:'/images/ale.png', wap:'/images/wap.png', charm:'/images/potion.png', petfeed:'/images/pet.png' };
+const ITEM_FALLBACK = { fuel:'⛽', ale:'🍶', wap:'🧪', charm:'🔮', petfeed:'🐾' };
 
-  // online이면서 active_bots에 등록된 봇만 대상
-  const targets = data.filter(d => d.online && isActiveBot(d.ign));
-  if (!targets.length) {
+async function fetchItemTable() {
+  if (!isAuthed) return;
+  try {
+    if (!_itemMeta) _itemMeta = await (await fetch('/api/management/item-meta')).json();
+    const resp = await (await fetch('/api/management/item-table')).json();
+    _itemTable = resp.rows || [];
+    _itemThresholds = resp.thresholds || {};
+    renderItemTable();
+  } catch(e) { console.warn('[mgmt] item-table', e); }
+}
+
+function fmtQty(n) {
+  n = n || 0;
+  if (n >= 1000) return (n/1000).toFixed(n % 1000 === 0 ? 0 : 1) + 'K';
+  return String(n);
+}
+
+function renderItemTable() {
+  const grid = document.getElementById('mgmt-item-grid');
+  if (!_itemMeta) { grid.innerHTML = '<div class="mgmt-empty">Loading...</div>'; return; }
+  if (!_itemTable.length) {
     grid.innerHTML = `<div class="mgmt-empty">활성 봇이 없습니다 — 메소트래커에서 봇을 우클릭하고 <b>⭐ Active Bot 지정</b>으로 등록하세요</div>`;
     return;
   }
 
-  const nowMs = Date.now();
-  const cards = [];
-  for (const d of targets) {
-    const items = d.items || [];
-    const warnSlots = SLOT_DEFS.map(s => {
-      const found = s.finder(items);
-      const cnt = found ? found.count : 0;
-      return { ...s, cnt, warn: cnt < s.thr };
-    }).filter(s => s.warn);
-
-    if (warnSlots.length) cards.push({ d, warnSlots });
-  }
-
-  if (!cards.length) { grid.innerHTML=`<div class="mgmt-empty">모든 active bot 보급품 충분 ✅</div>`; return; }
-
-  const rowsHtml = cards.map(({ d, warnSlots }) => {
-    const pcTag = getPcTag(d.ign);
-    const pcBadge = pcTag ? `<span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#0097a7;font-weight:800;margin-left:5px;background:rgba(0,151,167,.08);border:1px solid rgba(0,151,167,.3);padding:1px 5px;border-radius:3px">🖥️ ${pcTag}</span>` : '';
-    const itemsHtml = warnSlots.map(s => {
-      const cStr = s.cnt >= 1000 ? (s.cnt/1000).toFixed(1)+'K' : String(s.cnt);
-      const iconHtml = s.icon
-        ? `<img src="${s.icon}" alt="${s.label}" onerror="this.style.display='none'" style="width:20px;height:20px;object-fit:contain;image-rendering:pixelated;vertical-align:middle">`
-        : `<span style="font-size:14px;vertical-align:middle">${s.label==='CHARM'?'🧿':'📦'}</span>`;
-      return `<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.4);border-radius:4px;padding:2px 7px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800;color:#c0392b;white-space:nowrap">${iconHtml} ${s.label} <span style="color:#888;font-weight:600;font-size:11px">${cStr}</span></span>`;
-    }).join('');
-    return `<tr class="mgmt-tbl-row">
-      <td class="mgmt-tbl-ign">⭐ ${d.ign}${pcBadge}<div style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace;font-weight:400;margin-top:1px">Lv.${d.level} · ${formatAgo(d.ago_sec)}</div></td>
-      <td class="mgmt-tbl-items">${itemsHtml}</td>
-    </tr>`;
+  // 헤더: 아이콘 + 이름 + 전역 임계값 입력 (모든 봇 공통)
+  const headCells = _itemMeta.map(m => {
+    const icon = ITEM_ICON[m.key]
+      ? `<img src="${ITEM_ICON[m.key]}" alt="${m.label}" onerror="this.replaceWith(document.createTextNode('${ITEM_FALLBACK[m.key]||'📦'}'))" style="width:24px;height:24px;object-fit:contain;image-rendering:pixelated">`
+      : `<span style="font-size:20px">${ITEM_FALLBACK[m.key]||'📦'}</span>`;
+    const thr = (_itemThresholds[m.key] !== undefined) ? _itemThresholds[m.key] : m.defThreshold;
+    return `<th style="padding:8px 6px;text-align:center;min-width:92px">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+        ${icon}
+        <span style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:.5px">${m.label.toUpperCase()}</span>
+        <input type="number" value="${thr}" min="0" title="전역 임계값 (모든 봇 공통)"
+          onchange="saveThreshold('${m.key}',this.value)"
+          style="width:64px;font-family:'JetBrains Mono',monospace;font-size:10px;text-align:center;background:rgba(0,151,167,.1);border:1px solid rgba(0,151,167,.4);border-radius:3px;color:#0097a7;font-weight:800;padding:2px">
+      </div></th>`;
   }).join('');
 
-  grid.innerHTML = `<table class="mgmt-tbl"><tbody>${rowsHtml}</tbody></table>`;
+  // 각 봇 행: IGN + 아이템별 [체크박스 + 수량]
+  const rows = _itemTable.map(bot => {
+    const cells = _itemMeta.map(m => {
+      const c = bot.counts[m.key] || 0;
+      const en = !!(bot.enabled && bot.enabled[m.key]);
+      const thr = (_itemThresholds[m.key] !== undefined) ? _itemThresholds[m.key] : m.defThreshold;
+      const low = en && c < thr;
+      const qtyColor = low ? '#e74c3c' : (c === 0 ? '#666' : '#e8e8e8');
+      const qtyStr = (m.key === 'ale' || m.key === 'petfeed') ? fmtQty(c) : c.toLocaleString();
+      return `<td style="text-align:center;padding:7px 6px;border-left:1px solid rgba(255,255,255,.04)">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+          <input type="checkbox" ${en?'checked':''} title="관리 대상"
+            onchange="saveItemEnabled('${bot.ign}','${m.key}',this.checked)"
+            style="width:15px;height:15px;accent-color:#0097a7;cursor:pointer">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:800;color:${qtyColor}">${qtyStr}</span>
+        </div></td>`;
+    }).join('');
+    const dot = bot.online ? '#2ecc71' : '#888';
+    return `<tr style="border-bottom:1px solid rgba(255,255,255,.05)">
+      <td style="padding:8px 10px;white-space:nowrap">
+        <span style="color:${dot};font-size:9px">●</span>
+        <span style="font-weight:800;color:#fff;font-style:italic">${bot.ign}</span>
+        <div style="font-size:10px;color:#888;font-family:'JetBrains Mono',monospace;margin-top:1px">Lv.${bot.level}</div>
+      </td>${cells}</tr>`;
+  }).join('');
+
+  grid.innerHTML = `
+    <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1px;margin:6px 4px 10px;text-transform:uppercase">📦 Item Stock — ✅체크=봇별 관리대상 · 헤더숫자=임계값(전역공통) · 빨강=부족 · ale/pet=K단위</div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="border-bottom:2px solid rgba(255,255,255,.15)">
+          <th style="text-align:left;padding:8px 10px;color:#aaa;font-size:11px;font-family:'JetBrains Mono',monospace">IGN</th>
+          ${headCells}
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
+
+// 봇별 체크박스 저장
+async function saveItemEnabled(ign, key, enabled) {
+  const bot = _itemTable.find(b => b.ign === ign);
+  if (bot) { if (!bot.enabled) bot.enabled = {}; bot.enabled[key] = enabled; }
+  try {
+    await fetch('/api/management/item-config', {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ ign, item_key:key, enabled })
+    });
+    renderItemTable();
+  } catch(e) { console.error('[item-config]', e); }
+}
+
+// 전역 임계값 저장 (헤더, 모든 봇 공통)
+async function saveThreshold(key, threshold) {
+  const th = parseInt(threshold,10) || 0;
+  _itemThresholds[key] = th;
+  try {
+    await fetch('/api/management/item-threshold', {
+      method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ item_key:key, threshold:th })
+    });
+    renderItemTable();  // 부족 하이라이트 전체 갱신
+  } catch(e) { console.error('[item-threshold]', e); }
+}
+
 
 // ── Stock 탭: 메소 판매용 — 봇 이름 + 메소 보유량만 표시 ──
 // data: /api/tracker 응답 (private_data 기반, meso/meso_hr/online 등 포함)
@@ -3707,6 +3766,8 @@ async function fetchAllGraphs() {
         if (!d.ign) continue;
         if (!allGraphData[d.ign]) allGraphData[d.ign] = [];
         const existing = allGraphData[d.ign]; const last = existing.length ? existing[existing.length-1] : null;
+        // ★ 오프라인 봇은 현재값을 그래프에 추가하지 않음 (마지막 m/hr로 평평하게 계속 그려지는 문제 방지)
+        if (d.online === false) continue;
         if (!last || (nowTs - last.ts) >= 10*60*1000) { if (d.meso_hr && d.meso_hr > 0) existing.push({ meso: d.meso, meso_hr: d.meso_hr, ts: nowTs }); }
       }
     }

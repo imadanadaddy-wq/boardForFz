@@ -108,6 +108,18 @@ db.exec(`
     ign        TEXT PRIMARY KEY,
     marked_at  INTEGER NOT NULL
   );
+  -- ★ NEW: 봇별 아이템 관리 on/off (체크박스는 봇마다 개별)
+  CREATE TABLE IF NOT EXISTS bot_item_config (
+    ign       TEXT NOT NULL,
+    item_key  TEXT NOT NULL,             -- 'fuel'|'ale'|'wap'|'charm'|'petfeed'
+    enabled   INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (ign, item_key)
+  );
+  -- ★ NEW: 아이템별 전역 임계값 (모든 봇 공통, 헤더에서 설정)
+  CREATE TABLE IF NOT EXISTS item_threshold (
+    item_key  TEXT PRIMARY KEY,          -- 'fuel'|'ale'|'wap'|'charm'|'petfeed'
+    threshold INTEGER NOT NULL DEFAULT 0
+  );
   CREATE TABLE IF NOT EXISTS fz_list (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     ign        TEXT NOT NULL UNIQUE,
