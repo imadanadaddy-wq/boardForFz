@@ -147,7 +147,6 @@ app.get("/auth/callback", async (req, res) => {
 
     if (!ALLOWED_USER_IDS.includes(user.id)) {
       console.warn(`[AUTH] ❌ Denied: ${user.username} (${user.id}). Whitelisted IDs: [${ALLOWED_USER_IDS.join(", ")}]`);
-      // ★ 본인 ID를 URL에 담아 화면에 표시 → ALLOWED_USER_IDS에 어떤 ID를 추가해야 하는지 즉시 확인 가능
       return res.redirect(`/?error=unauthorized&uid=${encodeURIComponent(user.id)}&uname=${encodeURIComponent(user.username)}`);
     }
 
@@ -253,7 +252,6 @@ app.get("/api/cookie-debug", (req, res) => {
 function loadMapNamesMerged() {
   const out = {};
   try {
-    // gabi 먼저 깔고 rudy로 덮어써 rudy 우선
     for (const r of dbMod.all("SELECT map_id, map_name FROM map_names WHERE grp='gabi'")) out[String(r.map_id)] = r.map_name;
     for (const r of dbMod.all("SELECT map_id, map_name FROM map_names WHERE grp='rudy'")) out[String(r.map_id)] = r.map_name;
   } catch (e) { console.error("[mapnames] load error:", e.message); }
@@ -277,8 +275,6 @@ dbMod.getDb().then(() => {
   app.use("/api/bot-heartbeat/client", require("./routes/heartbeat"));
 
   // ★★★ NEW: PC 관리 ★★★
-  //   - /register, /heartbeat, /screenshot 는 라우터 내부에서 owner/token 검증 (Electron이 호출)
-  //   - /list, PATCH/DELETE/:pc_id, /screenshot/:pc_id 는 라우터 내부에서 requireAuth
   app.use("/api/pc", require("./routes/pc"));
 
   // ★★★ 파일 다운로드/업로드 (업로드·삭제는 requireAuth 보호) ★★★
@@ -287,15 +283,11 @@ dbMod.getDb().then(() => {
   // 인증 필요
   app.use("/api/tracker",        require("./routes/tracker"));
   app.use("/api/management",     require("./routes/management").router);
-  // ★ 그룹 키 노출/회전은 인증 필요
   app.use("/api/fz/groups",      requireAuth);
-  // ★ 전체 배정 조회 (마스터 테이블용)
   app.use("/api/fz/all",         requireAuth);
   app.use("/api/fz/meso-config",  requireAuth);
-  // ★ FZ 쓰기(추가/삭제/정렬/배정)는 인증 필요 — GET만 공개(그룹키로 자체 보호)
   app.use("/api/fz", (req, res, next) => {
     if (req.method !== "GET") {
-      // 순서 변경 + 맵 컬러 + 맵 이름은 공개 (저위험, 어느 대시보드에서든 편집 가능)
       if (req.path === "/reorder" || req.path === "/map-colors" || req.path === "/mapname") return next();
       return requireAuth(req, res, next);
     }
@@ -333,9 +325,6 @@ dbMod.getDb().then(() => {
 
   // ════════════════════════════════════════════════════════════════
   // ★★★ NEW: ACTIVE BOTS API ★★★
-  //   - 메소트래커에서 우클릭으로 "active bot" 토글
-  //   - 메소 부족 알람 / 오프라인 알람 / 아이템 매니지는 이 봇만 대상
-  //   - 기존 Lv.260+ 필터를 완전히 대체
   // ════════════════════════════════════════════════════════════════
   app.get("/api/active-bots", requireAuth, (req, res) => {
     const rows = dbMod.all("SELECT ign, marked_at FROM active_bots ORDER BY ign");
@@ -360,14 +349,14 @@ dbMod.getDb().then(() => {
     return res.json({ ok: true });
   });
 
-  // ★ NEW: 레거시 raw evasion 로그 정리 (v3.2 이전에 쌓인 별도 EVADE 행 일괄 삭제)
+  // ★ NEW: 레거시 raw evasion 로그 정리
   app.delete("/api/changelog/cleanup-evasion", requireAuth, (req, res) => {
     const result = dbMod.run("DELETE FROM bot_change_log WHERE field='evasion'");
     console.log(`[CLEANUP] removed raw evasion rows`);
     return res.json({ ok: true });
   });
 
-  // ★★★ NEW: 봇 완전 삭제 (메소트래커 + 하트비트 + 메소히스토리 + PC태그 + 강제오프라인) ★★★
+  // ★★★ NEW: 봇 완전 삭제 (메소트래커 + 하트비트 + 메소히스토리 + PC태그 + 강제오프라인 + 액티브봇) ★★★
   app.delete("/api/bot/:ign", requireAuth, (req, res) => {
     const ign = req.params.ign;
     if (!ign) return res.status(400).json({ error: "ign required" });
@@ -378,10 +367,9 @@ dbMod.getDb().then(() => {
       dbMod.run("DELETE FROM bot_pc_tags     WHERE ign=?", [ign]);
       dbMod.run("DELETE FROM bot_change_log  WHERE ign=?", [ign]);
       dbMod.run("DELETE FROM meso_alert_log  WHERE ign=?", [ign]);
-      dbMod.run("DELETE FROM fz_list         WHERE ign=?", [ign]);  // ★ FZ 그룹 배정 제거
-      try { dbMod.run("DELETE FROM bot_meso_config WHERE ign=?", [ign]); } catch(e){}  // ★ 메획 설정(있으면)
-      // ★ CHANGED: active_bots는 보존 (영구 등록 의도). 봇이 다시 ONLINE 되면 즉시 active로 인식됨.
-      //            만약 사용자가 active 해제도 원하면 우클릭 메뉴에서 명시적으로 처리.
+      dbMod.run("DELETE FROM fz_list         WHERE ign=?", [ign]);  
+      try { dbMod.run("DELETE FROM bot_meso_config WHERE ign=?", [ign]); } catch(e){}  
+      dbMod.run("DELETE FROM active_bots     WHERE ign=?", [ign]); // 유령 봇 방지를 위해 모니터링 대상에서도 완전 삭제
       console.log(`[BOT-DELETE] ✅ Removed all records for ign=${ign} by ${req.user?.username}`);
       return res.json({ ok: true, ign, deleted: true });
     } catch (e) {
@@ -390,7 +378,7 @@ dbMod.getDb().then(() => {
     }
   });
 
-  // Map names  (GET=병합 표시용 / POST=그룹별 저장 / DELETE=그룹별)
+  // Map names
   app.get("/api/mapnames", requireAuth, (req, res) => {
     const obj  = loadMapNamesMerged();
     const rows = Object.entries(obj).map(([map_id, map_name]) => ({ map_id, map_name }));
@@ -434,17 +422,9 @@ dbMod.getDb().then(() => {
     return res.json(dbMod.all("SELECT owner FROM clients ORDER BY owner"));
   });
 
-  // ════════════════════════════════════════════════════════════════
-  // ★★★ NEW: GABI 전용 더미 사이트 ★★★
-  //   - gabi.up.railway.app 도메인(또는 2nd Railway 서비스)을 이 앱에 연결하고
-  //     루트를 /gabi 로 보거나, 그냥 https://hyeongfz.../gabi 를 Gabi에게 주면 됨
-  //   - 서버가 gabi 그룹 키를 페이지에 주입 → 정적 파일/깃에 키를 박지 않음
-  //   - 이 페이지는 gabi 그룹 리스트만 읽기전용으로 표시 (rudy 리스트/시크릿 접근 불가)
-  // ════════════════════════════════════════════════════════════════
   const GABI_HTML_PATH = path.join(__dirname, "public", "gabi.html");
   app.get(["/gabi", "/gabi.html"], (req, res) => serveGabiPage(res));
 
-  // ★ NEW: RUDY 전용 읽기전용 페이지 (공개 — 키 불필요)
   const RUDY_HTML_PATH = path.join(__dirname, "public", "rudy.html");
   app.get(["/rudy", "/rudy.html"], (req, res) => {
     let html = "";
@@ -454,17 +434,14 @@ dbMod.getDb().then(() => {
     res.send(html);
   });
 
-  // Catch-all — ★★★ 메인 대시보드는 OAuth 인증 후에만 접근 가능 ★★★
-  // /rudy, /gabi, /auth/*, /api/*, /images/* 는 위에서 이미 처리됨
   app.get("*", (req, res) => {
     const token = req.cookies?.ms_token;
     if (token) {
       try {
         jwt.verify(token, JWT_SECRET);
         return res.sendFile(path.join(__dirname, "public", "index.html"));
-      } catch(e) { /* 만료/무효 → 아래 로그인 페이지 */ }
+      } catch(e) { }
     }
-    // 미인증 → 미니멀 로그인 페이지 (로고 5클릭 → PIN 입력)
     res.send(`<!DOCTYPE html><html lang="ko"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>HyeongFZ — Login</title>
@@ -499,7 +476,7 @@ body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:c
   <h1>HyeongFZ</h1>
   <p>대시보드에 접근하려면 로그인이 필요합니다.</p>
   <a class="btn" href="/auth/discord">
-    <svg width="20" height="15" viewBox="0 0 71 55" fill="#fff"><path d="M60.1 4.9A58.5 58.5 0 0045.4.2a.2.2 0 00-.2.1 40.7 40.7 0 00-1.8 3.7 54 54 0 00-16.2 0A26.4 26.4 0 0025.4.3a.2.2 0 00-.2-.1A58.4 58.4 0 0010.5 4.9a.2.2 0 00-.1.1C1.5 18.7-.9 32.2.3 45.5v.1a58.7 58.7 0 0017.9 9.1.2.2 0 00.3-.1 42 42 0 003.6-5.9.2.2 0 00-.1-.3 38.6 38.6 0 01-5.5-2.7.2.2 0 01 0-.4l1.1-.9a.2.2 0 01.2 0 41.9 41.9 0 0035.6 0 .2.2 0 01.3 0l1 .9a.2.2 0 010 .3 36.2 36.2 0 01-5.5 2.7.2.2 0 00-.1.4 47.1 47.1 0 003.6 5.8.2.2 0 00.2.1A58.5 58.5 0 0070.4 45.7v-.2C72 30.1 68 16.7 60.1 5a.2.2 0 000-.1zM23.7 37.3c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.1 6.4-7.1 6.5 3.2 6.4 7.1c0 4-2.8 7.2-6.4 7.2zm23.6 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.1 6.4-7.1 6.5 3.2 6.4 7.1c0 4-2.9 7.2-6.4 7.2z"/></svg>
+    <svg width="20" height="15" viewBox="0 0 71 55" fill="#fff"><path d="M60.1 4.9A58.5 58.5 0 0045.4.2a.2.2 0 00-.2.1 40.7 40.7 0 00-1.8 3.7 54 54 0 00-16.2 0A26.4 26.4 0 0025.4.3a.2.2 0 00-.2-.1A58.4 58.4 0 0010.5 4.9a.2.2 0 00-.1.1C1.5 18.7-.9 32.2.3 45.5v.1a58.7 58.7 0 0017.9 9.1.2.2 0 00.3-.1 42 42 0 003.6-5.9.2.2 0 00-.1-.3 38.6 38.6 0 01-5.5-2.7.2.2 0 01 0-.4l1.1-.9a.2.2 0 01.2 0 41.9 41.9 0 0035.6 0 .2.2 0 01.3 0l1 .9a.2.2 0 010 .3 36.2 36.2 0 01-5.5 2.7.2.2 0 00-.1.4 47.1 47.1 0 003.6 5.8.2.2 0 00.2.1A58.5 58.5 0 0070.4 45.7v-.2C72 30.1 68 16.7 60.1 5a.2.2 0 000-.1zM23.7 37.3c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.1 6.4-7.1 6.5 3.2 6.4 7.1c0 4-2.8 7.2-6.4 7.2zm23.6 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.1 6.4-7.1 6.5 3.2 6.4 7.1c0 4-2.8 7.2-6.4 7.2z"/></svg>
     Login with Discord
   </a>
   <div id="pin-box">
@@ -529,7 +506,7 @@ async function submitPin(){
   const pin=document.getElementById("pin-input").value;
   if(!pin) return;
   try{
-    const res=await fetch("/auth/pin",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({pin})});
+    const res=await fetch("/auth/pin",{method:"POST",headers:{"Content-Type":"application/json"},value:JSON.stringify({pin})});
     if(res.ok){ location.href="/"; }
     else{ document.getElementById("pin-err").style.display="block"; document.getElementById("pin-input").value=""; }
   }catch(e){ document.getElementById("pin-err").style.display="block"; }
