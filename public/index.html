@@ -559,7 +559,6 @@ input::placeholder{color:#aaa;font-weight:normal}
   <button class="sidebar-item"        id="sb-changelog" onclick="switchTab('changelog',this)">📋 Change Log</button>
   <!-- hidden legacy tabs -->
   <div style="display:none">
-    <button class="sidebar-item" id="sb-seller"   onclick="switchTab('seller',this)">💳 Seller Calc</button>
     <button class="sidebar-item" id="sb-register" onclick="switchTab('register',this)">🔧 Register Client</button>
   </div>
 
@@ -592,37 +591,6 @@ input::placeholder{color:#aaa;font-weight:normal}
 <!-- ══ CONTENT AREA ══ -->
 <div id="content-area">
 <main>
-
-  <!-- TAB: SELLER CALC -->
-  <div class="tab-content" id="tab-seller">
-    <div class="panel-box">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-        <div class="section-title" style="margin-bottom:0">Payment Calculator</div>
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#888">RATE: <span style="color:var(--ms-gold);font-weight:800">50,000,000 meso/hr</span></div>
-          <button class="btn" style="padding:6px 16px;font-size:12px" onclick="addSession()">＋ Add Session</button>
-        </div>
-      </div>
-      <div id="session-list"></div>
-      <div style="border-top:2px solid var(--ms-border-dark);margin-top:16px;padding-top:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-        <div style="font-size:13px;font-weight:800;color:var(--ms-text);letter-spacing:1px">TOTAL PAYMENT</div>
-        <div id="calc-total" style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:800;color:var(--ms-gold)">0 meso</div>
-      </div>
-    </div>
-    <div class="panel-box">
-      <div class="section-title">Send to Owner</div>
-      <p style="font-size:11px;color:#888;font-family:'JetBrains Mono',monospace;margin-bottom:14px;letter-spacing:.5px">Upload a screenshot after calculating — a Discord notification will be sent to the owner automatically.</p>
-      <div class="form-row" style="margin-top:0">
-        <div class="form-group">
-          <label>Screenshot (optional)</label>
-          <input type="file" id="wh-img" accept="image/*" onchange="previewImg(this)"/>
-          <img id="img-preview" class="img-preview"/>
-        </div>
-        <button class="btn btn-gold" onclick="sendDiscord()" style="align-self:flex-end;padding:10px 24px">📨 Send to Owner</button>
-      </div>
-      <div class="notify" id="wh-notify"></div>
-    </div>
-  </div>
 
   <!-- TAB: MESO TRACKER -->
   <div class="tab-content" id="tab-meso">
@@ -1101,86 +1069,8 @@ const FORCED_TOKEN = "b4e8a2f1c9d3705e6b2c4a8f1d5e9a7c3b6e2f4d8a0c5e1b9f3a7c2d6e
 let manualOffline = new Set();
 
 async function loadForcedOffline() {
-  try {
-    const rows = await (await fetch("/api/forced-offline")).json();
-    manualOffline = new Set(rows.map(r => r.owner + "|" + r.ign));
-    const legacy = JSON.parse(localStorage.getItem('ms_forced_offline') || '[]');
-    if (legacy.length) {
-      await Promise.all(legacy.map(key => {
-        const [owner, ign] = key.split('|');
-        return fetch("/api/forced-offline", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ owner, ign, token: FORCED_TOKEN })
-        }).then(r => r.ok ? manualOffline.add(key) : null).catch(()=>{});
-      }));
-      localStorage.removeItem('ms_forced_offline');
-    }
-  } catch(e) { console.warn("[forced] Server load failed:", e); }
-}
-
-async function toggleForceOffline(key) {
-  const [owner, ign] = key.split('|');
-  const wasForced = manualOffline.has(key);
-  if (wasForced) manualOffline.delete(key); else manualOffline.add(key);
-  renderBotTable();
-  const online = botData.filter(b => b.online && isKnownMap(b.map_id) && !manualOffline.has(b.owner+'|'+b.ign)).length;
-  if (isAuthed) document.getElementById("s-fc-online").textContent=`${online} | ${botData.length}`;
-  try {
-    const method = wasForced ? "DELETE" : "POST";
-    const res = await fetch("/api/forced-offline", {
-      method, headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ owner, ign, token: FORCED_TOKEN })
-    });
-    if (!res.ok) { const e = await res.text(); throw new Error(`HTTP ${res.status}: ${e}`); }
-  } catch(e) {
-    console.error("[forced]", e);
-    if (wasForced) manualOffline.add(key); else manualOffline.delete(key);
-    renderBotTable();
-    alert(`⚠ Failed to save forced offline\n\n${e.message}`);
-  }
-}
-
-async function bulkForceOffline() {
-  const targets = botData.filter(b => !manualOffline.has(b.owner+'|'+b.ign));
-  if (!targets.length) return alert("All bots are already forced offline.");
-  if (!confirm(`⚠ ${targets.length} bot(s) to forced offline?`)) return;
-  const btn = document.getElementById("btn-all-offline");
-  btn.disabled = true; btn.textContent = "⏳ Processing...";
-  let ok = 0, fail = 0;
-  await Promise.all(targets.map(async b => {
-    const key = b.owner + '|' + b.ign;
-    try {
-      const res = await fetch("/api/forced-offline", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ owner: b.owner, ign: b.ign, token: FORCED_TOKEN }) });
-      if (res.ok) { manualOffline.add(key); ok++; } else fail++;
-    } catch { fail++; }
-  }));
-  btn.disabled = false; btn.textContent = "🔒 Force All Offline";
-  renderBotTable();
-  const online = botData.filter(b => b.online && isKnownMap(b.map_id) && !manualOffline.has(b.owner+'|'+b.ign)).length;
-  document.getElementById("s-fc-online").textContent = `${online} | ${botData.length}`;
-  if (fail) alert(`Done: ${ok} ok, ${fail} failed`);
-}
-
-async function bulkForceOnline() {
-  const targets = botData.filter(b => manualOffline.has(b.owner+'|'+b.ign));
-  if (!targets.length) return alert("No bots are forced offline.");
-  if (!confirm(`🔓 ${targets.length} bot(s) from forced offline?`)) return;
-  const btn = document.getElementById("btn-all-online");
-  btn.disabled = true; btn.textContent = "⏳ Processing...";
-  let ok = 0, fail = 0;
-  await Promise.all(targets.map(async b => {
-    const key = b.owner + '|' + b.ign;
-    try {
-      const res = await fetch("/api/forced-offline", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ owner: b.owner, ign: b.ign, token: FORCED_TOKEN }) });
-      if (res.ok) { manualOffline.delete(key); ok++; } else fail++;
-    } catch { fail++; }
-  }));
-  btn.disabled = false; btn.textContent = "🔓 Release All";
-  renderBotTable();
-  const online = botData.filter(b => b.online && isKnownMap(b.map_id) && !manualOffline.has(b.owner+'|'+b.ign)).length;
-  document.getElementById("s-fc-online").textContent = `${online} | ${botData.length}`;
-  if (fail) alert(`Done: ${ok} ok, ${fail} failed`);
+  // forced offline 기능 폐기 — 항상 빈 상태 유지 (no-op)
+  manualOffline = new Set();
 }
 
 function isKnownMap(mapId) {
@@ -1283,7 +1173,6 @@ function applyAuth() {
   document.getElementById("auth-badge").style.display  = "inline-block";
   const bulkBtns = document.getElementById("bulk-force-btns");
   if (bulkBtns) bulkBtns.style.display = "flex";
-  injectOwnerSellerPanel();
   // Unlock sidebar tabs
   document.querySelectorAll(".locked-tab").forEach(el => el.classList.add("unlocked"));
   // Hide secret auth button (already authed)
@@ -1295,7 +1184,6 @@ function applyAuth() {
   const ccHelp = document.getElementById("fz-cc-help");
   if (ccHelp) ccHelp.style.display = "inline";
   fetchMeso();
-  fetchSellerRecords();
   fetchChangelog();
   // 첫 렌더 (botData가 이미 있을 수도 있음)
   renderMyBotsPanel();
@@ -1343,28 +1231,6 @@ function applyAuth() {
 // ── CATEGORY SWITCHING (legacy no-op stubs) ──
 let currentCategory = 'bot';
 function switchCategory(cat) { /* unified sidebar — no-op */ }
-
-function injectOwnerSellerPanel() {
-  if (document.getElementById("owner-seller-panel")) return;
-  const panel = document.createElement("div");
-  panel.id = "owner-seller-panel";
-  panel.innerHTML = `
-    <hr style="border:none;border-top:2px dashed var(--ms-border-dark);margin:24px 0"/>
-    <div class="section-title" style="color:#e67e22">🔧 Owner Panel</div>
-    <div class="panel-box">
-      <div class="section-title">Add Payment Record</div>
-      <div class="form-row">
-        <div class="form-group"><label>Seller Name</label><input type="text" id="s-name" placeholder="e.g. Seller"/></div>
-        <div class="form-group"><label>Start Date</label><input type="datetime-local" id="s-start"/></div>
-        <div class="form-group"><label>End Date</label><input type="datetime-local" id="s-end"/></div>
-        <div class="form-group"><label>Price per Hour (Meso)</label><input type="number" id="s-price" placeholder="e.g. 50000000"/></div>
-        <div class="form-group"><label>Note (optional)</label><input type="text" id="s-note" placeholder="optional"/></div>
-        <button class="btn" onclick="addSellerRecord()" style="align-self:flex-end">Add</button>
-      </div>
-      <div class="notify" id="seller-notify"></div>
-    </div>`;
-  document.getElementById("tab-seller").appendChild(panel);
-}
 
 // ── TABS ──
 const LOCKED_TABS = ['meso','mesoGraph','management','pcs','seller','register','proxy'];
@@ -2185,10 +2051,8 @@ function buildBotRow(b, mapOff = false) {
   const key       = b.owner + '|' + b.ign;
   const chChanged  = !!changedCells[key + '|channel'];
   const mapChanged = !!changedCells[key + '|map_id'];
-  const isForced   = manualOffline.has(key);
-  const forceBtn   = isAuthed
-    ? `<button class="force-btn${isForced ? ' forced-active' : ''}" onclick="toggleForceOffline('${key}')" title="${isForced ? 'Release forced offline' : 'Force offline'}">${isForced ? '🔒 FORCED' : '🔒'}</button>`
-    : '';
+  const isForced   = false;
+  const forceBtn   = '';
   let statusBadge;
   if (isForced)     statusBadge = `<span class="badge-offline">OFFLINE</span><span class="badge-forced">FORCED</span>${forceBtn}`;
   else if (mapOff)  statusBadge = `<span class="badge-offline">OFFLINE</span><span class="badge-map">MAP</span>${forceBtn}`;
@@ -2525,7 +2389,6 @@ let sessions = [], sessionCounter = 0;
 function addSession() {
   const id = ++sessionCounter;
   sessions.push({ id, start:'', end:'', qty:1, _meso:0 });
-  renderSessions();
   setTimeout(()=>{ const el=document.getElementById(`ss-start-${id}`); if(el)el.focus(); },50);
 }
 function removeSession(id) { sessions = sessions.filter(s=>s.id!==id); renderSessions(); recalcTotal(); }
@@ -2567,20 +2430,6 @@ async function sendDiscord() {
     if(json.ok){n.className="notify";n.textContent="✓ Sent to owner!";}else throw new Error(json.error);
   } catch(e){n.className="notify err";n.textContent="! "+e.message;}
 }
-async function fetchSellerRecords() { try { sellerRecords=await(await fetch("/api/seller")).json(); } catch(e){} }
-async function deleteRecord(id) { if(!confirm("Delete this record?"))return; await fetch(`/api/seller/${id}`,{method:"DELETE"}); await fetchSellerRecords(); }
-async function addSellerRecord() {
-  const name=document.getElementById("s-name")?.value.trim(); const start=document.getElementById("s-start")?.value; const end=document.getElementById("s-end")?.value; const price=document.getElementById("s-price")?.value; const note=document.getElementById("s-note")?.value.trim()||"";
-  const n=document.getElementById("seller-notify");
-  if(!name||!start||!end||!price){n.className="notify err";n.textContent="! All required fields must be filled";return;}
-  try {
-    const json=await(await fetch("/api/seller",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({seller_name:name,start_date:start,end_date:end,price_per_hour:parseFloat(price),note})})).json();
-    if(json.ok){n.className="notify";n.textContent=`✓ Added — ${json.hours_worked}h · ${Number(json.total_price).toLocaleString()} meso`;["s-name","s-start","s-end","s-price","s-note"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});await fetchSellerRecords();}
-    else throw new Error(json.error);
-  } catch(e){n.className="notify err";n.textContent="! "+e.message;}
-}
-
-// ── CHANGE LOG ──
 async function fetchChangelog() {
   try {
     const rows = await (await fetch("/api/bot-change-log?limit=300")).json();
@@ -2745,7 +2594,6 @@ async function init() {
   await loadActiveBots();           // ★ NEW
   autoRegisterDefault();
   fetchFC();
-  renderSessions();
   // FZ: authed면 assign 뷰, 아니면 rudy order
   if (isAuthed) { fetchFzAll(); } else { fzView='rudy'; fzGrp='rudy'; fetchFzList(); document.getElementById('fz-master-wrap').style.display='none'; document.getElementById('fz-order-wrap').style.display=''; }
   setInterval(()=>{ fetchFC(); if(isAuthed) fetchMeso(); }, 10000);

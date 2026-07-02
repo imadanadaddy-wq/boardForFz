@@ -63,21 +63,6 @@ db.exec(`
     map_name TEXT NOT NULL,
     PRIMARY KEY (grp, map_id)
   );
-  CREATE TABLE IF NOT EXISTS seller_records (
-    id             INTEGER PRIMARY KEY AUTOINCREMENT,
-    seller_name    TEXT NOT NULL,
-    start_date     TEXT NOT NULL,
-    end_date       TEXT NOT NULL,
-    price_per_hour REAL NOT NULL,
-    hours_worked   REAL DEFAULT 0,
-    total_price    REAL DEFAULT 0,
-    note           TEXT DEFAULT '',
-    created_at     INTEGER NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS settings (
-    key   TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-  );
   CREATE TABLE IF NOT EXISTS bot_change_log (
     id      INTEGER PRIMARY KEY AUTOINCREMENT,
     ts      INTEGER NOT NULL,
@@ -94,12 +79,6 @@ db.exec(`
     meso    INTEGER NOT NULL,
     meso_hr INTEGER NOT NULL,
     ts      INTEGER NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS forced_offline (
-    owner     TEXT NOT NULL,
-    ign       TEXT NOT NULL,
-    forced_at INTEGER NOT NULL,
-    PRIMARY KEY (owner, ign)
   );
   CREATE TABLE IF NOT EXISTS meso_alert_log (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -219,13 +198,15 @@ try {
   }
 } catch (e) { console.error("[DB] prune error:", e.message); }
 
-// ★ NEW: forced_offline 기능 폐기 → 부팅 시 잔재 통째로 청소.
-//   과거 CC/evasion으로 쌓인 항목이 off/meso/stock 알람을 영구 차단하던 버그 수정.
-//   (heartbeat가 오면 어차피 자동 해제되지만, 부팅 즉시 깨끗하게 비워 알람 정상화)
+// ★ forced_offline / manual_released / seller_records / settings 기능 폐기.
+//   기존 배포 DB에 남아있을 수 있는 레거시 테이블을 부팅 시 DROP 하여 완전 제거.
 try {
-  const delForced = db.prepare("DELETE FROM forced_offline").run();
-  if (delForced.changes) console.log(`[DB] forced_offline 청소: ${delForced.changes}행 제거 (기능 폐기)`);
-} catch (e) { console.error("[DB] forced_offline purge error:", e.message); }
+  db.exec("DROP TABLE IF EXISTS forced_offline");
+  db.exec("DROP TABLE IF EXISTS manual_released");
+  db.exec("DROP TABLE IF EXISTS seller_records");
+  db.exec("DROP TABLE IF EXISTS settings");
+  console.log("[DB] 레거시 테이블 정리 완료 (forced_offline/manual_released/seller_records/settings)");
+} catch (e) { console.error("[DB] legacy drop error:", e.message); }
 
 // ★ NEW: FZ 그룹 시드 — rudy(공개), gabi(전용 키)
 const crypto = require("crypto");

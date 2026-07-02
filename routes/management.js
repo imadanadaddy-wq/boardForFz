@@ -134,11 +134,11 @@ function getStockCounts(items) {
   };
 }
 
-function checkMesoAlert(owner, ign, level, meso_hr, isOnline, isForcedOffline) {
+function checkMesoAlert(owner, ign, level, meso_hr, isOnline) {
   const key = `${owner}|${ign}`;
   const now = Date.now();
 
-  if (!isOnline || isForcedOffline) {
+  if (!isOnline) {
     const state = alertStates.get(key);
     if (state?.alerted) {
       const dur = now - state.lowSince;
@@ -236,11 +236,6 @@ function checkOfflineBots() {
       ORDER BY h.last_seen DESC
     `);
 
-    // 강제 오프라인 봇은 알람 대상에서 제외
-    const forced = new Set(
-      db.all("SELECT owner, ign FROM forced_offline").map(r => r.owner + "|" + r.ign)
-    );
-
     for (const row of rows) {
       const key  = `${row.owner}|${row.ign}`;
       const dt   = now - row.last_seen;
@@ -268,9 +263,6 @@ function checkOfflineBots() {
       }
 
       // 2) 오프라인 봇 처리
-      // 강제 오프라인은 알람 안 보냄 (사용자가 의도적으로 막은 봇)
-      if (forced.has(key)) continue;
-
       // ★ CHANGED: 레벨 필터(>=260) → active_bots 등록 봇만 알람
       if (!isActiveBot(row.ign)) continue;
 
@@ -324,10 +316,6 @@ function checkStock() {
   if (now - serverBootTime < OFFLINE_GRACE_AFTER_BOOT) return;
 
   try {
-    const forced = new Set(
-      db.all("SELECT owner, ign FROM forced_offline").map(r => r.owner + "|" + r.ign)
-    );
-
     // private_data + heartbeats(온라인 판정)
     const rows = db.all(`
       SELECT p.owner, p.ign, p.level, p.items, h.last_seen
@@ -339,8 +327,8 @@ function checkStock() {
       const botKey = `${row.owner}|${row.ign}`;
       const online = row.last_seen && (now - row.last_seen < OFFLINE_THRESHOLD_MS);
 
-      // active_bots 등록 + 온라인 + 강제오프 아님만 대상
-      const eligible = isActiveBot(row.ign) && online && !forced.has(botKey);
+      // active_bots 등록 + 온라인만 대상
+      const eligible = isActiveBot(row.ign) && online;
 
       const items  = parseItems(row.items);
       const counts = getStockCounts(items);

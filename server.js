@@ -286,8 +286,6 @@ dbMod.getDb().then(() => {
 
   // 인증 필요
   app.use("/api/tracker",        require("./routes/tracker"));
-  app.use("/api/seller",         requireAuth, require("./routes/seller"));
-  app.use("/api/forced-offline", requireAuth, require("./routes/forced"));
   app.use("/api/management",     require("./routes/management").router);
   // ★ 그룹 키 노출/회전은 인증 필요
   app.use("/api/fz/groups",      requireAuth);
@@ -378,7 +376,6 @@ dbMod.getDb().then(() => {
       dbMod.run("DELETE FROM heartbeats      WHERE ign=?", [ign]);
       dbMod.run("DELETE FROM meso_history    WHERE ign=?", [ign]);
       dbMod.run("DELETE FROM bot_pc_tags     WHERE ign=?", [ign]);
-      dbMod.run("DELETE FROM forced_offline  WHERE ign=?", [ign]);
       dbMod.run("DELETE FROM bot_change_log  WHERE ign=?", [ign]);
       dbMod.run("DELETE FROM meso_alert_log  WHERE ign=?", [ign]);
       dbMod.run("DELETE FROM fz_list         WHERE ign=?", [ign]);  // ★ FZ 그룹 배정 제거

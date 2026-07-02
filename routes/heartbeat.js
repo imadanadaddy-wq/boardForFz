@@ -3,7 +3,6 @@ const router  = express.Router();
 const db      = require("../db");
 const { checkMesoAlert } = require("./management");
 
-const AUTO_FORCE_LEVEL  = 219;
 const HISTORY_INTERVAL  = 10 * 60 * 1000;  // 10분 (그래프 가시성: 48h에 ~288점)
 
 // ── server-side meso/hr verification ──
@@ -115,13 +114,6 @@ function updateFzState(owner, ign, mesoHr) {
   return f.state;   // true / false / null(스윙 미관측)
 }
 
-function ensureManualReleasedTable() {
-  db.run(`CREATE TABLE IF NOT EXISTS manual_released (
-    owner TEXT NOT NULL, ign TEXT NOT NULL, PRIMARY KEY (owner, ign)
-  )`);
-}
-// ★ CHANGED: 매 heartbeat 마다 CREATE TABLE DDL 돌던 것 → 모듈 로드 시 1회만 보장
-ensureManualReleasedTable();
 
 // ── change_log 런타임 정리: INSERT 200회마다 최신 2000행만 보존 ──
 //   evasion 폭주로 테이블이 무한 증가 → 조회 풀스캔이 점점 무거워지는 것을 방지
@@ -221,15 +213,6 @@ router.post("/", (req, res) => {
   // 3) Lv.219 이하 자동 FORCED 처리
   // ─────────────────────────────────────────────
   const lvNum = Number(level) || 0;
-  // ★ CHANGED: forced_offline 기능 폐기. heartbeat가 오면 = 온라인이므로 강제오프 잔재를 항상 해제.
-  //   (과거 CC/evasion으로 쌓인 forced_offline이 off/meso/stock 알람을 영구 차단하던 버그 수정)
-  try {
-    const wasForced = db.get("SELECT 1 FROM forced_offline WHERE owner=? AND ign=?", [owner, ign]);
-    if (wasForced) {
-      db.run("DELETE FROM forced_offline WHERE owner=? AND ign=?", [owner, ign]);
-      console.log(`[heartbeat] forced_offline 자동해제: ${owner}|${ign}`);
-    }
-  } catch (e) { /* 무시 */ }
 
   // ─────────────────────────────────────────────
   // 4) PRIVATE_DATA + MESO_HISTORY
@@ -282,12 +265,7 @@ router.post("/", (req, res) => {
       db.run("INSERT INTO meso_history (owner,ign,meso,meso_hr,ts) VALUES (?,?,?,?,?)",
         [owner, ign, mesoNum, verified_meso_hr, now]);
 
-    let isForcedOffline = false;
-    try {
-      const row = db.get("SELECT 1 FROM forced_offline WHERE owner=? AND ign=?", [owner, ign]);
-      isForcedOffline = !!row;
-    } catch(e) {}
-    checkMesoAlert(owner, ign, lvNum, verified_meso_hr || null, true, isForcedOffline);
+    checkMesoAlert(owner, ign, lvNum, verified_meso_hr || null, true, false);
   }
 
   maybePruneChangeLog();   // ★ change_log 무한 증가 방지 (200회마다)
@@ -297,21 +275,6 @@ router.post("/", (req, res) => {
 // ══════════════════════════════════════════════════
 // DELETE /manual-release
 // ══════════════════════════════════════════════════
-router.delete("/manual-release", (req, res) => {
-  const { owner, ign, token } = req.body || {};
-  if (!owner || !ign || !token)
-    return res.status(400).json({ error: "owner, ign, token required" });
-  const client = db.get("SELECT token FROM clients WHERE owner=?", [owner])
-              || db.get("SELECT token FROM tokens  WHERE owner=?", [owner]);
-  if (!client || client.token !== token)
-    return res.status(403).json({ error: "Invalid token" });
-
-  ensureManualReleasedTable();
-  db.run("DELETE FROM forced_offline  WHERE owner=? AND ign=?", [owner, ign]);
-  db.run("INSERT OR IGNORE INTO manual_released (owner,ign) VALUES (?,?)", [owner, ign]);
-  return res.json({ ok: true, owner, ign, manuallyReleased: true });
-});
-
 // ══════════════════════════════════════════════════
 // GET /api/bot-heartbeat/client (프렌지 봇이 읽음)
 // ══════════════════════════════════════════════════
@@ -321,13 +284,9 @@ router.get("/", (req, res) => {
   const rows  = db.all(
     "SELECT owner,ign,level,world_id,channel,map_id,last_seen FROM heartbeats ORDER BY owner,ign"
   );
-  const forced = new Set(
-    db.all("SELECT owner,ign FROM forced_offline").map(r => r.owner + "|" + r.ign)
-  );
   return res.json(rows.map(r => ({
     ...r,
-    online:  !forced.has(r.owner + "|" + r.ign) && (now - r.last_seen) < STALE,
-    forced:  forced.has(r.owner + "|" + r.ign),
+    online:  (now - r.last_seen) < STALE,
     ago_sec: Math.floor((now - r.last_seen) / 1000),
   })));
 });
