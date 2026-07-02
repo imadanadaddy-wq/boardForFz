@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Gabi FZ</title>
+<link rel="icon" href="/images/cat-logo.png">
+<style>
+  :root{
+    --bg:#0f1115; --panel:#161a20; --line:#2a2f37; --text:#e7eaee;
+    --muted:#9aa3ad; --accent:#00bcd4; --pink:#ffc6dd; --red:#e74c3c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  .wrap{max-width:720px;margin:0 auto;padding:18px 14px 60px}
+  .head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .head img{width:34px;height:34px;border-radius:8px}
+  .head h1{font-size:20px;font-weight:800;margin:0;letter-spacing:.3px}
+  .sub{color:var(--muted);font-size:11px;font-family:"JetBrains Mono",ui-monospace,monospace}
+  .meta{display:flex;gap:8px;align-items:center;margin:6px 0 14px;flex-wrap:wrap}
+  .chip{font-size:11px;font-family:"JetBrains Mono",ui-monospace,monospace;
+    background:var(--panel);border:1px solid var(--line);border-radius:999px;
+    padding:3px 10px;color:var(--muted)}
+  .chip b{color:var(--text)}
+  /* FZ 테이블 (메인 대시보드 룩 유지) */
+  .fz{border:1px solid #888;background:#fff;border-radius:3px;overflow:hidden;
+    box-shadow:0 2px 8px rgba(0,0,0,.35);
+    font-family:Georgia,Cambria,"Times New Roman",serif;font-style:italic;font-weight:700}
+  .row{display:flex;align-items:stretch;border-bottom:1px solid #c4c4c4;background:#fff;color:#000}
+  .row:last-child{border-bottom:none}
+  .row.off{opacity:.5}
+  .row.cc{outline:2px solid var(--red);outline-offset:-2px;box-shadow:0 0 8px 1px rgba(231,76,60,.45)}
+  .c-move{width:30px;flex:0 0 30px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px 2px;border-right:1px solid #c4c4c4}
+  .c-move button{width:24px;height:17px;line-height:1;padding:0;font-size:11px;border:1px solid #ccc;background:#f3f3f3;border-radius:3px;cursor:pointer;color:#555;font-style:normal}
+  .c-move button:active{background:#ddd}
+  .c-move button:disabled{opacity:.25;cursor:default}
+  .c-map{cursor:pointer}
+  .c-map.clr{position:relative}
+  .swatch-pop{position:fixed;z-index:999;background:#fff;border:1px solid #999;border-radius:10px;padding:10px;box-shadow:0 6px 24px rgba(0,0,0,.3);display:flex;gap:8px;flex-wrap:wrap;width:184px}
+  .swatch-pop .sw{width:34px;height:34px;border-radius:8px;cursor:pointer;border:2px solid #ddd}
+  .swatch-pop .sw.x{background:#fff;color:#999;font-size:18px;display:flex;align-items:center;justify-content:center;font-style:normal}
+  .swatch-pop .sw:active{transform:scale(.9)}
+  .c-idx{width:28px;flex:0 0 28px;text-align:center;padding:9px 3px;font-style:normal;
+    font-size:13px;border-right:1px solid #c4c4c4;display:flex;align-items:center;justify-content:center}
+  .c-ign{flex:1;min-width:0;padding:11px 14px;border-right:1px solid #c4c4c4;font-size:14px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row.off .c-ign{text-decoration:line-through;color:#888}
+  .c-fz{width:30px;flex:0 0 30px;text-align:center;padding:11px 2px;font-size:15px;font-style:normal;border-right:1px solid #c4c4c4;display:flex;align-items:center;justify-content:center}
+  .c-ch{width:38px;flex:0 0 38px;text-align:center;padding:11px 4px;border-right:1px solid #c4c4c4;
+    font-size:14px;display:flex;align-items:center;justify-content:center}
+  .c-ch.has{background:var(--pink)}
+  .c-map{flex:1.3;min-width:0;padding:11px 10px;font-size:13px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ccbadge{display:inline-block;margin-left:6px;background:var(--red);color:#fff;
+    font-family:"JetBrains Mono",ui-monospace,monospace;font-style:normal;font-weight:800;
+    font-size:9px;padding:1px 5px;border-radius:3px;vertical-align:middle}
+  .empty{color:var(--muted);font-size:13px;padding:20px;text-align:center;
+    border:1px dashed var(--line);border-radius:8px}
+  .err{color:var(--red);font-size:13px;padding:16px;border:1px solid var(--red);
+    border-radius:8px;font-family:"JetBrains Mono",ui-monospace,monospace}
+
+  @media (max-width: 480px) {
+    .wrap { padding: 12px 8px 40px; }
+    .c-move { width:26px!important;flex:0 0 26px!important }
+    .c-move button { width:22px!important;height:16px!important;font-size:10px!important }
+    .c-idx  { width:22px!important;flex:0 0 22px!important;font-size:12px!important;padding:8px 2px!important }
+    .c-fz   { width:26px!important;flex:0 0 26px!important;font-size:12px!important }
+    .c-ch   { width:32px!important;flex:0 0 32px!important;font-size:13px!important;padding:8px 2px!important }
+    .c-ign  { font-size:13px!important;padding:8px 8px!important }
+    .c-map  { font-size:12px!important;padding:8px 6px!important }
+    .row    { min-height:36px }
+    .ccbadge{ font-size:8px!important;padding:1px 3px!important }
+    .meta   { gap:5px }
+    .chip   { font-size:10px!important;padding:2px 7px!important }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <img src="/images/cat-logo.png" alt="">
+    <div>
+      <h1>Gabi FZ List</h1>
+      <div class="sub">read-only · auto refresh 15s</div>
+    </div>
+  </div>
+  <div class="meta">
+    <span class="chip">total <b id="m-total">0</b></span>
+    <span class="chip">online <b id="m-online">0</b></span>
+    <span class="chip" id="m-updated">—</span>
+  </div>
+  <div id="list"></div>
+</div>
+
+<script>
+  // ★ 서버가 /gabi 응답 시 gabi 그룹 키를 주입함 (정적 파일엔 키가 없음)
+  const FZ_KEY = "__FZ_GABI_KEY__";
+  const GRP    = "gabi";
+  const Q      = `grp=${GRP}&key=${encodeURIComponent(FZ_KEY)}`;
+
+  const esc = s => String(s||"").replace(/[&<>"']/g,c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+  const $ = id => document.getElementById(id);
+
+  let _list = [];        // 현재 표시 순서 (로컬 관리, DOM dataset 의존 제거)
+  let _smap = {};        // ign → status
+  let _colors = {};      // map_name → color
+  let _busy = false;     // 저장 중 자동새로고침 차단
+
+  // 연한 파스텔 팔레트
+  const COLORS = ["#ffe0e0","#ffead1","#fff7cc","#e2f7d8","#d8f0f7","#e6e0ff","#ffe0f0"];
+
+  async function load(){
+    if (_busy) return;
+    try{
+      const [lr, sr, cr] = await Promise.all([
+        fetch(`/api/fz?${Q}`),
+        fetch(`/api/fz/status?${Q}`),
+        fetch(`/api/fz/map-colors`),
+      ]);
+      if(!lr.ok){ const e=await lr.json().catch(()=>({})); return showErr(`Error ${lr.status}: ${e.error||'Unknown'}`); }
+      _list = await lr.json();
+      const stat = sr.ok ? await sr.json() : [];
+      _smap = {}; for(const s of stat) _smap[s.ign]=s;
+      _colors = cr.ok ? await cr.json() : {};
+      render();
+    }catch(e){ showErr("연결 실패: "+e.message); }
+  }
+
+  function showErr(msg){ $("list").innerHTML = `<div class="err">${esc(msg)}</div>`; }
+
+  // 맵 라벨 정규화 (존 태그 제거 → "Alley 3")
+  function mapKey(s){
+    const mapName = s.map_name || null;
+    if(!mapName) return null;
+    return mapName.replace(/^[^\s]*\s*\[[^\]]+\]\s*/,'').replace(/^\[[^\]]+\]\s*/,'').trim() || mapName;
+  }
+
+  function render(){
+    const now = Date.now();
+    const CC_MS = 15*60*1000;
+    let online = 0;
+    if(!_list.length){
+      $("list").innerHTML = '<div class="empty">List is empty.</div>';
+    }else{
+      const t = document.createElement("div"); t.className="fz";
+      _list.forEach((e,i)=>{
+        const s = _smap[e.ign] || {};
+        const isOn = !!s.online; if(isOn) online++;
+        const ch = (s.channel!=null) ? s.channel : null;
+        const mapName = s.map_name || null;
+        const mapShort = mapName ? mapName.replace(/^\[[^\]]+\]\s*/,'') : null;
+        const mapId = (s.map_id!=null) ? s.map_id : null;
+        const mapTxt = mapShort ? esc(mapShort) : (mapId!=null?`#${mapId}`:(isOn?'-':'OFFLINE'));
+        const ccTs = s.last_cc_ts ? Number(s.last_cc_ts) : 0;
+        const isCc = ccTs>0 && (now-ccTs)<CC_MS;
+        let ccBadge="";
+        if(isCc){ const m=Math.max(1,Math.floor((now-ccTs)/60000)); ccBadge=`<span class="ccbadge">🔴 CC ${m}m</span>`; }
+
+        // 맵 컬러 적용
+        const mk = mapKey(s);
+        const clr = (mk && _colors[mk]) ? _colors[mk] : null;
+
+        const row = document.createElement("div");
+        row.className = "row" + (isOn?"":" off") + (isCc?" cc":"");
+        if(clr) row.style.background = clr;
+        row.innerHTML =
+          `<div class="c-move">`+
+            `<button data-up="${i}" ${i===0?'disabled':''}>▲</button>`+
+            `<button data-dn="${i}" ${i===_list.length-1?'disabled':''}>▼</button>`+
+          `</div>`+
+          `<div class="c-idx">${i+1}</div>`+
+          `<div class="c-ign">${esc(e.ign)}${ccBadge}</div>`+
+          `<div class="c-fz">${s.fz_on===true?'🟢':(s.fz_on===false?'🔴':'⚪')}</div>`+
+          `<div class="c-ch ${ch!=null?'has':''}">${ch!=null?ch:'-'}</div>`+
+          `<div class="c-map clr" data-mapkey="${mk?esc(mk):''}">${mapTxt}</div>`;
+        t.appendChild(row);
+      });
+      $("list").innerHTML=""; $("list").appendChild(t);
+
+      // ▲▼ 클릭 → 순서 이동
+      t.querySelectorAll('button[data-up]').forEach(b=>b.onclick=()=>moveRow(+b.dataset.up,-1));
+      t.querySelectorAll('button[data-dn]').forEach(b=>b.onclick=()=>moveRow(+b.dataset.dn,+1));
+      // 맵셀 클릭 → 컬러 선택
+      t.querySelectorAll('.c-map.clr').forEach(c=>c.onclick=(ev)=>{
+        const mk=c.dataset.mapkey; if(mk) openColorPicker(mk, ev);
+      });
+    }
+    $("m-total").textContent  = _list.length;
+    $("m-online").textContent = online;
+    $("m-updated").textContent= "updated " + new Date().toLocaleTimeString();
+  }
+
+  // 인접 행 swap → 즉시 저장 (프리즈 구조적으로 불가능)
+  async function moveRow(idx, dir){
+    const j = idx + dir;
+    if(j<0 || j>=_list.length) return;
+    const tmp=_list[idx]; _list[idx]=_list[j]; _list[j]=tmp;
+    render();  // 번호 포함 즉시 갱신
+    await saveFzOrder(_list.map(e=>e.ign));
+  }
+
+  async function saveFzOrder(order){
+    _busy = true;
+    const body = { order, grp: GRP };
+    const k = FZ_KEY; if(k) body.key = k;
+    try{
+      const res = await fetch("/api/fz/reorder",{
+        method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)
+      });
+      if(!res.ok){ const e=await res.json().catch(()=>({})); console.error('[reorder] failed:',e); flash("저장 실패",true); }
+      else { flash("✓ 저장됨"); }
+    }catch(e){ console.error('[reorder] error:',e); flash("저장 실패",true); }
+    finally { _busy = false; }
+  }
+
+  // 컬러 피커 팝업
+  let _popEl=null;
+  function closePicker(){ if(_popEl){ _popEl.remove(); _popEl=null; document.removeEventListener('click',_outside,true);} }
+  function _outside(ev){ if(_popEl && !_popEl.contains(ev.target)) closePicker(); }
+  function openColorPicker(mapKeyName, ev){
+    ev.stopPropagation();
+    closePicker();
+    const pop=document.createElement("div"); pop.className="swatch-pop";
+    COLORS.forEach(c=>{
+      const sw=document.createElement("div"); sw.className="sw"; sw.style.background=c;
+      sw.onclick=()=>{ setMapColor(mapKeyName, c); closePicker(); };
+      pop.appendChild(sw);
+    });
+    const x=document.createElement("div"); x.className="sw x"; x.textContent="✕";
+    x.onclick=()=>{ setMapColor(mapKeyName, ""); closePicker(); };
+    pop.appendChild(x);
+    document.body.appendChild(pop);
+    // 위치: 클릭 지점 근처 (화면 넘침 보정)
+    const px=Math.min(ev.clientX, window.innerWidth-200);
+    const py=Math.min(ev.clientY, window.innerHeight-120);
+    pop.style.left=Math.max(8,px)+"px"; pop.style.top=Math.max(8,py)+"px";
+    _popEl=pop;
+    setTimeout(()=>document.addEventListener('click',_outside,true),0);
+  }
+  async function setMapColor(mapKeyName, color){
+    if(color) _colors[mapKeyName]=color; else delete _colors[mapKeyName];
+    render();
+    _busy=true;
+    try{
+      await fetch("/api/fz/map-colors",{
+        method:"PUT", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ map_name: mapKeyName, color })
+      });
+      flash(color?"✓ 컬러 적용":"✓ 컬러 해제");
+    }catch(e){ console.error('[mapcolor] error:',e); flash("컬러 저장 실패",true); }
+    finally{ _busy=false; }
+  }
+
+  // 짧은 토스트
+  let _flashTimer=null;
+  function flash(msg, isErr){
+    let el=$("flash");
+    if(!el){ el=document.createElement("div"); el.id="flash";
+      el.style.cssText="position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:1000;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;color:#fff;font-family:sans-serif;transition:opacity .3s";
+      document.body.appendChild(el);
+    }
+    el.textContent=msg; el.style.background=isErr?"#c62828":"#2e7d32"; el.style.opacity="1";
+    clearTimeout(_flashTimer);
+    _flashTimer=setTimeout(()=>{ el.style.opacity="0"; },1400);
+  }
+
+  load();
+  setInterval(load, 15000);
+</script>
+</body>
+</html>
