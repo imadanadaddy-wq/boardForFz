@@ -416,7 +416,7 @@ function checkStock() {
 }
 
 setInterval(checkStock, STOCK_CHECK_INTERVAL);
-console.log(`[management] Stock monitor active (fuel<${STOCK_THRESHOLDS.fuel.min}, wap<${STOCK_THRESHOLDS.wap.min}, ale<${STOCK_THRESHOLDS.ale.min}, check every ${STOCK_CHECK_INTERVAL/60000}min)`);
+console.log(`[management] Stock monitor active (items: ${ITEM_KEYS.join("/")}, check every ${STOCK_CHECK_INTERVAL/60000}min)`);
 
 // ═══════════════════════════════════════════════════════════════
 // 알람 조회 API (기존 + 오프라인 상태 추가)
