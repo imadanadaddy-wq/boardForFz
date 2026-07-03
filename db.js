@@ -220,17 +220,6 @@ try {
   console.log("[DB] 레거시 테이블 정리 완료 (forced_offline/manual_released/seller_records/settings)");
 } catch (e) { console.error("[DB] legacy drop error:", e.message); }
 
-// ★ NEW: 본체 데이터가 없는 유령 Active 봇 부팅 시 일괄 자동 청소
-try {
-  const cleaned = db.prepare(`
-    DELETE FROM active_bots
-    WHERE ign NOT IN (SELECT ign FROM private_data)
-  `).run();
-  if (cleaned.changes > 0) {
-    console.log(`[DB] 본체 없는 유령 Active 봇 ${cleaned.changes}개 청소 완료`);
-  }
-} catch (e) { console.error("[DB] ghost bot cleanup error:", e.message); }
-
 // ★ NEW: FZ 그룹 시드 — rudy(공개), gabi(전용 키)
 const crypto = require("crypto");
 const now0 = Date.now();

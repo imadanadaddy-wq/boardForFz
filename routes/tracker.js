@@ -21,7 +21,9 @@ function requireAuth(req, res, next) {
 // ══════════════════════════════════════════════════
 const BYPASS_PASSWORD = "7678";
 router.post("/bypass-login", (req, res) => {
-  const { password } = req.body;
+  const { password } = req.body || {};
+  // ★ 진단 로그: 실제 들어온 값 확인 (Railway 로그에서 확인 후 제거 가능)
+  console.log(`[BYPASS-LOGIN] received=${JSON.stringify(password)} expected=${JSON.stringify(BYPASS_PASSWORD)} match=${password === BYPASS_PASSWORD}`);
   if (password !== BYPASS_PASSWORD)
     return res.status(401).json({ error: "Invalid password" });
   const token = jwt.sign(

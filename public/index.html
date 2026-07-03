@@ -1361,7 +1361,7 @@ function buildEventChip(row, nowMs) {
 let _itemMeta = null;   // [{key,label,defThreshold}]
 let _itemTable = [];    // [{ign,level,online,counts,enabled}]
 let _itemThresholds = {};  // {fuel:50, ale:10000, ...} 전역 공통
-const ITEM_ICON = { fuel:'/images/fuel.png', ale:'/images/ale.png', wap:'/images/wap.png', charm:'/images/elixir.png', petfeed:'/images/pet.png' };
+const ITEM_ICON = { fuel:'/images/fuel.png', ale:'/images/ale.png', wap:'/images/wap.png', charm:'/images/potion.png', petfeed:'/images/pet.png' };
 const ITEM_FALLBACK = { fuel:'⛽', ale:'🍶', wap:'🧪', charm:'🔮', petfeed:'🐾' };
 
 async function fetchItemTable() {
