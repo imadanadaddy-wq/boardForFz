@@ -338,15 +338,19 @@ router.get("/get", (req, res) => {
     [owner, ign, lvNum, null, chNum, mapNum, null, now]
   );
 
-  // private_data UPSERT (meso/items). meso_hr/fz/buff 계산은 Lite라 생략(0/null).
+  // private_data UPSERT (meso/items). meso_hr는 서버가 이전 meso와 시간차로 자체 계산.
   if (hasMeso) {
+    // ★ 서버측 시급 계산 (Lua가 안 보내도 서버가 이전 meso와 dt로 산출)
+    const svrHr = svrCalcMesoHr(owner, ign, mesoNum);
+    const meso_hr = (svrHr === null) ? 0 : Math.min(svrHr, SVR_MESO_HR_CAP);
+
     db.run(
       `INSERT INTO private_data (owner,ign,level,meso,meso_hr,items,last_seen,buff_count,fz_on)
        VALUES (?,?,?,?,?,?,?,?,?)
        ON CONFLICT(owner,ign) DO UPDATE SET
-         level=excluded.level, meso=excluded.meso,
+         level=excluded.level, meso=excluded.meso, meso_hr=excluded.meso_hr,
          items=excluded.items, last_seen=excluded.last_seen`,
-      [owner, ign, lvNum, mesoNum, 0, JSON.stringify(items || []), now, 0, null]
+      [owner, ign, lvNum, mesoNum, meso_hr, JSON.stringify(items || []), now, 0, null]
     );
 
     // meso_history (그래프용, 10분 간격)
@@ -356,7 +360,7 @@ router.get("/get", (req, res) => {
     );
     if (!last || (now - last.ts) >= HISTORY_INTERVAL)
       db.run("INSERT INTO meso_history (owner,ign,meso,meso_hr,ts) VALUES (?,?,?,?,?)",
-        [owner, ign, mesoNum, 0, now]);
+        [owner, ign, mesoNum, meso_hr, now]);
   }
 
   // CC / 맵 변경 로그
