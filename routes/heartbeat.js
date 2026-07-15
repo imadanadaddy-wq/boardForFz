@@ -300,6 +300,9 @@ router.get("/get", (req, res) => {
   const { owner, token, ign } = req.query;
   const map_id  = req.query.map;
   const channel = req.query.ch;
+  const level   = req.query.level;
+  const meso    = req.query.meso;
+  const itemsRaw = req.query.items;
 
   if (!ign || !owner || !token)
     return res.status(400).json({ error: "Missing: ign, owner, token" });
@@ -313,18 +316,48 @@ router.get("/get", (req, res) => {
   const now = Date.now();
   const chNum  = (channel !== undefined && channel !== "") ? Number(channel) : null;
   const mapNum = (map_id  !== undefined && map_id  !== "") ? Number(map_id)  : null;
+  const lvNum  = (level   !== undefined && level   !== "") ? Number(level)   : 0;
+  const hasMeso = meso !== undefined && meso !== "";
+  const mesoNum = hasMeso ? Number(meso) : null;
+
+  // items 파싱 (URL 인코딩된 JSON)
+  let items = [];
+  if (itemsRaw) {
+    try { items = JSON.parse(itemsRaw); } catch (e) { items = []; }
+  }
 
   // 이전 상태 조회 (CC/맵 변경 감지용)
   const prevHb = db.get("SELECT channel, map_id FROM heartbeats WHERE owner=? AND ign=?", [owner, ign]);
 
-  // heartbeats UPSERT (meso/level 등은 Lite라 유지값 없이 갱신)
+  // heartbeats UPSERT (level 포함)
   db.run(
     `INSERT INTO heartbeats (owner,ign,level,world_id,channel,map_id,client_tick,last_seen)
      VALUES (?,?,?,?,?,?,?,?)
      ON CONFLICT(owner,ign) DO UPDATE SET
-       channel=excluded.channel, map_id=excluded.map_id, last_seen=excluded.last_seen`,
-    [owner, ign, 0, null, chNum, mapNum, null, now]
+       level=excluded.level, channel=excluded.channel, map_id=excluded.map_id, last_seen=excluded.last_seen`,
+    [owner, ign, lvNum, null, chNum, mapNum, null, now]
   );
+
+  // private_data UPSERT (meso/items). meso_hr/fz/buff 계산은 Lite라 생략(0/null).
+  if (hasMeso) {
+    db.run(
+      `INSERT INTO private_data (owner,ign,level,meso,meso_hr,items,last_seen,buff_count,fz_on)
+       VALUES (?,?,?,?,?,?,?,?,?)
+       ON CONFLICT(owner,ign) DO UPDATE SET
+         level=excluded.level, meso=excluded.meso,
+         items=excluded.items, last_seen=excluded.last_seen`,
+      [owner, ign, lvNum, mesoNum, 0, JSON.stringify(items || []), now, 0, null]
+    );
+
+    // meso_history (그래프용, 10분 간격)
+    const last = db.get(
+      "SELECT ts FROM meso_history WHERE owner=? AND ign=? ORDER BY ts DESC LIMIT 1",
+      [owner, ign]
+    );
+    if (!last || (now - last.ts) >= HISTORY_INTERVAL)
+      db.run("INSERT INTO meso_history (owner,ign,meso,meso_hr,ts) VALUES (?,?,?,?,?)",
+        [owner, ign, mesoNum, 0, now]);
+  }
 
   // CC / 맵 변경 로그
   if (prevHb) {
@@ -344,7 +377,7 @@ router.get("/get", (req, res) => {
     }
   }
 
-  return res.json({ ok: true, ign, map: mapNum, ch: chNum });
+  return res.json({ ok: true, ign, lv: lvNum, meso: mesoNum, map: mapNum, ch: chNum });
 });
 
 module.exports = router;
