@@ -1375,6 +1375,27 @@ async function fetchItemTable() {
   } catch(e) { console.warn('[mgmt] item-table', e); }
 }
 
+// 죽은 봇 정리 (24시간+ 신호 없는 봇 삭제)
+async function purgeStaleBots() {
+  if (!confirm('24시간 이상 신호가 없는 죽은 봇을 목록에서 완전히 제거합니다.\n계속할까요?')) return;
+  try {
+    const resp = await (await fetch('/api/management/purge-stale-bots', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hours: 24 })
+    })).json();
+    if (resp.ok) {
+      alert(resp.count > 0
+        ? `${resp.count}개 봇 제거됨:\n${resp.purged.join(', ')}`
+        : '제거할 죽은 봇이 없습니다 ✅');
+      fetchItemTable();
+    }
+  } catch(e) {
+    console.warn('[mgmt] purge', e);
+    alert('제거 실패 — 콘솔 확인');
+  }
+}
+
 function fmtQty(n) {
   n = n || 0;
   if (n >= 1000) return (n/1000).toFixed(n % 1000 === 0 ? 0 : 1) + 'K';
@@ -1411,15 +1432,17 @@ function renderItemTable() {
       const c = bot.counts[m.key] || 0;
       const en = !!(bot.enabled && bot.enabled[m.key]);
       const thr = (_itemThresholds[m.key] !== undefined) ? _itemThresholds[m.key] : m.defThreshold;
-      const low = en && c < thr;
-      const qtyColor = low ? '#e74c3c' : (c === 0 ? '#666' : '#e8e8e8');
-      const qtyStr = (m.key === 'ale' || m.key === 'petfeed') ? fmtQty(c) : c.toLocaleString();
+      // ★ v4.3.0+ : count는 이제 실수량이 아니라 충분(임계+1)/부족(0) flag.
+      //   enough = c >= thr (충분), low = c < thr (부족). 숫자 대신 ●/○ 표시.
+      const enough = c >= thr;
+      const statusIcon = enough ? '●' : '○';
+      const statusColor = !en ? '#555' : (enough ? '#2ecc71' : '#e74c3c');
       return `<td style="text-align:center;padding:7px 6px;border-left:1px solid rgba(255,255,255,.04)">
         <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
           <input type="checkbox" ${en?'checked':''} title="관리 대상"
             onchange="saveItemEnabled('${bot.ign}','${m.key}',this.checked)"
             style="width:15px;height:15px;accent-color:#0097a7;cursor:pointer">
-          <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:800;color:${qtyColor}">${qtyStr}</span>
+          <span style="font-size:15px;font-weight:800;color:${statusColor}" title="${enough?'충분':'부족'}">${statusIcon}</span>
         </div></td>`;
     }).join('');
     const dot = bot.online ? '#2ecc71' : '#888';
@@ -1432,7 +1455,11 @@ function renderItemTable() {
   }).join('');
 
   grid.innerHTML = `
-    <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1px;margin:6px 4px 10px;text-transform:uppercase">📦 Item Stock — ✅체크=봇별 관리대상 · 헤더숫자=임계값(전역공통) · 빨강=부족 · ale/pet=K단위</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:6px 4px 10px">
+      <div style="font-size:10px;color:#aaa;font-family:'JetBrains Mono',monospace;letter-spacing:1px;text-transform:uppercase">📦 Item Stock — ✅체크=봇별 관리대상 · 헤더숫자=임계값(전역공통) · ●충분/○부족</div>
+      <button onclick="purgeStaleBots()" title="24시간 이상 신호 없는 죽은 봇 제거"
+        style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:800;color:#e74c3c;background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.4);border-radius:3px;padding:4px 10px;cursor:pointer;text-transform:uppercase;letter-spacing:.5px">🗑️ 죽은 봇 정리</button>
+    </div>
     <div style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead><tr style="border-bottom:2px solid rgba(255,255,255,.15)">
