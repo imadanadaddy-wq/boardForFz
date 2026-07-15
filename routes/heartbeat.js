@@ -302,7 +302,7 @@ router.get("/get", (req, res) => {
   const channel = req.query.ch;
   const level   = req.query.level;
   const meso    = req.query.meso;
-  const itemsRaw = req.query.items;
+  const itemsRaw = req.query.stock;   // stock flags: [{id,name,ok,th}]
 
   if (!ign || !owner || !token)
     return res.status(400).json({ error: "Missing: ign, owner, token" });
@@ -320,7 +320,7 @@ router.get("/get", (req, res) => {
   const hasMeso = meso !== undefined && meso !== "";
   const mesoNum = hasMeso ? Number(meso) : null;
 
-  // items 파싱 (URL 인코딩된 JSON)
+  // stock 파싱 (URL 인코딩된 JSON: [{id,name,ok,th}])
   let items = [];
   if (itemsRaw) {
     try { items = JSON.parse(itemsRaw); } catch (e) { items = []; }
