@@ -291,4 +291,60 @@ router.get("/", (req, res) => {
   })));
 });
 
+// ══════════════════════════════════════════════════
+// GET /api/bot-heartbeat/get  (Mesoboard Lite — Blvck/GET 방식)
+//   쿼리스트링으로 ign/map/ch 전송. POST가 불가한 환경(Blvck)용 경량 수신.
+//   예: /api/bot-heartbeat/get?owner=Hyeong&token=...&ign=CNCN071&map=410003110&ch=10
+// ══════════════════════════════════════════════════
+router.get("/get", (req, res) => {
+  const { owner, token, ign } = req.query;
+  const map_id  = req.query.map;
+  const channel = req.query.ch;
+
+  if (!ign || !owner || !token)
+    return res.status(400).json({ error: "Missing: ign, owner, token" });
+
+  // 토큰 검증 (POST와 동일)
+  const tokRow = db.get("SELECT token FROM tokens  WHERE owner=?", [owner])
+              || db.get("SELECT token FROM clients WHERE owner=?", [owner]);
+  if (!tokRow)                return res.status(401).json({ error: "Unknown owner" });
+  if (tokRow.token !== token) return res.status(401).json({ error: "Invalid token" });
+
+  const now = Date.now();
+  const chNum  = (channel !== undefined && channel !== "") ? Number(channel) : null;
+  const mapNum = (map_id  !== undefined && map_id  !== "") ? Number(map_id)  : null;
+
+  // 이전 상태 조회 (CC/맵 변경 감지용)
+  const prevHb = db.get("SELECT channel, map_id FROM heartbeats WHERE owner=? AND ign=?", [owner, ign]);
+
+  // heartbeats UPSERT (meso/level 등은 Lite라 유지값 없이 갱신)
+  db.run(
+    `INSERT INTO heartbeats (owner,ign,level,world_id,channel,map_id,client_tick,last_seen)
+     VALUES (?,?,?,?,?,?,?,?)
+     ON CONFLICT(owner,ign) DO UPDATE SET
+       channel=excluded.channel, map_id=excluded.map_id, last_seen=excluded.last_seen`,
+    [owner, ign, 0, null, chNum, mapNum, null, now]
+  );
+
+  // CC / 맵 변경 로그
+  if (prevHb) {
+    const oldCh  = prevHb.channel ?? null;
+    const oldMap = prevHb.map_id  ?? null;
+    if (String(oldCh) !== String(chNum)) {
+      db.run(
+        "INSERT INTO bot_change_log (ts,owner,ign,field,old_val,new_val) VALUES (?,?,?,?,?,?)",
+        [now, owner, ign, "cc", String(oldCh), String(chNum)]
+      );
+    }
+    if (String(oldMap) !== String(mapNum)) {
+      db.run(
+        "INSERT INTO bot_change_log (ts,owner,ign,field,old_val,new_val) VALUES (?,?,?,?,?,?)",
+        [now, owner, ign, "map", String(oldMap), String(mapNum)]
+      );
+    }
+  }
+
+  return res.json({ ok: true, ign, map: mapNum, ch: chNum });
+});
+
 module.exports = router;
