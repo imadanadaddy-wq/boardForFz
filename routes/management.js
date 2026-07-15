@@ -123,20 +123,48 @@ function itemCountById(items, id) {
   return it ? (it.count || 0) : 0;
 }
 // 재고 5종 수량 산출
+// stock에서 특정 id의 ok(충분) 여부를 찾음. 있으면 true/false, 없으면 null.
+function stockOkById(items, id) {
+  const sid = String(id);
+  const it = items.find(x => String(x.id) === sid);
+  if (!it) return null;
+  return it.ok === true;
+}
+
 function getStockCounts(items) {
-  // fuel: item id 2000039 우선, 없으면 이름 "연료"(에센스 제외) 폴백
-  let fuelCount = itemCountById(items, 2000039);
-  if (fuelCount === 0) fuelCount = itemCountByName(items, "연료", "에센스");
-  // ale: item id 2002023 우선, 없으면 이름 "ale" 폴백
-  let aleCount = itemCountById(items, 2002023);
-  if (aleCount === 0) aleCount = itemCountByName(items, "ale");
+  // ★ v4.3.0+ : Lua가 개수(count) 대신 stock flag [{id,name,ok,th}] 를 보냄
+  //   (Blvck에서 get_use_items 크래시 → has_item(id,threshold) boolean 사용)
+  //   프론트는 count < threshold 로 부족 판정하므로,
+  //   ok=true(충분) → 큰 더미값(임계값 이상), false(부족) → 0, 미보고 → 0 으로 매핑.
+  const th = getThresholds();
+  const enoughVal = (key) => {
+    const t = (th[key] !== undefined) ? th[key] : (ITEM_META[key]?.defThreshold || 1);
+    return t + 1;   // 임계값보다 1 큰 값 = "충분"으로 표시됨
+  };
+
+  // fuel (2000039)
+  const fuelOk = stockOkById(items, 2000039);
+  // ale (2002023)
+  const aleOk = stockOkById(items, 2002023);
+  // wap: Lua는 wap2(2003551)만 보냄. ok면 충분.
+  const wapOk = stockOkById(items, 2003551);
+  // petfeed (2120000)
+  const petOk = stockOkById(items, 2120000);
+  // charm (5130000): Lua가 cash탭이라 안 보냄 → null → 0
+  const charmOk = stockOkById(items, 5130000);
+
+  const mapVal = (ok, key) => {
+    if (ok === true)  return enoughVal(key);  // 충분
+    if (ok === false) return 0;               // 부족
+    return 0;                                 // 미보고
+  };
+
   return {
-    fuel: fuelCount,
-    ale:  aleCount,
-    // WAP 환산: 30분(2003611) + 2시간(2003551)x4  ★기존 로직 그대로
-    wap:  itemCountById(items, 2003611) + itemCountById(items, 2003551) * 4,
-    charm:   itemCountById(items, 5130000),
-    petfeed: itemCountById(items, 2120000),
+    fuel:    mapVal(fuelOk,  "fuel"),
+    ale:     mapVal(aleOk,   "ale"),
+    wap:     mapVal(wapOk,   "wap"),
+    charm:   mapVal(charmOk, "charm"),
+    petfeed: mapVal(petOk,   "petfeed"),
   };
 }
 
@@ -485,6 +513,8 @@ router.get("/item-table", requireAuth, (req, res) => {
   const now = Date.now();
   const actives = db.all("SELECT ign FROM active_bots ORDER BY ign");
   const thresholds = getThresholds();
+  // 죽은 봇 숨김: 마지막 신호가 STALE_HIDE_MS 이상 지난 봇은 목록에서 제외
+  const STALE_HIDE_MS = 24 * 60 * 60 * 1000;   // 24시간
   const out = [];
   for (const { ign } of actives) {
     const pd = db.get("SELECT owner, ign, level, items, last_seen FROM private_data WHERE ign=?", [ign]);
@@ -493,6 +523,9 @@ router.get("/item-table", requireAuth, (req, res) => {
     const counts = getStockCounts(items);
     const enabled = getBotEnabled(ign);
     const lastSeen = hb?.last_seen || pd?.last_seen || 0;
+    // 24시간 이상 신호 없는 봇은 스킵 (죽은 봇 잔존 방지)
+    if (lastSeen && (now - lastSeen) >= STALE_HIDE_MS) continue;
+    if (!lastSeen) continue;   // 신호 기록이 아예 없으면 스킵
     out.push({
       ign,
       level:  pd?.level || 0,
@@ -502,6 +535,27 @@ router.get("/item-table", requireAuth, (req, res) => {
     });
   }
   res.json({ rows: out, thresholds });   // 전역 임계값 동봉
+});
+
+// 죽은 봇 수동 제거: active_bots + heartbeats + private_data 에서 오래된(STALE) 봇 정리
+router.post("/purge-stale-bots", requireAuth, express.json(), (req, res) => {
+  const now = Date.now();
+  const STALE_MS = (req.body && req.body.hours ? Number(req.body.hours) : 24) * 60 * 60 * 1000;
+  const actives = db.all("SELECT ign FROM active_bots");
+  const purged = [];
+  for (const { ign } of actives) {
+    const hb = db.get("SELECT last_seen FROM heartbeats WHERE ign=?", [ign]);
+    const pd = db.get("SELECT last_seen FROM private_data WHERE ign=?", [ign]);
+    const lastSeen = hb?.last_seen || pd?.last_seen || 0;
+    if (!lastSeen || (now - lastSeen) >= STALE_MS) {
+      db.run("DELETE FROM active_bots  WHERE ign=?", [ign]);
+      db.run("DELETE FROM heartbeats   WHERE ign=?", [ign]);
+      db.run("DELETE FROM private_data WHERE ign=?", [ign]);
+      db.run("DELETE FROM bot_item_config WHERE ign=?", [ign]);
+      purged.push(ign);
+    }
+  }
+  res.json({ ok: true, purged, count: purged.length });
 });
 
 // 봇별 관리 on/off 저장: { ign, item_key, enabled }
